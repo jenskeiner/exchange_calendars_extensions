@@ -1,13 +1,5 @@
-# from exchange_calendars import ExchangeCalendar
-# from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
-# from exchange_calendars_extensions.holiday_calendar import get_extended_class, ExtendedExchangeCalendar
-#
-# cls = get_extended_class(XLONExchangeCalendar, day_of_week_expiry=4)
-
 from exchange_calendars import get_calendar, ExchangeCalendar
 from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
-
-import exchange_calendars_extensions
 from exchange_calendars_extensions import ExtendedExchangeCalendar, apply_extensions
 
 apply_extensions()

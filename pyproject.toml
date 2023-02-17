@@ -3,15 +3,15 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "exchange-calendars-extras"
+name = "exchange-calendars-extensions"
 version = "0.1.0"
-description = "Extras on top of the exchange_calendars package"
+description = "Extensions of the exchange_calendars package"
 license = "Apache-2.0"
 authors = ["Jens Keiner <jens.keiner@gmail.com>"]
 readme = "README.md"
-homepage = "https://github.com/jenskeiner/exchange_calendars_extras/"
-repository = "https://github.com/jenskeiner/exchange_calendars_extras/"
-documentation = "https://github.com/jenskeiner/exchange_calendars_extras/tree/master/docs/"
+homepage = "https://github.com/jenskeiner/exchange_calendars_extensions/"
+repository = "https://github.com/jenskeiner/exchange_calendars_extensions/"
+documentation = "https://github.com/jenskeiner/exchange_calendars_extensions/tree/master/docs/"
 keywords = ["exchange", "calendar", "trading", "holidays"]
 classifiers = [
 	"Development Status :: 4 - Beta",
@@ -26,7 +26,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Operating System :: OS Independent",
 ]
-packages = [{include = "exchange_calendars_extras"}]
+packages = [{include = "exchange_calendars_extensions"}]
 
 [tool.poetry.dependencies]
 python = "~=3.8"
