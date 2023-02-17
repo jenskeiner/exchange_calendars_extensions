@@ -4,7 +4,7 @@ import pandas as pd
 from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.pandas_extensions.holiday import Holiday
 
-from exchange_calendars_extras.offset import get_monthly_expiry_offset_class
+from exchange_calendars_extras.offset import get_third_day_of_week_in_month_offset_class
 from exchange_calendars_extras.util import get_day_of_week_name, get_month_name
 
 
@@ -15,7 +15,7 @@ def get_monthly_expiry_holiday(day_of_week: int, month: int, observance: Optiona
     month_name = get_month_name(month)
 
     return Holiday(f"MonthlyExpiry{month_name}{day_of_week_name}Offset", month=1, day=1,
-                   offset=get_monthly_expiry_offset_class(day_of_week, month)(), observance=observance)
+                   offset=get_third_day_of_week_in_month_offset_class(day_of_week, month)(), observance=observance)
 
 
 def get_monthly_expiry_calendar(day_of_week: int, observance: Optional[Callable[[pd.Timestamp], pd.Timestamp]] = None) -> HolidayCalendar:

@@ -64,28 +64,39 @@ class AbstractHolidayOffset(Easter):
         return date(dt.year, dt.month, dt.day) == self.holiday(dt.year).to_pydate()
 
 
-def get_monthly_expiry_offset_class(day_of_week: int, month: int) -> AbstractHolidayOffset:
+def get_third_day_of_week_in_month_offset_class(day_of_week: int, month: int) -> AbstractHolidayOffset:
     """
-    Return the date of the monthly expiry for the given year.
+    Return a new class that represents an offset that when applied to the first day of a year, results in the third given 
+    day of the week in the given month.
+    
+    For example, to get the offset for the third Friday in June, call this function with day_of_week=4 and month=6. On many
+    exchanges, this will be the quadruple witching day for the second quarter of the year.
     """
-    def expiry(year):
-        return third_day_of_week_in_month(day_of_week, month, year)
 
     @property
     def holiday(self):
-        return expiry
+        """
+            Return a function that returns the date of the day for a given year.
+        """
+        return lambda year: third_day_of_week_in_month(day_of_week, month, year)
 
+    # Get name of day of week.
     day_of_week_name = get_day_of_week_name(day_of_week)
 
-    # convert month to capitalized name of month.
+    # Get name of month.
     month_name = get_month_name(month)
 
-    # Create a new class.
+    # Create the new class.
     offset = type(f"MonthlyExpiry{month_name}{day_of_week_name}Offset", (AbstractHolidayOffset,), {
         "holiday": holiday,
     })
 
+    # Return the new class.
     return offset
 
 
-OffsetClasses = {day_of_week: {month: get_monthly_expiry_offset_class(day_of_week, month) for month in range(1, 13)} for day_of_week in range(7)}
+# A dictionary of dictionaries that maps day of week to month to corresponding offset class for select days of the week.
+# For example, to get the offset class for the third Friday in June, use the following: OffsetClasses[4][6].
+# This dictionary should contain classes for all required days of the week and months. Further days of the week may need 
+# to be added if a more exotic case arises.
+OffsetClasses = {day_of_week: {month: get_third_day_of_week_in_month_offset_class(day_of_week, month) for month in range(1, 13)} for day_of_week in [3, 4]}

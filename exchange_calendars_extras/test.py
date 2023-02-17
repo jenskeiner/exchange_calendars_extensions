@@ -8,7 +8,7 @@ from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars_extras.holiday import get_monthly_expiry_holiday, get_monthly_expiry_calendar, \
     get_quadruple_witching_calendar
 from exchange_calendars_extras.observance import get_roll_backward_observance
-from exchange_calendars_extras.offset import get_monthly_expiry_offset_class
+from exchange_calendars_extras.offset import get_third_day_of_week_in_month_offset_class
 
 xsto_calendar = exchange_calendars.get_calendar("XSTO").regular_holidays
 
@@ -16,7 +16,7 @@ observance = get_roll_backward_observance(xsto_calendar)
 
 cal = get_quadruple_witching_calendar(4, observance)
 
-x = get_monthly_expiry_offset_class(4, 6)
+x = get_third_day_of_week_in_month_offset_class(4, 6)
 print(x().holiday(2020))
 
 print(cal.holidays(start="2020-01-01", end="2020-12-31"))

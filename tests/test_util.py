@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from exchange_calendars_extras.util import get_day_of_week_name, get_month_name, third_day_of_week_in_month
+from exchange_calendars_extras.util import get_day_of_week_name, get_month_name, third_day_of_week_in_month, last_day_in_month
 
 
 def test_get_month_name():
@@ -137,3 +137,18 @@ def test_third_day_of_week_in_month():
     assert third_day_of_week_in_month(6, 10, 2023) == pd.Timestamp("2023-10-15")
     assert third_day_of_week_in_month(6, 11, 2023) == pd.Timestamp("2023-11-19")
     assert third_day_of_week_in_month(6, 12, 2023) == pd.Timestamp("2023-12-17")
+
+
+def test_last_day_in_month():
+    assert last_day_in_month(1, 2023) == pd.Timestamp("2023-01-31")
+    assert last_day_in_month(2, 2023) == pd.Timestamp("2023-02-28")
+    assert last_day_in_month(3, 2023) == pd.Timestamp("2023-03-31")
+    assert last_day_in_month(4, 2023) == pd.Timestamp("2023-04-30")
+    assert last_day_in_month(5, 2023) == pd.Timestamp("2023-05-31")
+    assert last_day_in_month(6, 2023) == pd.Timestamp("2023-06-30")
+    assert last_day_in_month(7, 2023) == pd.Timestamp("2023-07-31")
+    assert last_day_in_month(8, 2023) == pd.Timestamp("2023-08-31")
+    assert last_day_in_month(9, 2023) == pd.Timestamp("2023-09-30")
+    assert last_day_in_month(10, 2023) == pd.Timestamp("2023-10-31")
+    assert last_day_in_month(11, 2023) == pd.Timestamp("2023-11-30")
+    assert last_day_in_month(12, 2023) == pd.Timestamp("2023-12-31")

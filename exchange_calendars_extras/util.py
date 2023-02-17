@@ -61,3 +61,10 @@ def third_day_of_week_in_month(day_of_week: int, month: int, year: int) -> date:
         # Replace just the day of the month, adding a number of days, so that the day of the week is correct.
         third = third.replace(day=(15 + (day_of_week - w) % 7))
     return third
+
+
+def last_day_in_month(month: int, year: int):
+    """
+    Return the last day in the given month and year.
+    """
+    return (date(year, month, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
