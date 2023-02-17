@@ -6,10 +6,12 @@ from exchange_calendars.exchange_calendar import HolidayCalendar
 
 def get_roll_backward_observance(calendar: HolidayCalendar) -> Callable[[pd.Timestamp], pd.Timestamp]:
     """
-        Return a function that rolls back a date to the last regular business day.
+        Return a function that rolls back a date to the last regular business day, according to a given holiday
+        calendar.
 
-        Regular business days are those days that are not defined by the given calendar. This means, for example, that
-        the calendar must also define weekend days as holidays to avoid rolling the date back to a weekend day.
+        Regular business days are those days that are not defined as holidays by the given holiday calendar. This means,
+        for example, that the calendar must also define weekend days as holidays to avoid rolling the date back to a
+        such day.
     """
 
     def f(date: pd.Timestamp) -> pd.Timestamp:
@@ -22,7 +24,7 @@ def get_roll_backward_observance(calendar: HolidayCalendar) -> Callable[[pd.Time
             holidays = calendar.holidays(limit, date)
 
             while date >= limit:
-                # If the date us a holiday, roll it back one day.
+                # If the date is a holiday, roll it back one day.
                 if date in holidays:
                     date = date - pd.Timedelta(days=1)
                 else:

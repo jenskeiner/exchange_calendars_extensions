@@ -1,40 +1,22 @@
-# from .calendar_utils import (
-#     clear_calendars,
-#     deregister_calendar,
-#     get_calendar,
-#     get_calendar_names,
-#     register_calendar,
-#     register_calendar_alias,
-#     register_calendar_type,
-#     resolve_alias,
-#     names_to_aliases,
-#     aliases_to_names,
-# )
-#
-# from extended_exchange_calendar import ExtendedExchangeCalendar
-#
-# __all__ = [
-#     "clear_calendars",
-#     "deregister_calendar",
-#     "get_calendar",
-#     "get_calendar_names",
-#     "register_calendar",
-#     "register_calendar_alias",
-#     "register_calendar_type",
-#     "resolve_alias",
-#     "names_to_aliases",
-#     "aliases_to_names",
-#     "ExtendedExchangeCalendar",
-# ]
-#
-# __version__ = None
-#
-# from importlib.metadata import version
-#
-# try:
-#     # get version from installed package
-#     __version__ = version("exchange_calendars")
-# except ImportError:
-#     pass
-#
-# del version
+from exchange_calendars import register_calendar_type
+from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
+
+from .holiday_calendar import extend_class, ExtendedExchangeCalendar
+
+_extensions = {
+    "XLON": extend_class(XLONExchangeCalendar, day_of_week_expiry=4),
+}
+
+
+def apply_extensions():
+    """Apply extensions to exchange_calendars."""
+    for k, v in _extensions.items():
+        register_calendar_type(k, v, force=True)
+
+
+def set_extension(name, cls):
+    """Set an extension for a given exchange calendar."""
+    _extensions[name] = cls
+
+
+__all__ = ["apply_extensions", "set_extension", "extend_class", "ExtendedExchangeCalendar"]

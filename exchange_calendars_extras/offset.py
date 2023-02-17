@@ -4,7 +4,8 @@ import pandas as pd
 from pandas._libs.tslibs import localize_pydatetime
 from pandas._libs.tslibs.offsets import Easter, apply_wraps
 
-from exchange_calendars_extras.util import get_month_name, get_day_of_week_name, third_day_of_week_in_month
+from exchange_calendars_extras.util import get_month_name, get_day_of_week_name, third_day_of_week_in_month, \
+    last_day_in_month
 
 
 class AbstractHolidayOffset(Easter):
@@ -95,8 +96,39 @@ def get_third_day_of_week_in_month_offset_class(day_of_week: int, month: int) ->
     return offset
 
 
-# A dictionary of dictionaries that maps day of week to month to corresponding offset class for select days of the week.
-# For example, to get the offset class for the third Friday in June, use the following: OffsetClasses[4][6].
-# This dictionary should contain classes for all required days of the week and months. Further days of the week may need 
-# to be added if a more exotic case arises.
-OffsetClasses = {day_of_week: {month: get_third_day_of_week_in_month_offset_class(day_of_week, month) for month in range(1, 13)} for day_of_week in [3, 4]}
+# A dictionary of dictionaries that maps day of week to month to corresponding offset class.
+#
+# For example, to get the offset class for the third Friday in June, use the following: OffsetClasses[4][6]. To
+# instantiate the offset, use the following: OffsetClasses[4][6]().
+#
+# The offset classes can be used to define typical expiry days (options, futures, et cetera) on exchanges which
+# happen on the third Friday or Thursday in a month on most exchanges. The quarterly expiry days in months March, June,
+# September, and December are also called quadruple witching.
+#
+# Currently, includes only Thurdays and Fridays to avoid unnecessarily creating classes that will never be used. Add
+# more days here, if required.
+ThirdDayOfWeekInMonthOffsetClasses = {day_of_week: {month: get_third_day_of_week_in_month_offset_class(day_of_week, month) for month in range(1, 13)} for day_of_week in range(5)}
+
+
+def get_last_day_of_month_offset_class(month: int) -> AbstractHolidayOffset:
+    @property
+    def holiday(self):
+        """
+            Return a function that returns the last day of the month for a given year.
+        """
+        return lambda year: last_day_in_month(month, year)
+
+    # Get name of month.
+    month_name = get_month_name(month)
+
+    # Create the new class.
+    offset = type(f"LastDayOfMonth{month_name}Offset", (AbstractHolidayOffset,), {
+        "holiday": holiday,
+    })
+
+    # Return the new class.
+    return offset
+
+
+# A dictionary that maps month to corresponding offset class.
+LastDayOfMonthOffsetClasses = {month: get_last_day_of_month_offset_class(month) for month in range(1, 13)}
