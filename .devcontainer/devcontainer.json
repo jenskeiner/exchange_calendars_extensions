@@ -1,7 +1,17 @@
 {
-	"name": "poetry3-poetry-pyenv",
+	"name": "python3",
 	"build": {
 		"dockerfile": "Dockerfile"
+	},
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+		"terminal.integrated.shell.linux": "/bin/bash",
+		"python.testing.pytestArgs": [
+			"tests"
+		],
+		"python.testing.unittestEnabled": false,
+		"python.testing.pytestEnabled": true
 	},
 
 	// 👇 Features to add to the Dev Container. More info: https://containers.dev/implementors/features.
@@ -11,20 +21,19 @@
 	// "forwardPorts": [],
 
 	// 👇 Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "",
+	"postCreateCommand": "poetry install",
 
 	// 👇 Configure tool-specific properties.
 	"customizations": {
         "vscode": {
             "extensions":[
-				"ms-python.python",
-				"njpwerner.autodocstring",
-				"GitHub.copilot",
 				"donjayamanne.python-extension-pack"
 			]
             }
-        }
+        },
+
+
 
 	// 👇 Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
-}
+},
