@@ -211,15 +211,19 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pyluach"
-version = "2.0.2"
-description = "Pyluach is a Python package for manipulating Hebrew dates,"
+version = "2.1.0"
+description = "A Python package for dealing with Hebrew (Jewish) calendar dates."
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pyluach-2.0.2-py3-none-any.whl", hash = "sha256:560653fdb572ce47db02739c1497a0597ca4f53d95082e5db6e4f01a30a72ca2"},
-    {file = "pyluach-2.0.2.tar.gz", hash = "sha256:97894311f1b0d59f5fcab1d12147f8049bce315915d8dcd806bfbf41c94b50cf"},
+    {file = "pyluach-2.1.0-py3-none-any.whl", hash = "sha256:f17f380d141e46fc672baacd81187ca4f090ab8cde5cf5172e1bade6a03cad1b"},
+    {file = "pyluach-2.1.0.tar.gz", hash = "sha256:fc725140d3a096c2fd8f27f545f4d8c48d9202c20bbbae25ff8e98ab2a7d87e0"},
 ]
+
+[package.extras]
+doc = ["sphinx (>=6.1.3,<6.2.0)", "sphinx_rtd_theme (>=1.2.0,<1.3.0)"]
+test = ["beautifulsoup4", "flake8", "pytest", "pytest-cov"]
 
 [[package]]
 name = "pytest"
@@ -311,4 +315,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "~=3.8"
-content-hash = "a89a0a3e55e6dfe775a21ac4df940e488be7243c13ec9a18ebf3369a81b9ad6e"
+content-hash = "c7d9f04b88c253d3aaf04e396362521a14c6f3e7f41a7091b17af69b1aa18131"
