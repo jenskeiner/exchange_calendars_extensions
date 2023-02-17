@@ -1,6 +1,6 @@
 from pandas import DatetimeIndex, Series
 
-from exchange_calendars_extras.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday
+from exchange_calendars_extensions.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday
 
 import pandas as pd
 

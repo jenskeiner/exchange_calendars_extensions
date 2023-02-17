@@ -4,9 +4,9 @@ from typing import Optional, Callable
 import pandas as pd
 from exchange_calendars.pandas_extensions.holiday import Holiday
 
-from exchange_calendars_extras.offset import get_third_day_of_week_in_month_offset_class, LastDayOfMonthOffsetClasses, \
+from exchange_calendars_extensions.offset import get_third_day_of_week_in_month_offset_class, LastDayOfMonthOffsetClasses, \
     ThirdDayOfWeekInMonthOffsetClasses
-from exchange_calendars_extras.util import get_day_of_week_name, get_month_name
+from exchange_calendars_extensions.util import get_day_of_week_name, get_month_name
 
 
 def get_monthly_expiry_holiday(

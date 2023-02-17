@@ -1,6 +1,6 @@
 import pandas as pd
 
-from exchange_calendars_extras.offset import get_third_day_of_week_in_month_offset_class
+from exchange_calendars_extensions.offset import get_third_day_of_week_in_month_offset_class
 
 
 def test_get_third_day_of_week_in_month_offset_class():

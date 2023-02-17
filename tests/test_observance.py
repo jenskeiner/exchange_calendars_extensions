@@ -1,4 +1,4 @@
-from exchange_calendars_extras.observance import get_roll_backward_observance
+from exchange_calendars_extensions.observance import get_roll_backward_observance
 from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.pandas_extensions.holiday import Holiday
 

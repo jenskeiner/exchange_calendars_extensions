@@ -7,9 +7,9 @@ from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.pandas_extensions.holiday import Holiday
 import pandas as pd
 
-from exchange_calendars_extras.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday, \
+from exchange_calendars_extensions.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday, \
     get_last_day_of_month_holiday
-from exchange_calendars_extras.observance import get_roll_backward_observance
+from exchange_calendars_extensions.observance import get_roll_backward_observance
 
 
 def get_holiday_calendar_from_timestamps(timestamps: Iterable[pd.Timestamp], name: Optional[str] = None) -> HolidayCalendar:

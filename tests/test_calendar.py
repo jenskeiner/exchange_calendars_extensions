@@ -1,6 +1,6 @@
 import pandas as pd
 
-from exchange_calendars_extras.holiday_calendar import get_holiday_calendar_from_timestamps, get_holiday_calendar_from_day_of_week
+from exchange_calendars_extensions.holiday_calendar import get_holiday_calendar_from_timestamps, get_holiday_calendar_from_day_of_week
 
 
 def test_get_holiday_calendar_from_timestamps():
