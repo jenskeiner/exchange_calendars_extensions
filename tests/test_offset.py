@@ -1,6 +1,7 @@
 import pandas as pd
 
-from exchange_calendars_extensions.offset import get_third_day_of_week_in_month_offset_class
+from exchange_calendars_extensions.offset import get_third_day_of_week_in_month_offset_class, \
+    get_last_day_of_month_offset_class
 
 
 def test_get_third_day_of_week_in_month_offset_class():
@@ -28,3 +29,18 @@ def test_get_third_day_of_week_in_month_offset_class():
     assert get_third_day_of_week_in_month_offset_class(4, 11)().holiday(2020) == pd.Timestamp("2020-11-20 00:00:00")
     assert get_third_day_of_week_in_month_offset_class(3, 12)().holiday(2020) == pd.Timestamp("2020-12-17 00:00:00")
     assert get_third_day_of_week_in_month_offset_class(4, 12)().holiday(2020) == pd.Timestamp("2020-12-18 00:00:00")
+
+
+def test_get_last_day_of_month_offset_class():
+    assert get_last_day_of_month_offset_class(1)().holiday(2020) == pd.Timestamp("2020-01-31 00:00:00")
+    assert get_last_day_of_month_offset_class(2)().holiday(2020) == pd.Timestamp("2020-02-29 00:00:00")
+    assert get_last_day_of_month_offset_class(3)().holiday(2020) == pd.Timestamp("2020-03-31 00:00:00")
+    assert get_last_day_of_month_offset_class(4)().holiday(2020) == pd.Timestamp("2020-04-30 00:00:00")
+    assert get_last_day_of_month_offset_class(5)().holiday(2020) == pd.Timestamp("2020-05-31 00:00:00")
+    assert get_last_day_of_month_offset_class(6)().holiday(2020) == pd.Timestamp("2020-06-30 00:00:00")
+    assert get_last_day_of_month_offset_class(7)().holiday(2020) == pd.Timestamp("2020-07-31 00:00:00")
+    assert get_last_day_of_month_offset_class(8)().holiday(2020) == pd.Timestamp("2020-08-31 00:00:00")
+    assert get_last_day_of_month_offset_class(9)().holiday(2020) == pd.Timestamp("2020-09-30 00:00:00")
+    assert get_last_day_of_month_offset_class(10)().holiday(2020) == pd.Timestamp("2020-10-31 00:00:00")
+    assert get_last_day_of_month_offset_class(11)().holiday(2020) == pd.Timestamp("2020-11-30 00:00:00")
+    assert get_last_day_of_month_offset_class(12)().holiday(2020) == pd.Timestamp("2020-12-31 00:00:00")
