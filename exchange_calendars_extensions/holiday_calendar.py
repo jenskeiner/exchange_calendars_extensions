@@ -1,6 +1,6 @@
 from abc import ABC
 from functools import reduce
-from typing import Iterable, Optional, Callable
+from typing import Iterable, Optional, Callable, Union
 
 from exchange_calendars import ExchangeCalendar
 from exchange_calendars.exchange_calendar import HolidayCalendar as ExchangeHolidayCalendar
@@ -152,19 +152,19 @@ class ExtendedExchangeCalendar(ExchangeCalendar, ABC):
     def special_closes_all(self) -> HolidayCalendar:
         ...
     @property
-    def monthly_expiries(self) -> HolidayCalendar | None:
+    def monthly_expiries(self) -> Union[HolidayCalendar, None]:
         ...
 
     @property
-    def quarterly_expiries(self) -> HolidayCalendar | None:
+    def quarterly_expiries(self) -> Union[HolidayCalendar, None]:
         ...
 
     @property
-    def last_trading_days_of_months(self) -> HolidayCalendar | None:
+    def last_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
         ...
 
     @property
-    def last_regular_trading_days_of_months(self) -> HolidayCalendar | None:
+    def last_regular_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
         ...
 
 
@@ -187,35 +187,35 @@ def extend_class(cls: type, day_of_week_expiry: int = 4) -> type:
         self._last_regular_trading_day_of_month = get_last_day_of_month_calendar('last regular trading day of month', get_roll_backward_observance(weekends_holidays_and_special_days))
 
     @property
-    def weekend_days(self) -> HolidayCalendar | None:
+    def weekend_days(self) -> Union[HolidayCalendar, None]:
         return self._weekend_days
 
     @property
-    def holidays_all(self) -> HolidayCalendar | None:
+    def holidays_all(self) -> Union[HolidayCalendar, None]:
         return self._holidays_all
 
     @property
-    def special_opens_all(self) -> HolidayCalendar | None:
+    def special_opens_all(self) -> Union[HolidayCalendar, None]:
         return self._special_opens_all
 
     @property
-    def special_closes_all(self) -> HolidayCalendar | None:
+    def special_closes_all(self) -> Union[HolidayCalendar, None]:
         return self._special_closes_all
 
     @property
-    def monthly_expiries(self) -> HolidayCalendar | None:
+    def monthly_expiries(self) -> Union[HolidayCalendar, None]:
         return self._monthly_expiry_days
 
     @property
-    def quarterly_expiries(self) -> HolidayCalendar | None:
+    def quarterly_expiries(self) -> Union[HolidayCalendar, None]:
         return self._quarterly_expiry_days
 
     @property
-    def last_trading_days_of_months(self) -> HolidayCalendar | None:
+    def last_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
         return self._last_trading_day_of_month
 
     @property
-    def last_regular_trading_days_of_months(self) -> HolidayCalendar | None:
+    def last_regular_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
         return self._last_regular_trading_day_of_month
 
     # Use type to create a new class.
