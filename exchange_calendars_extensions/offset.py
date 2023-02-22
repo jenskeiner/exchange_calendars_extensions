@@ -105,7 +105,7 @@ def get_third_day_of_week_in_month_offset_class(day_of_week: int, month: int) ->
 # happen on the third Friday or Thursday in a month on most exchanges. The quarterly expiry days in months March, June,
 # September, and December are also called quadruple witching.
 #
-# Currently, includes only Thurdays and Fridays to avoid unnecessarily creating classes that will never be used. Add
+# Currently, includes only Thursdays and Fridays to avoid unnecessarily creating classes that will never be used. Add
 # more days here, if required.
 ThirdDayOfWeekInMonthOffsetClasses = {day_of_week: {month: get_third_day_of_week_in_month_offset_class(day_of_week, month) for month in range(1, 13)} for day_of_week in range(5)}
 

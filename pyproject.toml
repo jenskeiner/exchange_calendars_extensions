@@ -11,7 +11,7 @@ authors = ["Jens Keiner <jens.keiner@gmail.com>"]
 readme = "README.md"
 homepage = "https://github.com/jenskeiner/exchange_calendars_extensions/"
 repository = "https://github.com/jenskeiner/exchange_calendars_extensions/"
-documentation = "https://github.com/jenskeiner/exchange_calendars_extensions/tree/master/docs/"
+documentation = "https://github.com/jenskeiner/exchange_calendars_extensions/tree/main/docs/"
 keywords = ["exchange", "calendar", "trading", "holidays"]
 classifiers = [
 	"Development Status :: 4 - Beta",

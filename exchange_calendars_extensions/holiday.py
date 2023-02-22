@@ -4,9 +4,8 @@ from typing import Optional, Callable
 import pandas as pd
 from exchange_calendars.pandas_extensions.holiday import Holiday
 
-from exchange_calendars_extensions.offset import get_third_day_of_week_in_month_offset_class, LastDayOfMonthOffsetClasses, \
+from exchange_calendars_extensions.offset import LastDayOfMonthOffsetClasses, \
     ThirdDayOfWeekInMonthOffsetClasses
-from exchange_calendars_extensions.util import get_day_of_week_name, get_month_name
 
 
 def get_monthly_expiry_holiday(
@@ -123,4 +122,4 @@ class DayOfWeekPeriodicHoliday(Holiday):
         # Get DateTimeIndex with the dates of the holidays.
         dates = self._dates(start_date, end_date)
 
-        return pd.Series(self.name, index=dates) if return_name else dates
+        return pd.Series(self.name, index=dates, dtype=pd.DatetimeTZDtype) if return_name else dates
