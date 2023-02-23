@@ -1,4 +1,4 @@
-name: Publish Python 🐍 distributions 📦 to PyPI
+name: Publish Python distributions to PyPI
 
 on:
   workflow_dispatch
@@ -16,8 +16,8 @@ jobs:
       with:
         python-version: "3.10"
         cache: 'poetry'
-    - name: Install dependencies.
-      run: poetry install
+    - name: Generate requirements.txt
+      run: poetry export -f requirements.txt --without-hashes > requirements.txt
     - name: Build package
       run: poetry build
     - name: Publish distribution 📦 to Test PyPI
@@ -32,7 +32,8 @@ jobs:
         i=0
         while (($i<12)) && [ "0.1.0" != $(pip index versions -i https://test.pypi.org/simple --pre exchange_calendars_extensions | cut -d'(' -f2 | cut -d')' -f1 | sed 1q) ];\
           do echo waiting for package to appear in test index, sleeping 5s; sleep 5s; let i++; done
-        pip install --index-url https://test.pypi.org/simple exchange_calendars_extensions==0.1.0
+        pip install --index-url https://test.pypi.org/simple exchange_calendars_extensions==0.1.0 --no-deps
+        pip install -r requirements.txt
         python -c 'import exchange_calendars_extensions;print("success")'
 #
 #    - name: Clean pip
