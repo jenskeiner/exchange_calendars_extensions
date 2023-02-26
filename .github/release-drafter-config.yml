@@ -1,0 +1,24 @@
+name-template: '$NEXT_PATCH_VERSION'
+tag-template: '$NEXT_PATCH_VERSION'
+categories:
+  - title: 'Added'
+    labels:
+      - 'new feature'
+  - title: 'Changed'
+    labels:
+      - 'enhancement'
+  - title: 'Deprecated'
+    labels:
+      - 'deprecation'
+  - title: 'Removed'
+    labels:
+      - 'removal'
+  - title: 'Fixed'
+    labels:
+      - 'bug'
+  - title: 'Security'
+    labels:
+      - 'security'
+template: |
+  # What’s Changed
+  $CHANGES
