@@ -35,12 +35,10 @@ jobs:
         pip install --index-url https://test.pypi.org/simple exchange_calendars_extensions==0.1.0 --no-deps
         pip install -r requirements.txt
         python -c 'import exchange_calendars_extensions;print("success")'
-#
-#    - name: Clean pip
-#      run: |
-#        pip uninstall -y exchange_calendars
-#        pip cache purge
-#
+    - name: Clean pip
+      run: |
+        pip uninstall -y exchange_calendars_extensions
+        pip cache purge
 #    - name: Publish distribution 📦 to PyPI
 #      uses: pypa/gh-action-pypi-publish@release/v1
 #      with:
