@@ -9,7 +9,7 @@ jobs:
   draft-release-publish:
     name: Draft a new release
     permissions:
-      # write permission is required to create a github release
+      # write permission is required to create a GitHub release
       contents: write
       # write permission is required for autolabeler
       # otherwise, read permission is required at least
