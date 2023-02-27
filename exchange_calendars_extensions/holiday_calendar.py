@@ -1,6 +1,6 @@
 from abc import ABC
 from functools import reduce
-from typing import Iterable, Optional, Callable, Union, Type
+from typing import Iterable, Optional, Callable, Union, Type, Protocol
 
 from exchange_calendars import ExchangeCalendar
 from exchange_calendars.exchange_calendar import HolidayCalendar as ExchangeHolidayCalendar
@@ -134,7 +134,7 @@ def get_last_day_of_month_calendar(name: Optional[str] = 'last trading day of mo
     return ExchangeHolidayCalendar(rules=rules)
 
 
-class ExtendedExchangeCalendar(ExchangeCalendar, ABC):
+class ExchangeCalendarExtensions(Protocol):
 
     @property
     def weekend_days(self) -> HolidayCalendar:
@@ -165,7 +165,11 @@ class ExtendedExchangeCalendar(ExchangeCalendar, ABC):
 
     @property
     def last_regular_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
-        ...  # pragma: no cover
+        ...
+
+
+class ExtendedExchangeCalendar(ExchangeCalendar, ExchangeCalendarExtensions, ABC):
+    ...
 
 
 def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4) -> type:
