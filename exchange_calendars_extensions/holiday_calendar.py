@@ -1,6 +1,6 @@
 from abc import ABC
 from functools import reduce
-from typing import Iterable, Optional, Callable, Union
+from typing import Iterable, Optional, Callable, Union, Type
 
 from exchange_calendars import ExchangeCalendar
 from exchange_calendars.exchange_calendar import HolidayCalendar as ExchangeHolidayCalendar
@@ -138,38 +138,78 @@ class ExtendedExchangeCalendar(ExchangeCalendar, ABC):
 
     @property
     def weekend_days(self) -> HolidayCalendar:
-        ...
+        ...  # pragma: no cover
 
     @property
     def holidays_all(self) -> HolidayCalendar:
-        ...
+        ...  # pragma: no cover
 
     @property
     def special_opens_all(self) -> HolidayCalendar:
-        ...
+        ...  # pragma: no cover
 
     @property
     def special_closes_all(self) -> HolidayCalendar:
-        ...
+        ...  # pragma: no cover
     @property
     def monthly_expiries(self) -> Union[HolidayCalendar, None]:
-        ...
+        ...  # pragma: no cover
 
     @property
     def quarterly_expiries(self) -> Union[HolidayCalendar, None]:
-        ...
+        ...  # pragma: no cover
 
     @property
     def last_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
-        ...
+        ...  # pragma: no cover
 
     @property
     def last_regular_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
-        ...
+        ...  # pragma: no cover
 
 
-# A function that takes a class as an argument and returns a class.
-def extend_class(cls: type, day_of_week_expiry: int = 4) -> type:
+def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4) -> type:
+    """
+    Extend the given ExchangeCalendar class with additional properties.
+
+    This method returns an extended version of the given ExchangeCalendar sub-class with additional properties.
+    Specifically, this method adds the following properties:
+    - holidays_all: a HolidayCalendar with all holidays, regular and ad-hoc.
+    - special_opens_all: a HolidayCalendar with all special open days, regular and ad-hoc.
+    - special_closes_all: a HolidayCalendar with all special close days, regular and ad-hoc.
+    - weekend_days: a HolidayCalendar with all weekend days.
+    - monthly_expiries: a HolidayCalendar with all monthly expiry days.
+    - quarterly_expiries: a HolidayCalendar with all quarterly expiry days.
+    - last_trading_days_of_months: a HolidayCalendar with the respective last trading day of each month.
+    - last_regular_trading_days_of_months: a HolidayCalendar with the respective last regular trading day of each month.
+
+    The properties holidays_all, special_opens_all, and special_closes_all make it more convenient to determine relevant
+    days in a given date range since regular and ad-hoc special days are merged into a single calendar.
+
+    The property weekend_days may be useful to determine weekend days in a given date range since parsing the weekmask
+    property of the underlying ExchangeCalendar class is avoided.
+
+    The property monthly_expiries returns expiry days for months January, February, April, May, July, August, October,
+    and November. For most exchanges, these days are the third Friday or Thursday in the respective month. If that day
+    is a holiday or special open/close day, an observance rule determines where the expiry day is shifted to. Typically,
+    this will be the previous regular business day. For exchanges that do not observe monthly expiry days, this property
+    may throw NotImplementedError.
+
+    Similarly to monthly_expiries, the property quarterly_expiries returns expiry days for months March, June, September,
+    and December, also known as quarterly expiries or triple/quadruple witching.
+
+    The property last_trading_days_of_months returns the last trading day of each month. Note that the last trading day
+    may be a special open/close day.
+
+    The property last_regular_trading_days_of_months returns the last regular trading day of each month. The only
+    difference to last_trading_days_of_months is that this property always returns the last regular trading day and
+    never a special open/close day. That is, if the last trading day of a month is a special open/close day, here the
+    day is rolled back to the previous regular trading day instead.
+
+    :param cls: the input class to extend.
+    :param day_of_week_expiry: the day of the week when expiry days are observed. Defaults to 4, which is Friday.
+    :return: the extended class.
+    """
     init = cls.__init__
 
     def __init__(self, *args, **kwargs):
@@ -177,14 +217,14 @@ def extend_class(cls: type, day_of_week_expiry: int = 4) -> type:
         self._holidays_all = get_holidays_calendar(self)
         self._special_opens_all = get_special_opens_calendar(self)
         self._special_closes_all = get_special_closes_calendar(self)
-        special_days = merge_calendars([self._special_opens_all, self._special_closes_all])
+        special_business_days = merge_calendars([self._special_opens_all, self._special_closes_all])
         self._weekend_days = get_weekend_days_calendar(self)
         weekends_and_holidays = merge_calendars([self._weekend_days, self._holidays_all])
-        weekends_holidays_and_special_days = merge_calendars([weekends_and_holidays, special_days])
-        self._monthly_expiry_days = get_monthly_expiry_calendar(day_of_week_expiry, get_roll_backward_observance(weekends_holidays_and_special_days))
-        self._quarterly_expiry_days = get_quadruple_witching_calendar(day_of_week_expiry, get_roll_backward_observance(weekends_holidays_and_special_days))
+        weekends_holidays_and_special_business_days = merge_calendars([weekends_and_holidays, special_business_days])
+        self._monthly_expiry_days = get_monthly_expiry_calendar(day_of_week_expiry, get_roll_backward_observance(weekends_holidays_and_special_business_days))
+        self._quarterly_expiry_days = get_quadruple_witching_calendar(day_of_week_expiry, get_roll_backward_observance(weekends_holidays_and_special_business_days))
         self._last_trading_day_of_month = get_last_day_of_month_calendar('last trading day of month', get_roll_backward_observance(weekends_and_holidays))
-        self._last_regular_trading_day_of_month = get_last_day_of_month_calendar('last regular trading day of month', get_roll_backward_observance(weekends_holidays_and_special_days))
+        self._last_regular_trading_day_of_month = get_last_day_of_month_calendar('last regular trading day of month', get_roll_backward_observance(weekends_holidays_and_special_business_days))
 
     @property
     def weekend_days(self) -> Union[HolidayCalendar, None]:
