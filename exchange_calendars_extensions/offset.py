@@ -29,7 +29,7 @@ class AbstractHolidayOffset(Easter):
         Return the Gregorian date for the holiday in a given Gregorian calendar
         year.
         """
-        pass
+        ...  # pragma: no cover
 
     @apply_wraps
     def _apply(self, other):
