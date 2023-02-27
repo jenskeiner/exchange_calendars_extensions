@@ -14,12 +14,12 @@ def apply_extensions():
         register_calendar_type(k, v, force=True)
 
 
-def set_extension(name, cls):
+def register_extension(name, cls):
     """Set an extension for a given exchange calendar."""
     _extensions[name] = cls
 
 
-__all__ = ["apply_extensions", "set_extension", "extend_class", "ExtendedExchangeCalendar"]
+__all__ = ["apply_extensions", "register_extension", "extend_class", "ExtendedExchangeCalendar"]
 
 __version__ = None
 
