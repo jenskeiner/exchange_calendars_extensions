@@ -122,7 +122,7 @@ def get_quadruple_witching_calendar(day_of_week: int, observance: Optional[Calla
     """
     Return a calendar with a holiday for each quarterly expiry aka quadruple witching.
     """
-    rules = [get_monthly_expiry_holiday('quadruple witching', day_of_week, month, observance) for month in [3, 6, 9, 12]]
+    rules = [get_monthly_expiry_holiday('quarterly expiry', day_of_week, month, observance) for month in [3, 6, 9, 12]]
     return ExchangeHolidayCalendar(rules=rules)
 
 
