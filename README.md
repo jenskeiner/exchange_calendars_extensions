@@ -31,10 +31,6 @@ Get exchange calendar instance.
 from exchange_calendars import get_calendar
 
 calendar = get_calendar('XLON')
-
-assert isinstance(calendar, exchange_calendars_extensions.ExtendedExchangeCalendar)
-assert isinstance(calendar, exchange_calendars.ExchangeCalendar)
-assert isinstance(calendar, exchange_calendars_extensions.ExchangeCalendarExtensions)
 ```
 
 Extended calendars are subclasses of the abstract base class 
@@ -149,4 +145,28 @@ Note the difference in December, where 2023-12-29 is a special close day, while 
 
 ## Supported exchanges
 This package currently provides extensions for the following subset of exchanges supported by `exchange_calendars`:
-- `XLON`: London Stock Exchange
+- ASEX
+- BMEX
+- XAMS
+- XBRU
+- XBUD
+- XCSE
+- XDUB
+- XETR
+- XHEL
+- XIST
+- XJSE
+- XLIS
+- XLON
+- XMIL
+- XNAS
+- XNYS
+- XOSL
+- XPAR
+- XPRA
+- XSTO
+- XSWX
+- XTAE
+- XTSE
+- XWAR
+- XWBO
