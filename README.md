@@ -184,8 +184,8 @@ This package currently provides extensions for the following subset of exchanges
 
 ### Adding an extended calendar for a new exchange
 
-To facilitate the creation of extended classes, the function `extend_class` is provided in the sub-module 
-`exchange_calendars_extensions.holiday_calendar`.
+To facilitate the creation of extended exchange calendar classes, the function `extend_class` is provided in the 
+sub-module `exchange_calendars_extensions.holiday_calendar`.
 ```python
 from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
 from exchange_calendars_extensions.holiday_calendar import extend_class
@@ -194,7 +194,7 @@ xlon_extended_cls = extend_class(XLONExchangeCalendar, day_of_week_expiry=4)
 ```
 The first argument to `extend_class` should be the class of the exchange calendar to be extended. The second parameter 
 is the day of the week on which expiry days are normally observed. The returned extended class directly inherits from 
-the passed base class, but also adds the additional attributes. 
+the passed base class, but also adds the additional attributes like `quarterly_expiries` et cetera.
 
 To register a new extended class for an exchange, use the `register_extension` function before calling `apply_extensions()`.
 ```python
