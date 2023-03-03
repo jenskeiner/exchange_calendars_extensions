@@ -1,14 +1,22 @@
 # exchange-calendars-extensions
 A Python package that transparently adds some features to the [exchange_calendars](https://github.com/gerrymanoim/exchange_calendars) 
-package:
+package.
+
+For select exchanges:
 - Add holiday calendar for regular and ad-hoc holidays combined.
-- Add holiday calendar for ad-hoc special open (close) days combined.
-- Add holiday calendar for weekend days from a holiday calendar.
-- Add holiday calendars for quarterly expiry days (aka quadruple witching) and monthly expiry days in the remaining 
-  months.
-- Add holiday calendars for last trading day of the month and last regular trading day of the month.
+- Add holiday calendar for regular and ad-hoc special open days combined.
+- Add holiday calendar for regular and ad-hoc special close days combined.
+- Add holiday calendar for weekend days.
+- Add holiday calendar for quarterly expiry days (aka quadruple witching).
+- Add holiday calendar for monthly expiry days (in month without quarterly expiry). 
+- Add holiday calendar for last trading day of the month
+- Add holiday calendar for last *regular* trading day of the month.
 
 ## Installation
+
+The package is available on [PyPI](https://pypi.org/project/exchange-calendars-extensions/) and can be installed via 
+[pip](https://pip.pypa.io/en/stable/) or other suitable dependency management tool like 
+[Poetry](https://python-poetry.org/).
 
 ```bash
 pip install exchange-calendars-extensions
@@ -25,8 +33,9 @@ Register extended exchange calendar classes with the `exchange_calendars` packag
 ```python
 exchange_calendars_extensions.apply_extensions()
 ```
+This will replace the default exchange calendar classes with the extended versions for supported exchanges; see [below](#supported-exchanges).
 
-Get exchange calendar instance.
+Get an exchange calendar instance.
 ```python
 from exchange_calendars import get_calendar
 
@@ -34,7 +43,7 @@ calendar = get_calendar('XLON')
 ```
 
 Extended calendars are subclasses of the abstract base class 
-`exchange_calendars.extensions.ExtendedExchangeCalendar` which inherits both from `exchange_calendars.ExchangeCalendar`
+`exchange_calendars_extensions.ExtendedExchangeCalendar` which inherits both from `exchange_calendars.ExchangeCalendar`
 and the protocol class `exchange_calendars_extensions.ExchangeCalendarExtensions`.
 ```python
 assert isinstance(calendar, exchange_calendars_extensions.ExtendedExchangeCalendar)
@@ -52,8 +61,8 @@ The extended calendars provide the following additional holiday calendars, all i
   days on which market index futures, options futures, stock options and stock futures expire, typically resulting in 
   increased volatility and traded volume. Quadruple witching is typically observed on the third Friday of March, June,
   September and December, although some exchanges observe it on Thursday instead. Also, collisions with holidays or
-  special open/close days may result in the quarterly expiry day being rolled to an otherwise regular business day, 
-  typically the previous day.
+  special open/close days may result in the quarterly expiry day being rolled backward to an otherwise regular business 
+- day.
 - `monthly_expiries`: Monthly expiry days. Similar to quarterly expiry days, but for the remaining months of the year.
   Monthly expiries are similar to quarterly expiries, but typically result in less extreme trading patterns and may thus
   be treated separately.
@@ -61,7 +70,7 @@ The extended calendars provide the following additional holiday calendars, all i
 - `last_regular_trading_days_of_months`: Last regular trading day of each month of the year, i.e. not a special 
   open/close or otherwise irregular day.
 
-### Examples
+## Examples
 ```python
 calendar = get_calendar('XLON')
 print(calendar.holidays_all.holidays(start='2020-01-01', end='2020-12-31', return_name=True))
@@ -106,7 +115,7 @@ dtype: object
 dtype: object
 ```
 
-Last trading days of the month:
+Last trading days of months:
 ```python
 calendar = get_calendar('XLON')
 print(calendar.last_trading_days_of_months.holidays(start='2023-01-01', end='2023-12-31', return_name=True))
@@ -170,3 +179,35 @@ This package currently provides extensions for the following subset of exchanges
 - XTSE
 - XWAR
 - XWBO
+
+## Advanced usage
+
+### Adding an extended calendar for a new exchange
+
+To facilitate the creation of extended classes, the function `extend_class` is provided in the sub-module 
+`exchange_calendars_extensions.holiday_calendar`.
+```python
+from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
+from exchange_calendars_extensions.holiday_calendar import extend_class
+
+xlon_extended_cls = extend_class(XLONExchangeCalendar, day_of_week_expiry=4)
+```
+The first argument to `extend_class` should be the class of the exchange calendar to be extended. The second parameter 
+is the day of the week on which expiry days are normally observed. The returned extended class directly inherits from 
+the passed base class, but also adds the additional attributes. 
+
+To register a new extended class for an exchange, use the `register_extension` function before calling `apply_extensions()`.
+```python
+from exchange_calendars_extensions import register_extension, apply_extensions
+
+register_extension(key, cls)
+
+apply_extensions()
+
+...
+```
+Here, `key` should be the name, i.e. not an alias, under which the extended class is registered with the 
+`exchange_calendars` package, and `cls` should be the extended class.
+
+## Contributing
+Contributions are welcome. Please open an issue or submit a pull request on GitHub.
