@@ -1,0 +1,61 @@
+name: Publish Python distributions to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'The git ref to build and publish'
+        required: true
+        default: 'main'
+        type: string
+
+jobs:
+  build-and-publish:
+    name: Build and publish Python distributions to TestPyPI
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ inputs.ref }}
+    - name: Install poetry
+      run: pipx install poetry
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        cache: 'poetry'
+    - name: Generate requirements.txt
+      run: poetry export -f requirements.txt --without-hashes > requirements.txt
+    - name: Build package
+      run: poetry build
+    - name: Publish distribution 📦 to Test PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.TEST_PYPI_PASSWORD }}
+        repository_url: https://test.pypi.org/legacy/
+        skip_existing: true
+    - name: Install from testpypi and import
+      run: |
+        i=0
+        while (($i<12)) && [ "0.1.1" != $(pip index versions -i https://test.pypi.org/simple --pre exchange_calendars_extensions | cut -d'(' -f2 | cut -d')' -f1 | sed 1q) ];\
+          do echo waiting for package to appear in test index, sleeping 5s; sleep 5s; let i++; done
+        pip install --index-url https://test.pypi.org/simple exchange_calendars_extensions==0.1.1 --no-deps
+        pip install -r requirements.txt
+        python -c 'import exchange_calendars_extensions;print(exchange_calendars_extensions.__version__)'
+    - name: Clean pip
+      run: |
+        pip uninstall -y exchange_calendars_extensions
+        pip cache purge
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_PASSWORD }}
+    - name: Install and import
+      run: |
+        i=0
+        while (($i<12)) && [ "0.1.1" != $(pip index versions -i https://pypi.org/simple --pre exchange_calendars_extensions | cut -d'(' -f2 | cut -d')' -f1 | sed 1q) ];\
+          do echo waiting for package to appear in index, sleeping 5s; sleep 5s; let i++; done
+        pip install --index-url https://pypi.org/simple exchange_calendars_extensions==0.1.1
+        python -c 'import exchange_calendars_extensions;print(exchange_calendars_extensions.__version__)'
