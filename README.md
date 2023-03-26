@@ -1,21 +1,27 @@
 # exchange-calendars-extensions
-A Python package that transparently adds some features to the [exchange_calendars](https://github.com/gerrymanoim/exchange_calendars) 
+A Python package that transparently adds some features to the [exchange-calendars](https://pypi.org/project/exchange-calendars/) 
 package.
 
-For select exchanges:
-- Add holiday calendar for regular and ad-hoc holidays combined.
-- Add holiday calendar for regular and ad-hoc special open days combined.
-- Add holiday calendar for regular and ad-hoc special close days combined.
-- Add holiday calendar for weekend days.
-- Add holiday calendar for quarterly expiry days (aka quadruple witching).
-- Add holiday calendar for monthly expiry days (in month without quarterly expiry). 
-- Add holiday calendar for last trading day of the month
-- Add holiday calendar for last *regular* trading day of the month.
+For select exchanges, this package adds a holiday calendar for regular and ad-hoc holidays combined. This avoids the 
+need to combine regular and ad-hoc holidays manually.
+
+The package provides similar calendars for special open/close days as well, respectively. Note, however, that these 
+calendars may combine special open/close days with different open/close times and the time information cannot be 
+recovered.
+
+A new calendar that contains all weekend days as per the underlying weekmask is also added.
+
+In addition to information already available in [exchange-calendars](https://pypi.org/project/exchange-calendars/), the 
+package provides calendars for the following trading sessions:
+- quarterly expiry days (aka quadruple witching),
+- monthly expiry days (in all months without quarterly expiry day), 
+- last trading session of the month, and
+- last *regular* trading session of the month.
 
 ## Installation
 
 The package is available on [PyPI](https://pypi.org/project/exchange-calendars-extensions/) and can be installed via 
-[pip](https://pip.pypa.io/en/stable/) or other suitable dependency management tool like 
+[pip](https://pip.pypa.io/en/stable/) or any other suitable dependency management tool, e.g. 
 [Poetry](https://python-poetry.org/).
 
 ```bash
@@ -29,7 +35,7 @@ Import the package.
 import exchange_calendars_extensions
 ```
 
-Register extended exchange calendar classes with the `exchange_calendars` package.
+Register extended exchange calendar classes with the `exchange_calendars` module.
 ```python
 exchange_calendars_extensions.apply_extensions()
 ```
@@ -42,32 +48,30 @@ from exchange_calendars import get_calendar
 calendar = get_calendar('XLON')
 ```
 
-Extended calendars are subclasses of the abstract base class 
-`exchange_calendars_extensions.ExtendedExchangeCalendar` which inherits both from `exchange_calendars.ExchangeCalendar`
-and the protocol class `exchange_calendars_extensions.ExchangeCalendarExtensions`.
+Extended exchange calendars are subclasses of the abstract base class 
+`exchange_calendars_extensions.ExtendedExchangeCalendar`. This class inherits both from `exchange_calendars.ExchangeCalendar`
+and the new protocol class `exchange_calendars_extensions.ExchangeCalendarExtensions` which defines the extended properties.
 ```python
 assert isinstance(calendar, exchange_calendars_extensions.ExtendedExchangeCalendar)
 assert isinstance(calendar, exchange_calendars.ExchangeCalendar)
 assert isinstance(calendar, exchange_calendars_extensions.ExchangeCalendarExtensions)
 ```
 
-The extended calendars provide the following additional holiday calendars, all instances of 
-`exchange_calendars.exchange_calendar.HolidayCalendar`:
+Extended exchange calendars provide the following calendars as properties:
 - `holidays_all`: Regular and ad-hoc holidays combined into a single calendar.
 - `special_opens_all`: Regular and ad-hoc special open days combined into a single calendar.
 - `special_closes_all`: Regular and ad-hoc special close days combined into a single calendar.
-- `weekend_days`: All weekend days, as defined by the underlying calendar's weekmask, in a single calendar.
+- `weekend_days`: All weekend days, as defined by the underlying weekmask, in a single calendar.
 - `quarterly_expiries`: Quarterly expiry days, also known as quadruple witching. Many exchanges observe special business
   days on which market index futures, options futures, stock options and stock futures expire, typically resulting in 
   increased volatility and traded volume. Quadruple witching is typically observed on the third Friday of March, June,
-  September and December, although some exchanges observe it on Thursday instead. Also, collisions with holidays or
-  special open/close days may result in the quarterly expiry day being rolled backward to an otherwise regular business 
-- day.
-- `monthly_expiries`: Monthly expiry days. Similar to quarterly expiry days, but for the remaining months of the year.
-  Monthly expiries are similar to quarterly expiries, but typically result in less extreme trading patterns and may thus
-  be treated separately.
-- `last_trading_days_of_months`: Last trading day of each month of the year.
-- `last_regular_trading_days_of_months`: Last regular trading day of each month of the year, i.e. not a special 
+  September and December, although some exchanges observe it on Thursday instead. Note that in the case of collisions 
+  with holidays or special open/close days, a quarterly expiry day is usually rolled backward to the previous and 
+  otherwise regular business day. 
+- `monthly_expiries`: Monthly expiry days. Similar to quarterly expiry days, but for all remaining months of the year. 
+  Provided in a separate calendar as they typically result in less extreme trading patterns.
+- `last_session_of_months`: The last trading session for each month of the year.
+- `last_regular_session_of_months`: Last regular trading session of each month of the year, i.e. not a special 
   open/close or otherwise irregular day.
 
 ## Examples
@@ -208,6 +212,33 @@ apply_extensions()
 ```
 Here, `key` should be the name, i.e. not an alias, under which the extended class is registered with the 
 `exchange_calendars` package, and `cls` should be the extended class.
+
+## Caveat: Merging calendars
+
+For the various calendars, [exchange-calendars](https://pypi.org/project/exchange-calendars/) defines and uses the class
+`exchange_calendars.exchange_calendar.HolidayCalendar` which is a direct subclass of the abstract base class
+`pandas.tseries.holiday.AbstractHolidayCalendar`.
+
+One of the assumptions of `AbstractHolidayCalendar` is that each contained rule that defines a holiday has a unique name.
+Thus, when merging two calendars via the `.merge()` method, the resulting calendar will only retain a single rule for
+each name, eliminating any duplicates.
+
+This creates a problem with the calendars provided by this package. For example, constructing the holiday calendar 
+backing `holidays_all` requires to add a rule for each ad-hoc holiday. However, since ad-hoc holidays don't define a 
+unique name, each rule would either have to generate a unique name for itself, or use the same name as the other rules. 
+This package uses the latter approach, i.e. all ad-hoc holidays are assigned the same name `ad-hoc holiday`.
+
+As a result, the built-in merge functionality of `AbstractHolidayCalendar` will eliminate all but one of the ad-hoc 
+holidays when merging with another calendar. This is not the desired behavior.
+
+To avoid this problem, this package defines the function `merge_calendars(calendars: Iterable[AbstractHolidayCalendar])`
+which returns a calendar that simply concatenates, in order, all rules from the passed-in calendars. The returned 
+calendar is a subclass of `HolidayCalendar` that handles possible duplicates by filtering them out before returning
+from a call to `holidays()`.
+
+**In essence: Always use `merge_calendars(...)` instead of `AbstractHolidayCalendar.merge(...)` when merging involves 
+any of the calendars added by this package. Keep in mind that for duplicate elimination, rules more to the front of the
+list have higher priority.**
 
 ## Contributing
 Contributions are welcome. Please open an issue or submit a pull request on GitHub.
