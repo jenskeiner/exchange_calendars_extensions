@@ -87,7 +87,7 @@ def test_merge_calendars_with_overlapping_holidays():
     calendar2 = get_holiday_calendar_from_timestamps([pd.Timestamp("2019-01-01"), pd.Timestamp("2019-01-03")])
     calendar = merge_calendars((calendar1, calendar2))
     holidays = calendar.holidays(start=pd.Timestamp("2019-01-01"), end=pd.Timestamp("2019-01-31"))
-    assert len(holidays == 3)
+    assert len(holidays) == 3
     assert pd.Timestamp("2019-01-01") in holidays
     assert pd.Timestamp("2019-01-02") in holidays
     assert pd.Timestamp("2019-01-03") in holidays
