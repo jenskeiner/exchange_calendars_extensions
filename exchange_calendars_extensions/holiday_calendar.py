@@ -7,6 +7,7 @@ from exchange_calendars.exchange_calendar import HolidayCalendar as ExchangeHoli
 from exchange_calendars.pandas_extensions.holiday import Holiday
 import pandas as pd
 
+from exchange_calendars_extensions import ExchangeCalendarChangeSet
 from exchange_calendars_extensions.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday, \
     get_last_day_of_month_holiday
 from exchange_calendars_extensions.observance import get_roll_backward_observance
@@ -172,7 +173,8 @@ class ExtendedExchangeCalendar(ExchangeCalendar, ExchangeCalendarExtensions, ABC
     ...
 
 
-def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4) -> type:
+def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
+                 changeset_provider: Callable[[], ExchangeCalendarChangeSet] = None) -> type:
     """
     Extend the given ExchangeCalendar class with additional properties.
 
@@ -212,12 +214,34 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4) -> ty
 
     :param cls: the input class to extend.
     :param day_of_week_expiry: the day of the week when expiry days are observed. Defaults to 4, which is Friday.
+    :param changeset_provider: The optional function that returns a changeset to apply to the calendar.
     :return: the extended class.
     """
-    init = cls.__init__
+    init_orig = cls.__init__
+    regular_holidays_orig = cls.regular_holidays.fget
 
     def __init__(self, *args, **kwargs):
-        init(self, *args, **kwargs)
+        if changeset_provider is not None:
+            changeset = changeset_provider()
+
+            # Add holidays.
+
+            rules = regular_holidays_orig(self).rules
+
+            for ts, name in changeset.holidays_add:
+                # Check if any rule collides with date.
+                for rule in rules:
+                    if len(rule.dates(start_date=ts, end_date=ts)) > 0:
+                        print(f"Warning: {rule} collides with {ts} {name}.")
+                        continue
+                rules.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
+
+            self._regular_holidays_rules = rules
+        else:
+            self._regular_holidays_rules = regular_holidays_orig(self).rules
+
+        init_orig(self, *args, **kwargs)
+
         self._holidays_all = get_holidays_calendar(self)
         self._special_opens_all = get_special_opens_calendar(self)
         self._special_closes_all = get_special_closes_calendar(self)
@@ -229,6 +253,10 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4) -> ty
         self._quarterly_expiry_days = get_quadruple_witching_calendar(day_of_week_expiry, get_roll_backward_observance(weekends_holidays_and_special_business_days))
         self._last_trading_day_of_month = get_last_day_of_month_calendar('last trading day of month', get_roll_backward_observance(weekends_and_holidays))
         self._last_regular_trading_day_of_month = get_last_day_of_month_calendar('last regular trading day of month', get_roll_backward_observance(weekends_holidays_and_special_business_days))
+
+    @property
+    def regular_holidays(self):
+        return HolidayCalendar(rules=self._regular_holidays_rules)
 
     @property
     def weekend_days(self) -> Union[HolidayCalendar, None]:
@@ -265,6 +293,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4) -> ty
     # Use type to create a new class.
     extended = type(cls.__name__ + "Extended", (cls, ExtendedExchangeCalendar), {
         "__init__": __init__,
+        "regular_holidays": regular_holidays,
         "weekend_days": weekend_days,
         "holidays_all": holidays_all,
         "special_opens_all": special_opens_all,
