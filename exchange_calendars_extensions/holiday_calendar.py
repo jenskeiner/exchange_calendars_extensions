@@ -238,8 +238,8 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
     init_orig = cls.__init__
     regular_holidays_orig = cls.regular_holidays.fget
     adhoc_holidays_orig = cls.adhoc_holidays.fget
-    special_opens_orig = cls.special_opens.fget
-    adhoc_special_opens_orig = cls.special_opens_adhoc.fget
+    special_closes_orig = cls.special_closes.fget
+    adhoc_special_closes_orig = cls.special_closes_adhoc.fget
 
     def is_in_holiday(holiday: Holiday, ts: pd.Timestamp) -> bool:
         """
@@ -249,13 +249,34 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
 
     def __init__(self, *args, **kwargs):
         if changeset_provider is not None:
-            changeset = changeset_provider()
+            changeset: ExchangeCalendarChangeSet = changeset_provider()
 
             # Get a copy of the original rules.
             regular_holidays_rules: List[Holiday] = regular_holidays_orig(self).rules.copy()
 
             # Get a copy of the original ad-hoc holidays.
             adhoc_holidays: List[pd.Timestamp] = adhoc_holidays_orig(self).copy()
+
+            # Remove holidays.
+
+            # Loop over holidays to remove.
+            for ts in changeset.holidays_remove:
+                # Determine any rules that coincide with ts.
+                rules_to_remove = [rule for rule in regular_holidays_rules if is_in_holiday(rule, ts)]
+
+                # Modify rules to exclude ts.
+                for rule in rules_to_remove:
+                    # Create a copies of rule with end date set to ts - 1 day and ts + 1 day, respectively.
+                    rule_before_ts = Holiday(rule.name, year=rule.year, month=rule.month, day=rule.day, end_date=ts - pd.Timedelta(days=1))
+                    rule_after_ts = Holiday(rule.name, year=rule.year, month=rule.month, day=rule.day, start_date=ts + pd.Timedelta(days=1))
+                    # Remove the original rule.
+                    regular_holidays_rules.remove(rule)
+                    # Add the new rules.
+                    regular_holidays_rules.append(rule_before_ts)
+                    regular_holidays_rules.append(rule_after_ts)
+
+                # Remove any ad-hoc holidays that coincide with ts.
+                adhoc_holidays = [adhoc_ts for adhoc_ts in adhoc_holidays if adhoc_ts != ts]
 
             # Add holidays.
 
@@ -271,28 +292,51 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
                     # Skip adding the holiday.
                     pass
 
-            # Remove holidays.
-
-            # Loop over holidays to remove.
-            for ts in changeset.holidays_remove:
-                # Determine any rules that coincide with ts.
-                rules_to_remove = [rule for rule in regular_holidays_rules if is_in_holiday(rule, ts)]
-
-                # Remove the rules.
-                for rule in rules_to_remove:
-                    regular_holidays_rules.remove(rule)
-
-                # Remove any ad-hoc holidays that coincide with ts.
-                adhoc_holidays = [adhoc_ts for adhoc_ts in adhoc_holidays if adhoc_ts != ts]
-
-            # Get a copy of the original special opens.
-            special_opens: List[Tuple[datetime.time, HolidayCalendar | int]] = special_opens_orig(self).copy()
+            # Get a copy of the original special closes.
+            special_closes: List[Tuple[datetime.time, List[Holiday] | int]] = [(t, d if isinstance(d, int) else d.rules.copy() ) for t, d in special_closes_orig(self).copy()]
 
             # Get a copy of the original ad-hoc special opens.
-            adhoc_special_opens: List[Tuple[datetime.time, pd.DatetimeIndex]] = adhoc_special_opens_orig(self).copy()
+            adhoc_special_closes: List[Tuple[datetime.time, pd.DatetimeIndex]] = adhoc_special_closes_orig(self).copy()
 
-            # Add special opens.
+            # Remove special closes.
+            
+            # Loop over special closes to remove.
+            #for ts in changeset.special_closes_remove:
+                # Determine any special closes that coincide with ts.
+            #    special_closes_to_remove = [(t, d) for t, d in special_closes if any([is_in_holiday(holiday, ts) for _, holiday in d])]
 
+                # Remove the special closes.
+            #    for special_close in special_closes_to_remove:
+            #        special_closes.remove(special_close)
+
+                # Remove any ad-hoc special closes that coincide with ts.
+            #    adhoc_special_closes = [(t, adhoc_ts) for t, adhoc_ts in adhoc_special_closes if ts not in adhoc_ts]
+
+            # Add special closes.
+            
+            # Loop over special closes to add.
+            for ts, t, name in changeset.special_closes_add:
+                # Determine number of existing special opens or ad-hoc special opens that collide with ts.
+                has_collisions = any([any([is_in_holiday(holiday, ts) for _, holiday in rules]) for _, rules in special_closes]) or any([ts in adhoc_ts for _, adhoc_ts in adhoc_special_closes])
+
+                if not has_collisions:
+                    # Add the special close.
+                    
+                    # Define the new Holiday.
+                    h = Holiday(name, year=ts.year, month=ts.month, day=ts.day)
+                    
+                    added = False
+                    for t0, rules in special_closes:
+                        if t == t0:
+                            rules.append(h)
+                            added = True
+                            break
+                    
+                    if not added:
+                        special_closes.append((t, [h]))
+                else:
+                    # Skip adding the special close.
+                    pass
 
 
         else:
