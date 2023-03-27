@@ -1,6 +1,8 @@
+import datetime
 from abc import ABC
+from dataclasses import dataclass
 from functools import reduce
-from typing import Iterable, Optional, Callable, Union, Type, Protocol
+from typing import Iterable, Optional, Callable, Union, Type, Protocol, List, Tuple
 
 from exchange_calendars import ExchangeCalendar
 from exchange_calendars.exchange_calendar import HolidayCalendar as ExchangeHolidayCalendar
@@ -169,6 +171,22 @@ class ExchangeCalendarExtensions(Protocol):
         ...
 
 
+@dataclass
+class AdjustedProperties:
+    regular_holidays_rules: List[Holiday]
+    adhoc_holidays: List[pd.Timestamp]
+    #regular_special_opens_rules: List[Holiday]
+    #regular_special_closes_rules: List[Holiday]
+    #holidays_all: HolidayCalendar
+    #special_opens_all: HolidayCalendar
+    #special_closes_all: HolidayCalendar
+    #weekend_days: HolidayCalendar
+    #monthly_expiry_days: Optional[HolidayCalendar]
+    #quarterly_expiry_days: Optional[HolidayCalendar]
+    #last_trading_session_of_months: Optional[HolidayCalendar]
+    #last_regular_session_days_of_months: Optional[HolidayCalendar]
+
+
 class ExtendedExchangeCalendar(ExchangeCalendar, ExchangeCalendarExtensions, ABC):
     ...
 
@@ -219,26 +237,71 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
     """
     init_orig = cls.__init__
     regular_holidays_orig = cls.regular_holidays.fget
+    adhoc_holidays_orig = cls.adhoc_holidays.fget
+    special_opens_orig = cls.special_opens.fget
+    adhoc_special_opens_orig = cls.special_opens_adhoc.fget
+
+    def is_in_holiday(holiday: Holiday, ts: pd.Timestamp) -> bool:
+        """
+        Determine if the given timestamp is a holiday.
+        """
+        return any([d == ts for d in holiday.dates(start_date=ts, end_date=ts)])
 
     def __init__(self, *args, **kwargs):
         if changeset_provider is not None:
             changeset = changeset_provider()
 
+            # Get a copy of the original rules.
+            regular_holidays_rules: List[Holiday] = regular_holidays_orig(self).rules.copy()
+
+            # Get a copy of the original ad-hoc holidays.
+            adhoc_holidays: List[pd.Timestamp] = adhoc_holidays_orig(self).copy()
+
             # Add holidays.
 
-            rules = regular_holidays_orig(self).rules
-
+            # Loop over holidays to add.
             for ts, name in changeset.holidays_add:
-                # Check if any rule collides with date.
-                for rule in rules:
-                    if len(rule.dates(start_date=ts, end_date=ts)) > 0:
-                        print(f"Warning: {rule} collides with {ts} {name}.")
-                        continue
-                rules.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
+                # Determine number of existing rules or ad-hoc holidays that collide with ts.
+                has_collisions = any([is_in_holiday(rule, ts) for rule in regular_holidays_rules]) or any([ts == adhoc_ts for adhoc_ts in adhoc_holidays])
 
-            self._regular_holidays_rules = rules
+                if not has_collisions:
+                    # Add the holiday.
+                    regular_holidays_rules.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
+                else:
+                    # Skip adding the holiday.
+                    pass
+
+            # Remove holidays.
+
+            # Loop over holidays to remove.
+            for ts in changeset.holidays_remove:
+                # Determine any rules that coincide with ts.
+                rules_to_remove = [rule for rule in regular_holidays_rules if is_in_holiday(rule, ts)]
+
+                # Remove the rules.
+                for rule in rules_to_remove:
+                    regular_holidays_rules.remove(rule)
+
+                # Remove any ad-hoc holidays that coincide with ts.
+                adhoc_holidays = [adhoc_ts for adhoc_ts in adhoc_holidays if adhoc_ts != ts]
+
+            # Get a copy of the original special opens.
+            special_opens: List[Tuple[datetime.time, HolidayCalendar | int]] = special_opens_orig(self).copy()
+
+            # Get a copy of the original ad-hoc special opens.
+            adhoc_special_opens: List[Tuple[datetime.time, pd.DatetimeIndex]] = adhoc_special_opens_orig(self).copy()
+
+            # Add special opens.
+
+
+
         else:
-            self._regular_holidays_rules = regular_holidays_orig(self).rules
+            # Just use the original rules and ad-hoc holidays.
+            regular_holidays_rules = regular_holidays_orig(self).rules
+            adhoc_holidays = adhoc_holidays_orig(self)
+
+        self._adjusted_properties = AdjustedProperties(regular_holidays_rules=regular_holidays_rules,
+                                                       adhoc_holidays=adhoc_holidays)
 
         init_orig(self, *args, **kwargs)
 
@@ -256,7 +319,11 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
 
     @property
     def regular_holidays(self):
-        return HolidayCalendar(rules=self._regular_holidays_rules)
+        return HolidayCalendar(rules=self._adjusted_properties.regular_holidays_rules)
+
+    @property
+    def adhoc_holidays(self):
+        return self._adjusted_properties.adhoc_holidays.copy()
 
     @property
     def weekend_days(self) -> Union[HolidayCalendar, None]:
@@ -294,6 +361,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
     extended = type(cls.__name__ + "Extended", (cls, ExtendedExchangeCalendar), {
         "__init__": __init__,
         "regular_holidays": regular_holidays,
+        "adhoc_holidays": adhoc_holidays,
         "weekend_days": weekend_days,
         "holidays_all": holidays_all,
         "special_opens_all": special_opens_all,
