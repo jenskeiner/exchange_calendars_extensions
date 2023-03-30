@@ -1,3 +1,5 @@
+import datetime
+
 import pandas as pd
 from exchange_calendars import register_calendar_type
 from exchange_calendars.exchange_calendar_asex import ASEXExchangeCalendar
@@ -27,6 +29,7 @@ from .changeset import ExchangeCalendarChangeSet
 from .holiday_calendar import extend_class, ExtendedExchangeCalendar
 
 
+# TODO: Add the following exchanges:
 # class BMEXExchangeCalendar:
 #     pass
 #
@@ -84,18 +87,48 @@ def register_extension(name, cls):
 def add_holiday(exchange: str, date: pd.Timestamp, name: str = "Holiday"):
     """Add a holiday to an exchange calendar."""
     cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
-    cs.holidays_add.append((date, name))
+    cs.holidays_add.add((date, name))
     _changesets[exchange] = cs
 
 
 def remove_holiday(exchange: str, date: pd.Timestamp):
     """Remove a holiday from an exchange calendar."""
     cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
-    cs.holidays_remove.append(date)
+    cs.holidays_remove.add(date)
     _changesets[exchange] = cs
 
 
-__all__ = ["apply_extensions", "register_extension", "extend_class", "add_holiday", "remove_holiday", "ExtendedExchangeCalendar"]
+def add_special_close(exchange: str, date: pd.Timestamp, t: datetime.time, name: str = "Special Close"):
+    """Add a special close to an exchange calendar."""
+    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    cs.special_closes_add.add((date, t, name))
+    _changesets[exchange] = cs
+
+
+def remove_special_close(exchange: str, date: pd.Timestamp):
+    """Remove a special close from an exchange calendar."""
+    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    cs.special_closes_remove.add(date)
+    _changesets[exchange] = cs
+
+
+def add_special_open(exchange: str, date: pd.Timestamp, t: datetime.time, name: str = "Special Open"):
+    """Add a special open to an exchange calendar."""
+    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    cs.special_opens_add.add((date, t, name))
+    _changesets[exchange] = cs
+
+
+def remove_special_open(exchange: str, date: pd.Timestamp):
+    """Remove a special close from an exchange calendar."""
+    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    cs.special_opens_remove.add(date)
+    _changesets[exchange] = cs
+
+
+__all__ = ["apply_extensions", "register_extension", "extend_class", "add_holiday", "remove_holiday",
+           "add_special_close", "remove_special_close", "add_special_open", "remove_special_open",
+           "ExtendedExchangeCalendar"]
 
 __version__ = None
 
