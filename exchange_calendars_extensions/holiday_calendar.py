@@ -2,7 +2,7 @@ import datetime
 from abc import ABC
 from dataclasses import dataclass
 from functools import reduce
-from typing import Iterable, Optional, Callable, Union, Type, Protocol, List, Tuple
+from typing import Iterable, Optional, Callable, Union, Type, Protocol, List, Tuple, runtime_checkable
 
 import pandas as pd
 from exchange_calendars import ExchangeCalendar
@@ -139,6 +139,7 @@ def get_last_day_of_month_calendar(name: Optional[str] = 'last trading day of mo
     return ExchangeHolidayCalendar(rules=rules)
 
 
+@runtime_checkable
 class ExchangeCalendarExtensions(Protocol):
 
     @property
@@ -179,8 +180,8 @@ class AdjustedProperties:
     adhoc_holidays: List[pd.Timestamp]
     special_closes: List[Tuple[datetime.time, List[Holiday] | int]]
     adhoc_special_closes: List[Tuple[datetime.time, pd.DatetimeIndex]]
-    #regular_special_opens_rules: List[Holiday]
-    #regular_special_closes_rules: List[Holiday]
+    special_opens: List[Tuple[datetime.time, List[Holiday] | int]]
+    adhoc_special_opens: List[Tuple[datetime.time, pd.DatetimeIndex]]
     #holidays_all: HolidayCalendar
     #special_opens_all: HolidayCalendar
     #special_closes_all: HolidayCalendar
@@ -353,81 +354,84 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
         if changeset_provider is not None:
             changeset: ExchangeCalendarChangeSet = changeset_provider()
 
-            # Remove holidays.
+            if changeset is not None:
+                # Remove holidays.
 
-            # Loop over holidays to remove.
-            for ts in changeset.holidays_remove:
-                remove_holiday(regular_holidays_rules, ts)
+                # Loop over holidays to remove.
+                for ts in changeset.holidays_remove:
+                    remove_holiday(regular_holidays_rules, ts)
 
-                # Remove any ad-hoc holidays that coincide with ts.
-                adhoc_holidays = [adhoc_ts for adhoc_ts in adhoc_holidays if adhoc_ts != ts]
+                    # Remove any ad-hoc holidays that coincide with ts.
+                    adhoc_holidays = [adhoc_ts for adhoc_ts in adhoc_holidays if adhoc_ts != ts]
 
-            # Add holidays.
+                # Add holidays.
 
-            # Loop over holidays to add.
-            for ts, name in changeset.holidays_add:
-                # Determine number of existing rules or ad-hoc holidays that collide with ts.
-                has_collisions = any([is_holiday(rule, ts) for rule in regular_holidays_rules]) or any([ts == adhoc_ts for adhoc_ts in adhoc_holidays])
+                # Loop over holidays to add.
+                for ts, name in changeset.holidays_add:
+                    # Determine number of existing rules or ad-hoc holidays that collide with ts.
+                    has_collisions = any([is_holiday(rule, ts) for rule in regular_holidays_rules]) or any([ts == adhoc_ts for adhoc_ts in adhoc_holidays])
 
-                if not has_collisions:
-                    # Add the holiday.
-                    regular_holidays_rules.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
-                else:
-                    # Skip adding the holiday.
-                    pass
-
-            # Remove special closes.
-            
-            # Loop over special closes to remove.
-            for ts in changeset.special_closes_remove:
-                # Loop over all times in special_closes.
-                for _, rules in special_closes:
-                    if isinstance(rules, int):
-                        # Check if the day of week corresponding to ts is the same as rules.
-                        if ts.dayofweek == rules:
-                            raise NotImplementedError("Removing a special close date that corresponds to a day of week rule is not supported.")
+                    if not has_collisions:
+                        # Add the holiday.
+                        regular_holidays_rules.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
                     else:
-                        # List of rules.
-                        remove_holiday(rules, ts)
+                        # Skip adding the holiday.
+                        pass
 
-                # Remove any ad-hoc holidays that coincide with ts.
-                adhoc_special_closes = [(_, adhoc_ts) if True else (_, adhoc_ts.drop(ts)) for _, adhoc_ts in adhoc_special_closes]
+                # Remove special closes.
 
-            # Add special closes.
-            
-            # Loop over special closes to add.
-            for ts, t, name in changeset.special_closes_add:
-                add_special_session(name, ts, t, special_closes, adhoc_special_closes)
+                # Loop over special closes to remove.
+                for ts in changeset.special_closes_remove:
+                    # Loop over all times in special_closes.
+                    for _, rules in special_closes:
+                        if isinstance(rules, int):
+                            # Check if the day of week corresponding to ts is the same as rules.
+                            if ts.dayofweek == rules:
+                                raise NotImplementedError("Removing a special close date that corresponds to a day of week rule is not supported.")
+                        else:
+                            # List of rules.
+                            remove_holiday(rules, ts)
 
-            # Remove special opens.
+                    # Remove any ad-hoc holidays that coincide with ts.
+                    adhoc_special_closes = [(_, adhoc_ts) if True else (_, adhoc_ts.drop(ts)) for _, adhoc_ts in adhoc_special_closes]
 
-            # Loop over special opens to remove.
-            for ts in changeset.special_opens_remove:
-                # Loop over all times in special_opens.
-                for _, rules in special_opens:
-                    if isinstance(rules, int):
-                        # Check if the day of week corresponding to ts is the same as rules.
-                        if ts.dayofweek == rules:
-                            raise NotImplementedError(
-                                "Removing a special open date that corresponds to a day of week rule is not supported.")
-                    else:
-                        # List of rules.
-                        remove_holiday(rules, ts)
+                # Add special closes.
 
-                # Remove any ad-hoc holidays that coincide with ts.
-                adhoc_special_opens = [(_, adhoc_ts) if True else (_, adhoc_ts.drop(ts)) for _, adhoc_ts in
-                                       adhoc_special_opens]
+                # Loop over special closes to add.
+                for ts, t, name in changeset.special_closes_add:
+                    add_special_session(name, ts, t, special_closes, adhoc_special_closes)
 
-            # Add special opens.
+                # Remove special opens.
 
-            # Loop over special opens to add.
-            for ts, t, name in changeset.special_opens_add:
-                add_special_session(name, ts, t, special_opens, adhoc_special_opens)
+                # Loop over special opens to remove.
+                for ts in changeset.special_opens_remove:
+                    # Loop over all times in special_opens.
+                    for _, rules in special_opens:
+                        if isinstance(rules, int):
+                            # Check if the day of week corresponding to ts is the same as rules.
+                            if ts.dayofweek == rules:
+                                raise NotImplementedError(
+                                    "Removing a special open date that corresponds to a day of week rule is not supported.")
+                        else:
+                            # List of rules.
+                            remove_holiday(rules, ts)
+
+                    # Remove any ad-hoc holidays that coincide with ts.
+                    adhoc_special_opens = [(_, adhoc_ts) if True else (_, adhoc_ts.drop(ts)) for _, adhoc_ts in
+                                           adhoc_special_opens]
+
+                # Add special opens.
+
+                # Loop over special opens to add.
+                for ts, t, name in changeset.special_opens_add:
+                    add_special_session(name, ts, t, special_opens, adhoc_special_opens)
 
         self._adjusted_properties = AdjustedProperties(regular_holidays_rules=regular_holidays_rules,
                                                        adhoc_holidays=adhoc_holidays,
                                                        special_closes=special_closes,
-                                                       adhoc_special_closes=adhoc_special_closes)
+                                                       adhoc_special_closes=adhoc_special_closes,
+                                                       special_opens=special_opens,
+                                                       adhoc_special_opens=adhoc_special_opens)
 
         init_orig(self, *args, **kwargs)
 
