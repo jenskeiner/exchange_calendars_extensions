@@ -8,6 +8,7 @@ import pytest
 from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.pandas_extensions.holiday import Holiday
 from pytz import timezone
+from pandas.tseries.holiday import next_workday
 
 
 def apply_extensions(f):
@@ -65,19 +66,19 @@ def add_test_calendar_and_apply_extensions(holidays: Optional[List[pd.Timestamp]
 
                 @property
                 def special_closes(self):
-                    return list(map(lambda x: (x[0], HolidayCalendar([Holiday(name=f"Special Close {i}", month=ts.month, day=ts.day) for i, ts in enumerate(x[1])])), special_closes)) if special_closes else []
+                    return list(map(lambda x: (x[0], HolidayCalendar([Holiday(name=f"Special Close {i}", month=ts.month, day=ts.day, observance=next_workday) for i, ts in enumerate(x[1])])), special_closes)) if special_closes else []
 
                 @property
                 def special_closes_adhoc(self):
-                    return adhoc_special_closes if adhoc_special_closes else []
+                    return list(map(lambda x: (x[0], pd.DatetimeIndex([x[1]] if not isinstance(x[1], list) else x[1])), adhoc_special_closes)) if adhoc_special_closes else []
 
                 @property
                 def special_opens(self):
-                    return list(map(lambda x: (x[0], HolidayCalendar([Holiday(name=f"Special Open {i}", month=ts.month, day=ts.day) for i, ts in enumerate(x[1])])), special_opens)) if special_opens else []
+                    return list(map(lambda x: (x[0], HolidayCalendar([Holiday(name=f"Special Open {i}", month=ts.month, day=ts.day, observance=next_workday) for i, ts in enumerate(x[1])])), special_opens)) if special_opens else []
 
                 @property
                 def special_opens_adhoc(self):
-                    return adhoc_special_opens if adhoc_special_opens else []
+                    return list(map(lambda x: (x[0], pd.DatetimeIndex([x[1]] if not isinstance(x[1], list) else x[1])), adhoc_special_opens)) if adhoc_special_opens else []
 
                 # Weekmask.
                 @property
@@ -89,6 +90,8 @@ def add_test_calendar_and_apply_extensions(holidays: Optional[List[pd.Timestamp]
             import exchange_calendars_extensions as ece
 
             ece.register_extension("TEST", TestCalendar, day_of_week_expiry=day_of_week_expiry)
+            
+            ece.apply_extensions()
 
             return f(*args, **kwargs)
 
@@ -166,8 +169,12 @@ def test_extended_calendar_xetr():
 @pytest.mark.isolated
 def test_extended_calendar_test():
     import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
 
     c = ec.get_calendar("TEST")
 
     holidays = c.regular_holidays.holidays(start=pd.Timestamp("2023-01-01"), end=pd.Timestamp("2023-12-31"))
     assert len(holidays) == 1
+    
+    assert isinstance(c, ece.ExtendedExchangeCalendar)
+    
