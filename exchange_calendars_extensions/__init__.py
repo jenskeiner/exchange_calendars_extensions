@@ -1,4 +1,6 @@
 import datetime
+from types import NoneType
+from typing import Union
 
 import pandas as pd
 from exchange_calendars import register_calendar_type
@@ -27,7 +29,6 @@ from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
 
 from .changeset import ExchangeCalendarChangeSet
 from .holiday_calendar import extend_class, ExtendedExchangeCalendar
-
 
 # TODO: Add the following exchanges:
 # class BMEXExchangeCalendar:
@@ -79,9 +80,9 @@ def apply_extensions():
         register_calendar_type(k, v, force=True)
 
 
-def register_extension(name, cls):
+def register_extension(name, cls, day_of_week_expiry: Union[NoneType, int] = None):
     """Set an extension for a given exchange calendar."""
-    _extensions[name] = cls
+    _extensions[name] = extend_class(cls, day_of_week_expiry=day_of_week_expiry, changeset_provider=lambda: _changesets.get(name))
 
 
 def add_holiday(exchange: str, date: pd.Timestamp, name: str = "Holiday"):
