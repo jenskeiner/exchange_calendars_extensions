@@ -73,7 +73,7 @@ def get_special_opens_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCa
     # Add ad-hoc special opens.
     for item in exchange_calendar.special_opens_adhoc:
         _, definition = item
-        holiday_calendars.append(get_holiday_calendar_from_timestamps(definition, name='ad-hoc special open day'))
+        holiday_calendars.append(get_holiday_calendar_from_timestamps(definition, name='ad-hoc special open'))
 
     # Add regular special open days.
     for item in exchange_calendar.special_opens:
@@ -81,7 +81,7 @@ def get_special_opens_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCa
         if isinstance(definition, ExchangeHolidayCalendar):
             holiday_calendars.append(definition)
         elif isinstance(definition, int):
-            holiday_calendars.append(get_holiday_calendar_from_day_of_week(definition, name='special open day'))
+            holiday_calendars.append(get_holiday_calendar_from_day_of_week(definition, name='special open'))
 
     # Merge all calendars by reducing the list of calendars into one, calling the merge method on each pair.
     return merge_calendars(holiday_calendars)
@@ -96,7 +96,7 @@ def get_special_closes_calendar(exchange_calendar: ExchangeCalendar) -> HolidayC
     # Add ad-hoc special closes.
     for item in exchange_calendar.special_closes_adhoc:
         _, definition = item
-        holiday_calendars.append(get_holiday_calendar_from_timestamps(definition, name='ad-hoc special close day'))
+        holiday_calendars.append(get_holiday_calendar_from_timestamps(definition, name='ad-hoc special close'))
 
     # Add regular special close days.
     for item in exchange_calendar.special_closes:
@@ -104,7 +104,7 @@ def get_special_closes_calendar(exchange_calendar: ExchangeCalendar) -> HolidayC
         if isinstance(definition, ExchangeHolidayCalendar):
             holiday_calendars.append(definition)
         elif isinstance(definition, int):
-            holiday_calendars.append(get_holiday_calendar_from_day_of_week(definition, name='special close day'))
+            holiday_calendars.append(get_holiday_calendar_from_day_of_week(definition, name='special close'))
 
     # Merge all calendars by reducing the list of calendars into one, calling the merge method on each pair.
     return merge_calendars(holiday_calendars)
