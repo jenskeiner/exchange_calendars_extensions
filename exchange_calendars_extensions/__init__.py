@@ -3,6 +3,7 @@ from types import NoneType
 from typing import Union
 
 import pandas as pd
+import exchange_calendars as ec
 from exchange_calendars import register_calendar_type
 from exchange_calendars.exchange_calendar_asex import ASEXExchangeCalendar
 from exchange_calendars.exchange_calendar_xams import XAMSExchangeCalendar
@@ -85,18 +86,40 @@ def register_extension(name, cls, day_of_week_expiry: Union[NoneType, int] = Non
     _extensions[name] = extend_class(cls, day_of_week_expiry=day_of_week_expiry, changeset_provider=lambda: _changesets.get(name))
 
 
+def _remove_calendar_from_factory_cache(name: str):
+    """Remove a calendar from the factory cache."""
+    # noinspection PyProtectedMember
+    ec.calendar_utils.global_calendar_dispatcher._factory_output_cache.pop(name, None)
+
+
 def add_holiday(exchange: str, date: pd.Timestamp, name: str = "Holiday"):
     """Add a holiday to an exchange calendar."""
     cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    # Check if holiday to add is already in the set of holidays to remove.
+    if date in cs.holidays_remove:
+        # Remove the holiday from the set of holidays to remove.
+        cs.holidays_remove.remove(date)
+    # Add the holiday to the set of holidays to add.
     cs.holidays_add.add((date, name))
     _changesets[exchange] = cs
+    _remove_calendar_from_factory_cache(exchange)
 
 
 def remove_holiday(exchange: str, date: pd.Timestamp):
     """Remove a holiday from an exchange calendar."""
     cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    # Check if holiday to remove is already in the set of holidays to add.
+    if date in map(lambda x: x[0], cs.holidays_add):
+        # Find the tuple that corresponds to the holiday to remove.
+        elem = next(x for x in cs.holidays_add if x[0] == date)
+
+        # Remove element from the set.
+        cs.holidays_add.remove(elem)
+
+    # Add the holiday to the set of holidays to remove.
     cs.holidays_remove.add(date)
     _changesets[exchange] = cs
+    _remove_calendar_from_factory_cache(exchange)
 
 
 def add_special_close(exchange: str, date: pd.Timestamp, t: datetime.time, name: str = "Special Close"):
