@@ -354,7 +354,7 @@ def test_extended_calendar_test():
 
 
 @pytest.mark.isolated
-def test_add_holiday():
+def test_add_new_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
@@ -386,7 +386,68 @@ def test_add_holiday():
 
 
 @pytest.mark.isolated
-def test_remove_regular_holiday():
+def test_overwrite_existing_regular_holiday():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Added holiday should overwrite existing regular holiday.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Added Holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+    # Added holiday should not be in ad-hoc holidays, i.e. this should be unmodified.
+    assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
+
+    # Added holiday should be in holidays_all calendar.
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Added Holiday",
+        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_overwrite_existing_adhoc_holiday():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), "Added Holiday")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Added holiday should be a regular holiday.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2023-02-01"): "Added Holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+    # Overwritten ad-hoc holiday should be removed from list.
+    assert c.adhoc_holidays == []
+
+    # Added holiday should be in holidays_all calendar.
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2023-02-01"): "Added Holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_existing_regular_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
@@ -414,7 +475,66 @@ def test_remove_regular_holiday():
 
 
 @pytest.mark.isolated
-def test_add_and_remove_same_holiday():
+def test_remove_existing_adhoc_holiday():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.remove_holiday("TEST", pd.Timestamp("2023-02-01"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Regular holidays should be untouched.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+    # Removed holiday should no longer be in ad-hoc holidays.
+    assert c.adhoc_holidays == []
+
+    # Removed day should not be in holidays_all calendar.
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_non_existent_holiday():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.remove_holiday("TEST", pd.Timestamp("2023-07-01"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Regular holidays should be untouched.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+    # Ad-hoc holidays should be untouched.
+    assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
+
+    # Calendar holidays_all should be untouched.
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_add_and_remove_new_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
@@ -446,13 +566,43 @@ def test_add_and_remove_same_holiday():
 
 
 @pytest.mark.isolated
-def test_remove_and_add_same_holiday():
+def test_add_and_remove_existing_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    # Remove and then add the same day. The removal of a non-existent holiday should be ignored, so the day should be
-    # added eventually.
+    # Add and then remove the same existing holiday. The day should be removed.
+    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday")
+    ece.remove_holiday("TEST", pd.Timestamp("2023-01-01"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Day should be removed from regular holidays.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+    # Ad-hoc holidays should be unchanged.
+    assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
+
+    # Day should be removed from holidays_all.
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_and_add_new_holiday():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Remove and then add the same new holiday. The removal of a non-existent holiday should be ignored, so the day
+    # should be added eventually.
     ece.remove_holiday("TEST", pd.Timestamp("2023-07-01"))
     ece.add_holiday("TEST", pd.Timestamp("2023-07-01"), "Added Holiday")
 
@@ -481,7 +631,74 @@ def test_remove_and_add_same_holiday():
 
 
 @pytest.mark.isolated
-def test_add_and_remove_holiday_multiple_times():
+def test_remove_and_add_existing_regular_holiday():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
+    # the existing regular holiday.
+    ece.remove_holiday("TEST", pd.Timestamp("2023-01-01"))
+    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Regular holiday should be overwritten.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Added Holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+    # Added holiday should not be in ad-hoc holidays, i.e. this should be unmodified.
+    assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
+
+    # Added holiday should be in holidays_all calendar.
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Added Holiday",
+        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_and_add_existing_adhoc_holiday():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
+    # the existing regular holiday.
+    ece.remove_holiday("TEST", pd.Timestamp("2023-02-01"))
+    ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), "Added Holiday")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Regular holiday should contain the added holiday.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2023-02-01"): "Added Holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+    # Ad-hoc holidays should be empty.
+    assert c.adhoc_holidays == []
+
+    # Added holiday should be in holidays_all calendar.
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2023-02-01"): "Added Holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_add_and_remove_new_holiday_multiple_times():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
