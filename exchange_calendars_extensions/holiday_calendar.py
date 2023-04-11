@@ -371,12 +371,15 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
                     # Determine number of existing rules or ad-hoc holidays that collide with ts.
                     has_collisions = any([is_holiday(rule, ts) for rule in regular_holidays_rules]) or any([ts == adhoc_ts for adhoc_ts in adhoc_holidays])
 
-                    if not has_collisions:
-                        # Add the holiday.
-                        regular_holidays_rules.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
-                    else:
-                        # Skip adding the holiday.
-                        pass
+                    if has_collisions:
+                        # Remove the holiday first.
+                        remove_holiday(regular_holidays_rules, ts)
+
+                        # Remove any ad-hoc holidays that coincide with ts.
+                        adhoc_holidays = [adhoc_ts for adhoc_ts in adhoc_holidays if adhoc_ts != ts]
+
+                    # Add the holiday.
+                    regular_holidays_rules.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
 
                 # Remove special closes.
 
