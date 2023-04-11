@@ -2,8 +2,8 @@ import datetime
 from types import NoneType
 from typing import Union
 
-import pandas as pd
 import exchange_calendars as ec
+import pandas as pd
 from exchange_calendars import register_calendar_type
 from exchange_calendars.exchange_calendar_asex import ASEXExchangeCalendar
 from exchange_calendars.exchange_calendar_xams import XAMSExchangeCalendar
@@ -92,22 +92,34 @@ def _remove_calendar_from_factory_cache(name: str):
     ec.calendar_utils.global_calendar_dispatcher._factory_output_cache.pop(name, None)
 
 
-def add_holiday(exchange: str, date: pd.Timestamp, name: str = "Holiday"):
+# Define an annotation that uses the keyword parameter 'exchange', passed to the decorated function, to obtain the
+# corresponding changeset via _changesets. The retrieved changeset is then passed to the decorated function in the
+# keyword argument 'cs'. Also, after the decorated function has finished, the changeset is updated in the _changesets
+# dictionary. Also, the calendar is removed from the factory cache.
+def _calendar_modification(f):
+    def wrapper(exchange: str, *args, **kwargs):
+        cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+        result = f(cs, *args, **kwargs)
+        _changesets[exchange] = cs
+        _remove_calendar_from_factory_cache(exchange)
+        return result
+    return wrapper
+
+
+@_calendar_modification
+def add_holiday(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, name: str = "Holiday"):
     """Add a holiday to an exchange calendar."""
-    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
     # Check if holiday to add is already in the set of holidays to remove.
     if date in cs.holidays_remove:
         # Remove the holiday from the set of holidays to remove.
         cs.holidays_remove.remove(date)
     # Add the holiday to the set of holidays to add.
     cs.holidays_add.add((date, name))
-    _changesets[exchange] = cs
-    _remove_calendar_from_factory_cache(exchange)
 
 
-def remove_holiday(exchange: str, date: pd.Timestamp):
+@_calendar_modification
+def remove_holiday(cs: ExchangeCalendarChangeSet, date: pd.Timestamp):
     """Remove a holiday from an exchange calendar."""
-    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
     # Check if holiday to remove is already in the set of holidays to add.
     if date in map(lambda x: x[0], cs.holidays_add):
         # Find the tuple that corresponds to the holiday to remove.
@@ -118,36 +130,59 @@ def remove_holiday(exchange: str, date: pd.Timestamp):
 
     # Add the holiday to the set of holidays to remove.
     cs.holidays_remove.add(date)
-    _changesets[exchange] = cs
-    _remove_calendar_from_factory_cache(exchange)
 
 
-def add_special_close(exchange: str, date: pd.Timestamp, t: datetime.time, name: str = "Special Close"):
+@_calendar_modification
+def add_special_close(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, t: datetime.time, name: str = "Special Close"):
     """Add a special close to an exchange calendar."""
-    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    # Check if special close to add is already in the set of special closes to remove.
+    if date in cs.special_closes_remove:
+        # Remove the special close from the set of special closes to remove.
+        cs.special_closes_remove.remove(date)
+
+    # Add the special close to the set of special closes to add.
     cs.special_closes_add.add((date, t, name))
-    _changesets[exchange] = cs
 
 
-def remove_special_close(exchange: str, date: pd.Timestamp):
+@_calendar_modification
+def remove_special_close(cs: ExchangeCalendarChangeSet, date: pd.Timestamp):
     """Remove a special close from an exchange calendar."""
-    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    # Check if special close to remove is already in the set of special closes to add.
+    if date in map(lambda x: x[0], cs.special_closes_add):
+        # Find the tuple that corresponds to the special close to remove.
+        elem = next(x for x in cs.special_closes_add if x[0] == date)
+
+        # Remove element from the set.
+        cs.special_closes_add.remove(elem)
+
+    # Add the special close to the set of special closes to remove.
     cs.special_closes_remove.add(date)
-    _changesets[exchange] = cs
 
 
-def add_special_open(exchange: str, date: pd.Timestamp, t: datetime.time, name: str = "Special Open"):
+@_calendar_modification
+def add_special_open(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, t: datetime.time, name: str = "Special Open"):
     """Add a special open to an exchange calendar."""
-    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    # Check if special open to add is already in the set of special opens to remove.
+    if date in cs.special_opens_remove:
+        # Remove the special open from the set of special opens to remove.
+        cs.special_opens_remove.remove(date)
+    # Add the special open to the set of special opens to add.
     cs.special_opens_add.add((date, t, name))
-    _changesets[exchange] = cs
 
 
-def remove_special_open(exchange: str, date: pd.Timestamp):
+@_calendar_modification
+def remove_special_open(cs: ExchangeCalendarChangeSet, date: pd.Timestamp):
     """Remove a special close from an exchange calendar."""
-    cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+    # Check if special open to remove is already in the set of special opens to add.
+    if date in map(lambda x: x[0], cs.special_opens_add):
+        # Find the tuple that corresponds to the special open to remove.
+        elem = next(x for x in cs.special_opens_add if x[0] == date)
+
+        # Remove element from the set.
+        cs.special_opens_add.remove(elem)
+
+    # Add the special open to the set of special opens to remove.
     cs.special_opens_remove.add(date)
-    _changesets[exchange] = cs
 
 
 __all__ = ["apply_extensions", "register_extension", "extend_class", "add_holiday", "remove_holiday",
