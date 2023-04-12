@@ -270,7 +270,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
         else:
             raise NotImplementedError(f"Unsupported holiday type: {type(holiday)}")
 
-    def remove_holiday(rules: List[Holiday], ts: pd.Timestamp) -> None:
+    def remove_day_from_rules(ts: pd.Timestamp, rules: List[Holiday]) -> List[Holiday]:
         """
         Modify the given list of rules, if necessary, to exclude the given timestamp.
 
@@ -297,38 +297,34 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
             rules.insert(rule_index, rule_before_ts)
             rules.insert(rule_index + 1, rule_after_ts)
 
-    def add_special_session(name: str, ts: pd.Timestamp, t: datetime.time, special_sessions: List[Holiday],
-                            adhoc_special_sessions: List[Tuple[datetime.time, pd.DatetimeIndex]]) -> None:
-        # Determine number of existing special opens or ad-hoc special opens that collide with ts.
-        has_collisions = any([any([is_holiday(rule, ts) for rule in rules]) for _, rules in special_sessions]) or any(
-            [ts in adhoc_ts for _, adhoc_ts in adhoc_special_sessions])
+        return rules
 
-        if not has_collisions:
-            # Add the special session.
+    def add_special_session(name: str, ts: pd.Timestamp, t: datetime.time, special_sessions: List[Holiday]) -> List[Holiday]:
 
-            # Define the new Holiday.
-            h = Holiday(name, year=ts.year, month=ts.month, day=ts.day)
+        # Add the special session.
 
-            # Whether the new holiday has been added.
-            added = False
+        # Define the new Holiday.
+        h = Holiday(name, year=ts.year, month=ts.month, day=ts.day)
 
-            # Loop over all times and the respective rules.
-            for t0, rules in special_sessions:
-                # CHeck if time matches.
-                if t == t0:
-                    # Add to existing list.
-                    rules.append(h)
-                    # Flip the flag.
-                    added = True
-                    # Break the loop.
-                    break
+        # Whether the new holiday has been added.
+        added = False
 
-            # If the holiday was not added, add a new entry.
-            if not added:
-                special_sessions.append((t, [h]))
-        else:
-            # Skip adding the special session.
-            pass
+        # Loop over all times and the respective rules.
+        for t0, rules in special_sessions:
+            # CHeck if time matches.
+            if t == t0:
+                # Add to existing list.
+                rules.append(h)
+                # Flip the flag.
+                added = True
+                # Break the loop.
+                break
+
+        # If the holiday was not added, add a new entry.
+        if not added:
+            special_sessions.append((t, [h]))
+
+        return special_sessions
 
     def __init__(self, *args, **kwargs):
         # Get a copy of the original rules.
@@ -359,24 +355,14 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
 
                 # Loop over holidays to remove.
                 for ts in changeset.holidays_remove:
-                    remove_holiday(regular_holidays_rules, ts)
-
-                    # Remove any ad-hoc holidays that coincide with ts.
-                    adhoc_holidays = [adhoc_ts for adhoc_ts in adhoc_holidays if adhoc_ts != ts]
+                    regular_holidays_rules, adhoc_holidays = remove_holiday(ts, regular_holidays_rules, adhoc_holidays)
 
                 # Add holidays.
 
                 # Loop over holidays to add.
                 for ts, name in changeset.holidays_add:
-                    # Determine number of existing rules or ad-hoc holidays that collide with ts.
-                    has_collisions = any([is_holiday(rule, ts) for rule in regular_holidays_rules]) or any([ts == adhoc_ts for adhoc_ts in adhoc_holidays])
-
-                    if has_collisions:
-                        # Remove the holiday first.
-                        remove_holiday(regular_holidays_rules, ts)
-
-                        # Remove any ad-hoc holidays that coincide with ts.
-                        adhoc_holidays = [adhoc_ts for adhoc_ts in adhoc_holidays if adhoc_ts != ts]
+                    # Remove existing holiday, maybe.
+                    regular_holidays_rules, adhoc_holidays = remove_holiday(ts, regular_holidays_rules, adhoc_holidays)
 
                     # Add the holiday.
                     regular_holidays_rules.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
@@ -385,49 +371,33 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
 
                 # Loop over special closes to remove.
                 for ts in changeset.special_closes_remove:
-                    # Loop over all times in special_closes.
-                    for _, rules in special_closes:
-                        if isinstance(rules, int):
-                            # Check if the day of week corresponding to ts is the same as rules.
-                            if ts.dayofweek == rules:
-                                raise NotImplementedError("Removing a special close date that corresponds to a day of week rule is not supported.")
-                        else:
-                            # List of rules.
-                            remove_holiday(rules, ts)
-
-                    # Remove any ad-hoc holidays that coincide with ts.
-                    adhoc_special_closes = [(_, adhoc_ts) if True else (_, adhoc_ts.drop(ts)) for _, adhoc_ts in adhoc_special_closes]
+                    special_closes, adhoc_special_closes = remove_special_session(ts, special_closes, adhoc_special_closes)
 
                 # Add special closes.
 
                 # Loop over special closes to add.
                 for ts, t, name in changeset.special_closes_add:
-                    add_special_session(name, ts, t, special_closes, adhoc_special_closes)
+                    # Remove existing special close, maybe.
+                    special_closes, adhoc_special_closes = remove_special_session(ts, special_closes, adhoc_special_closes)
+
+                    # Add the special close.
+                    special_closes = add_special_session(name, ts, t, special_closes)
 
                 # Remove special opens.
 
                 # Loop over special opens to remove.
                 for ts in changeset.special_opens_remove:
-                    # Loop over all times in special_opens.
-                    for _, rules in special_opens:
-                        if isinstance(rules, int):
-                            # Check if the day of week corresponding to ts is the same as rules.
-                            if ts.dayofweek == rules:
-                                raise NotImplementedError(
-                                    "Removing a special open date that corresponds to a day of week rule is not supported.")
-                        else:
-                            # List of rules.
-                            remove_holiday(rules, ts)
-
-                    # Remove any ad-hoc holidays that coincide with ts.
-                    adhoc_special_opens = [(_, adhoc_ts) if True else (_, adhoc_ts.drop(ts)) for _, adhoc_ts in
-                                           adhoc_special_opens]
+                    special_opens, adhoc_special_opens = remove_special_session(ts, special_opens, adhoc_special_opens)
 
                 # Add special opens.
 
                 # Loop over special opens to add.
                 for ts, t, name in changeset.special_opens_add:
-                    add_special_session(name, ts, t, special_opens, adhoc_special_opens)
+                    # Remove existing special open, maybe.
+                    special_opens, adhoc_special_opens = remove_special_session(ts, special_opens, adhoc_special_opens)
+
+                    # Add the special open.
+                    special_opens = add_special_session(name, ts, t, special_opens)
 
         self._adjusted_properties = AdjustedProperties(regular_holidays_rules=regular_holidays_rules,
                                                        adhoc_holidays=adhoc_holidays,
@@ -449,6 +419,32 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
         self._quarterly_expiry_days = get_quadruple_witching_calendar(day_of_week_expiry, get_roll_backward_observance(weekends_holidays_and_special_business_days))
         self._last_trading_day_of_month = get_last_day_of_month_calendar('last trading day of month', get_roll_backward_observance(weekends_and_holidays))
         self._last_regular_trading_day_of_month = get_last_day_of_month_calendar('last regular trading day of month', get_roll_backward_observance(weekends_holidays_and_special_business_days))
+
+    def remove_special_session(ts, regular_special_sessions, adhoc_special_sessions: List[Tuple[datetime.time, pd.DatetimeIndex]]):
+        # Loop over all times in regular_special_sessions.
+        for _, rules in regular_special_sessions:
+            if isinstance(rules, int):
+                # Check if the day of week corresponding to ts is the same as rules.
+                if ts.dayofweek == rules:
+                    raise NotImplementedError(
+                        "Removing a special session date that corresponds to a day of week rule is not supported.")
+            else:
+                # List of rules.
+                _ = remove_day_from_rules(ts, rules)
+
+        # Remove any ad-hoc special sessions that coincide with ts.
+        adhoc_special_sessions = [(t, adhoc_ts.drop(ts, errors='ignore')) for t, adhoc_ts in adhoc_special_sessions]
+
+        # Remove empty DateTime indices.
+        adhoc_special_sessions = [(t, adhoc_ts) for t, adhoc_ts in adhoc_special_sessions if not adhoc_ts.empty]
+
+        return regular_special_sessions, adhoc_special_sessions
+
+    def remove_holiday(ts, regular_holidays_rules, adhoc_holidays):
+        regular_holidays_rules = remove_day_from_rules(ts, regular_holidays_rules)
+        # Remove any ad-hoc holidays that coincide with ts.
+        adhoc_holidays = [adhoc_ts for adhoc_ts in adhoc_holidays if adhoc_ts != ts]
+        return regular_holidays_rules, adhoc_holidays
 
     @property
     def regular_holidays(self) -> HolidayCalendar | None:
