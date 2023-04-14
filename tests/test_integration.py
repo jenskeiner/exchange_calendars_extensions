@@ -1494,3 +1494,34 @@ def test_remove_non_existent_special_close():
         pd.Timestamp("2023-03-01"): "Special Close 0",
         pd.Timestamp("2023-04-03"): "ad-hoc special close",
         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+
+def test_add_quarterly_expiry():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Add quarterly expiry.
+    ece.add_quarterly_expiry("TEST", pd.Timestamp("2023-06-15"), "Added Quarterly Expiry")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+
+    # Quarterly expiry dates should be empty.
+    assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-18"): "quarterly expiry",
+        pd.Timestamp("2022-06-17"): "quarterly expiry",
+        pd.Timestamp("2022-09-16"): "quarterly expiry",
+        pd.Timestamp("2022-12-16"): "quarterly expiry",
+        pd.Timestamp("2023-03-17"): "quarterly expiry",
+        #pd.Timestamp("2023-06-15"): "Added Quarterly Expiry",
+        pd.Timestamp("2023-06-16"): "quarterly expiry",
+        pd.Timestamp("2023-09-15"): "quarterly expiry",
+        pd.Timestamp("2023-12-15"): "quarterly expiry",
+        pd.Timestamp("2024-03-15"): "quarterly expiry",
+        pd.Timestamp("2024-06-21"): "quarterly expiry",
+        pd.Timestamp("2024-09-20"): "quarterly expiry",
+        pd.Timestamp("2024-12-20"): "quarterly expiry"})).empty

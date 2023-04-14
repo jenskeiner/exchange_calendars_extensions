@@ -185,6 +185,64 @@ def remove_special_open(cs: ExchangeCalendarChangeSet, date: pd.Timestamp):
     cs.special_opens_remove.add(date)
 
 
+@_calendar_modification
+def add_quarterly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, name: str = "Quarterly Expiry"):
+    """Add a quarterly expiry to an exchange calendar."""
+    # Check if quarterly expiry to add is already in the set of quarterly expiries to remove.
+    if date in cs.quarterly_expiries_remove:
+        # Remove the quarterly expiry from the set of quarterly expiries to remove.
+        cs.quarterly_expiries_remove.remove(date)
+    # Add the quarterly expiry to the set of quarterly expiries to add.
+    cs.quarterly_expiries_add.add((date, name))
+
+
+@_calendar_modification
+def remove_quarterly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp):
+    """Remove a quarterly expiry from an exchange calendar."""
+    # Check if quarterly expiry to remove is already in the set of quarterly expiries to add.
+    if date in map(lambda x: x[0], cs.quarterly_expiries_add):
+        # Find the tuple that corresponds to the quarterly expiry to remove.
+        elem = next(x for x in cs.quarterly_expiries_add if x[0] == date)
+
+        # Remove element from the set.
+        cs.quarterly_expiries_add.remove(elem)
+
+    # Add the quarterly expiry to the set of quarterly expiries to remove.
+    cs.quarterly_expiries_remove.add(date)
+
+
+@_calendar_modification
+def add_monthly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, name: str = "Monthly Expiry"):
+    """Add a monthly expiry to an exchange calendar."""
+    # Check if monthly expiry to add is already in the set of monthly expiries to remove.
+    if date in cs.monthly_expiries_remove:
+        # Remove the monthly expiry from the set of monthly expiries to remove.
+        cs.monthly_expiries_remove.remove(date)
+    # Add the monthly expiry to the set of monthly expiries to add.
+    cs.monthly_expiries_add.add((date, name))
+    
+    
+@_calendar_modification
+def remove_monthly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp):
+    """Remove a monthly expiry from an exchange calendar."""
+    # Check if monthly expiry to remove is already in the set of monthly expiries to add.
+    if date in map(lambda x: x[0], cs.monthly_expiries_add):
+        # Find the tuple that corresponds to the monthly expiry to remove.
+        elem = next(x for x in cs.monthly_expiries_add if x[0] == date)
+
+        # Remove element from the set.
+        cs.monthly_expiries_add.remove(elem)
+
+    # Add the monthly expiry to the set of monthly expiries to remove.
+    cs.monthly_expiries_remove.add(date)
+    
+    
+@_calendar_modification
+def reset_calendar(cs: ExchangeCalendarChangeSet):
+    cs.clear()
+    
+        
+    
 __all__ = ["apply_extensions", "register_extension", "extend_class", "add_holiday", "remove_holiday",
            "add_special_close", "remove_special_close", "add_special_open", "remove_special_open",
            "ExtendedExchangeCalendar"]
