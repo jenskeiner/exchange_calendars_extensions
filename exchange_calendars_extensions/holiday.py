@@ -1,8 +1,9 @@
 from datetime import timedelta
-from typing import Optional, Callable
+from typing import Optional, Callable, Union
 
 import pandas as pd
 from exchange_calendars.pandas_extensions.holiday import Holiday
+from pandas import Series, DatetimeIndex
 
 from exchange_calendars_extensions.offset import LastDayOfMonthOffsetClasses, \
     ThirdDayOfWeekInMonthOffsetClasses
@@ -118,8 +119,8 @@ class DayOfWeekPeriodicHoliday(Holiday):
         # Return the dates.
         return dates
 
-    def dates(self, start_date, end_date, return_name=False):
+    def dates(self, start_date, end_date, return_name=False) -> Union[DatetimeIndex, Series]:
         # Get DateTimeIndex with the dates of the holidays.
         dates = self._dates(start_date, end_date)
 
-        return pd.Series(self.name, index=dates, dtype=pd.DatetimeTZDtype) if return_name else dates
+        return pd.Series(self.name, index=dates) if return_name else dates
