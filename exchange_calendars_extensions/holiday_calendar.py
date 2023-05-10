@@ -183,6 +183,7 @@ class AdjustedProperties:
     special_opens: List[Tuple[datetime.time, List[Holiday] | int]]
     adhoc_special_opens: List[Tuple[datetime.time, pd.DatetimeIndex]]
     quarterly_expiries: List[Holiday] = field(default_factory=list)
+    monthly_expiries: List[Holiday] = field(default_factory=list)
 
 class ExtendedExchangeCalendar(ExchangeCalendar, ExchangeCalendarExtensions, ABC):
     ...
@@ -253,12 +254,12 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
         """
         start_date_effective = start_date if start_date is not None else holiday.start_date
         end_date_effective = end_date if end_date is not None else holiday.end_date
-        if isinstance(holiday, PandasHoliday):
-            return PandasHoliday(name=holiday.name, year=holiday.year, month=holiday.month, day=holiday.day, offset=holiday.offset, observance=holiday.observance, start_date=start_date_effective, end_date=end_date_effective, days_of_week=holiday.days_of_week)
+        if isinstance(holiday, DayOfWeekPeriodicHoliday):
+            return DayOfWeekPeriodicHoliday(name=holiday.name, day_of_week=holiday.weekday, start_date=start_date_effective, end_date=end_date_effective, tz=holiday.tz)
         elif isinstance(holiday, ExchangeCalendarsHoliday):
             return ExchangeCalendarsHoliday(name=holiday.name, year=holiday.year, month=holiday.month, day=holiday.day, offset=holiday.offset, observance=holiday.observance, start_date=start_date_effective, end_date=end_date_effective, days_of_week=holiday.days_of_week, tz=holiday.tz)
-        elif isinstance(holiday, DayOfWeekPeriodicHoliday):
-            return DayOfWeekPeriodicHoliday(name=holiday.name, day_of_week=holiday.weekday, start_date=start_date_effective, end_date=end_date_effective, tz=holiday.tz)
+        elif isinstance(holiday, PandasHoliday):
+            return PandasHoliday(name=holiday.name, year=holiday.year, month=holiday.month, day=holiday.day, offset=holiday.offset, observance=holiday.observance, start_date=start_date_effective, end_date=end_date_effective, days_of_week=holiday.days_of_week)
         else:
             raise NotImplementedError(f"Unsupported holiday type: {type(holiday)}")
 
@@ -414,6 +415,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
         self._quarterly_expiry_days = get_quadruple_witching_calendar(day_of_week_expiry, get_roll_backward_observance(weekends_holidays_and_special_business_days))
 
         self._adjusted_properties.quarterly_expiries = self._quarterly_expiry_days.rules.copy()
+        self._adjusted_properties.monthly_expiries = self._monthly_expiry_days.rules.copy()
         
         if changeset is not None:
         
@@ -423,19 +425,39 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
                 
             # Loop over quarterly expiries to remove.
             for ts in changeset.quarterly_expiries_remove:
-                quarterly_expiries = remove_holiday(ts, quarterly_expiries)
+                quarterly_expiries, _ = remove_holiday(ts, quarterly_expiries)
                 
             # Add quarterly expiries.
                 
             # Loop over quarterly expiries to add.
             for ts, name in changeset.quarterly_expiries_add:
                 # Remove existing quarterly expiry, maybe.
-                quarterly_expiries = remove_holiday(ts, quarterly_expiries)
+                quarterly_expiries, _ = remove_holiday(ts, quarterly_expiries)
 
                 # Add the quarterly expiry.
                 quarterly_expiries.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
                 
             self._adjusted_properties.quarterly_expiries = quarterly_expiries
+            
+            monthly_expiries = self._adjusted_properties.monthly_expiries
+            
+            # Remove monthly expiries.
+            
+            # Loop over monthly expiries to remove.
+            for ts in changeset.monthly_expiries_remove:
+                monthly_expiries, _ = remove_holiday(ts, monthly_expiries)
+            
+            # Add monthly expiries.
+            
+            # Loop over monthly expiries to add.
+            for ts, name in changeset.monthly_expiries_add:
+                # Remove existing monthly expiry, maybe.
+                monthly_expiries, _ = remove_holiday(ts, monthly_expiries)
+
+                # Add the monthly expiry.
+                monthly_expiries.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
+            
+            self._adjusted_properties.monthly_expiries = monthly_expiries
         
         self._last_trading_day_of_month = get_last_day_of_month_calendar('last trading day of month', get_roll_backward_observance(weekends_and_holidays))
         self._last_regular_trading_day_of_month = get_last_day_of_month_calendar('last regular trading day of month', get_roll_backward_observance(weekends_holidays_and_special_business_days))
@@ -509,7 +531,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
 
     @property
     def monthly_expiries(self) -> Union[HolidayCalendar, None]:
-        return self._monthly_expiry_days
+        return HolidayCalendar(rules=self._adjusted_properties.monthly_expiries) # self._monthly_expiry_days
 
     @property
     def quarterly_expiries(self) -> Union[HolidayCalendar, None]:

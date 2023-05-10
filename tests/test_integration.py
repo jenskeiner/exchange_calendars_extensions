@@ -1496,6 +1496,7 @@ def test_remove_non_existent_special_close():
         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
 
 
+@pytest.mark.isolated
 def test_add_quarterly_expiry():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
@@ -1509,6 +1510,36 @@ def test_add_quarterly_expiry():
     start = pd.Timestamp("2022-01-01")
     end = pd.Timestamp("2024-12-31")
 
+    # Quarterly expiry dates should be empty.
+    assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-18"): "quarterly expiry",
+        pd.Timestamp("2022-06-17"): "quarterly expiry",
+        pd.Timestamp("2022-09-16"): "quarterly expiry",
+        pd.Timestamp("2022-12-16"): "quarterly expiry",
+        pd.Timestamp("2023-03-17"): "quarterly expiry",
+        pd.Timestamp("2023-06-15"): "Added Quarterly Expiry",
+        pd.Timestamp("2023-06-16"): "quarterly expiry",
+        pd.Timestamp("2023-09-15"): "quarterly expiry",
+        pd.Timestamp("2023-12-15"): "quarterly expiry",
+        pd.Timestamp("2024-03-15"): "quarterly expiry",
+        pd.Timestamp("2024-06-21"): "quarterly expiry",
+        pd.Timestamp("2024-09-20"): "quarterly expiry",
+        pd.Timestamp("2024-12-20"): "quarterly expiry"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_quarterly_expiry():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Add quarterly expiry.
+    ece.remove_quarterly_expiry("TEST", pd.Timestamp("2023-06-16"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
 
     # Quarterly expiry dates should be empty.
     assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
@@ -1517,11 +1548,52 @@ def test_add_quarterly_expiry():
         pd.Timestamp("2022-09-16"): "quarterly expiry",
         pd.Timestamp("2022-12-16"): "quarterly expiry",
         pd.Timestamp("2023-03-17"): "quarterly expiry",
-        #pd.Timestamp("2023-06-15"): "Added Quarterly Expiry",
-        pd.Timestamp("2023-06-16"): "quarterly expiry",
         pd.Timestamp("2023-09-15"): "quarterly expiry",
         pd.Timestamp("2023-12-15"): "quarterly expiry",
         pd.Timestamp("2024-03-15"): "quarterly expiry",
         pd.Timestamp("2024-06-21"): "quarterly expiry",
         pd.Timestamp("2024-09-20"): "quarterly expiry",
         pd.Timestamp("2024-12-20"): "quarterly expiry"})).empty
+
+
+#@pytest.mark.isolated
+def test_add_monthly_expiry():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Add quarterly expiry.
+    ece.add_monthly_expiry("TEST", pd.Timestamp("2023-01-19"), "Added Monthly Expiry")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Quarterly expiry dates should be empty.
+    assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-21"): "monthly expiry",
+        pd.Timestamp("2022-02-18"): "monthly expiry",
+        pd.Timestamp("2022-04-15"): "monthly expiry",
+        pd.Timestamp("2022-05-20"): "monthly expiry",
+        pd.Timestamp("2022-07-15"): "monthly expiry",
+        pd.Timestamp("2022-08-19"): "monthly expiry",
+        pd.Timestamp("2022-10-21"): "monthly expiry",
+        pd.Timestamp("2022-11-18"): "monthly expiry",
+        pd.Timestamp("2023-01-19"): "Added Monthly Expiry",
+        pd.Timestamp("2023-01-20"): "monthly expiry",
+        pd.Timestamp("2023-02-17"): "monthly expiry",
+        pd.Timestamp("2023-04-21"): "monthly expiry",
+        pd.Timestamp("2023-05-19"): "monthly expiry",
+        pd.Timestamp("2023-07-21"): "monthly expiry",
+        pd.Timestamp("2023-08-18"): "monthly expiry",
+        pd.Timestamp("2023-10-20"): "monthly expiry",
+        pd.Timestamp("2023-11-17"): "monthly expiry",
+        pd.Timestamp("2024-01-19"): "monthly expiry",
+        pd.Timestamp("2024-02-16"): "monthly expiry",
+        pd.Timestamp("2024-04-19"): "monthly expiry",
+        pd.Timestamp("2024-05-17"): "monthly expiry",
+        pd.Timestamp("2024-07-19"): "monthly expiry",
+        pd.Timestamp("2024-08-16"): "monthly expiry",
+        pd.Timestamp("2024-10-18"): "monthly expiry",
+        pd.Timestamp("2024-11-15"): "monthly expiry"})).empty
