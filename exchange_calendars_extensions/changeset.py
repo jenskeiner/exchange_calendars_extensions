@@ -7,7 +7,8 @@ import pandas as pd
 
 @dataclass
 class ExchangeCalendarChangeSet:
-    """A modification to an existing calendar.
+    """
+    Represents a modification to an existing exchange calendar.
 
     Parameters
     ----------
@@ -23,7 +24,16 @@ class ExchangeCalendarChangeSet:
         Set of special opens to add.
     special_opens_remove : Set[pd.Timestamp]
         Set of special opens to remove.
+    quarterly_expiries_add : Set[Tuple[pd.Timestamp, str]]
+        Set of quarterly expiries to add.
+    quarterly_expiries_remove : Set[pd.Timestamp]
+        Set of quarterly expiries to remove.
+    monthly_expiries_add : Set[Tuple[pd.Timestamp, str]]
+        Set of monthly expiries to add.
+    monthly_expiries_remove : Set[pd.Timestamp]
+        Set of monthly expiries to remove.
     """
+
     holidays_add: Set[Tuple[pd.Timestamp, str]] = field(default_factory=set)
     holidays_remove: Set[pd.Timestamp] = field(default_factory=set)
     
@@ -39,7 +49,14 @@ class ExchangeCalendarChangeSet:
     monthly_expiries_add: Set[Tuple[pd.Timestamp, str]] = field(default_factory=set)
     monthly_expiries_remove: Set[pd.Timestamp] = field(default_factory=set)
     
-    def clear(self):
+    def clear(self) -> "ExchangeCalendarChangeSet":
+        """
+        Clear all changes.
+
+        Returns
+        -------
+        ExchangeCalendarChangeSet : self
+        """
         self.holidays_add.clear()
         self.holidays_remove.clear()
         self.special_closes_add.clear()
@@ -50,3 +67,27 @@ class ExchangeCalendarChangeSet:
         self.quarterly_expiries_remove.clear()
         self.monthly_expiries_add.clear()
         self.monthly_expiries_remove.clear()
+
+        return self
+
+    def is_empty(self):
+        """
+        Return True if there are no changes.
+
+        Returns
+        -------
+        bool
+            True if there are no changes.
+        """
+        return not any([
+            self.holidays_add,
+            self.holidays_remove,
+            self.special_closes_add,
+            self.special_closes_remove,
+            self.special_opens_add,
+            self.special_opens_remove,
+            self.quarterly_expiries_add,
+            self.quarterly_expiries_remove,
+            self.monthly_expiries_add,
+            self.monthly_expiries_remove,
+        ])
