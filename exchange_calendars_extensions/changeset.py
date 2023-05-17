@@ -1,10 +1,10 @@
 import datetime
+import itertools
 from dataclasses import field, dataclass
-from enum import Enum, auto
+from enum import Enum
 from typing import Tuple, Set, Generic, TypeVar, Any, Dict
 
 import pandas as pd
-
 
 T = TypeVar('T')
 
@@ -34,59 +34,27 @@ class Changes(Generic[T]):
 
 
 class HolidaysAndSpecialSessions(Enum):
-    HOLIDAY = str
+    HOLIDAY = Tuple[str]
     SPECIAL_OPEN = Tuple[datetime.time, str]
     SPECIAL_CLOSE = Tuple[datetime.time, str]
-    MONTHLY_EXPIRY = str
-    QUARTERLY_EXPIRY = str
+    MONTHLY_EXPIRY = Tuple[str]
+    QUARTERLY_EXPIRY = Tuple[str]
 
 
 @dataclass
-class ExchangeCalendarChangeSet:
+class ChangeSet:
     """
     Represents a modification to an existing exchange calendar.
 
     Parameters
     ----------
-    holidays_add : Set[Tuple[pd.Timestamp, str]]
-        Set of holidays to add.
-    holidays_remove : Set[pd.Timestamp]
-        Set of holidays to remove.
-    special_closes_add : Set[Tuple[pd.Timestamp, datetime.time, str]]
-        Set of special closes to add.
-    special_closes_remove : Set[pd.Timestamp]
-        Set of special closes to remove.
-    special_opens_add : Set[Tuple[pd.Timestamp, datetime.time, str]]
-        Set of special opens to add.
-    special_opens_remove : Set[pd.Timestamp]
-        Set of special opens to remove.
-    quarterly_expiries_add : Set[Tuple[pd.Timestamp, str]]
-        Set of quarterly expiries to add.
-    quarterly_expiries_remove : Set[pd.Timestamp]
-        Set of quarterly expiries to remove.
-    monthly_expiries_add : Set[Tuple[pd.Timestamp, str]]
-        Set of monthly expiries to add.
-    monthly_expiries_remove : Set[pd.Timestamp]
-        Set of monthly expiries to remove.
+    changes : Dict[HolidaysAndSpecialSessions, Changes[Any]]
+        The changes per day type.
     """
-    changes: dict[HolidaysAndSpecialSessions, Changes[Any]] = field(default_factory=lambda: {k: Changes[k.value]() for k in HolidaysAndSpecialSessions})
+    changes: Dict[HolidaysAndSpecialSessions, Changes[Any]] = field(default_factory=lambda: {k: Changes[k.value]() for k in
+                                                                                             HolidaysAndSpecialSessions})
 
-    #holidays_add: Set[Tuple[pd.Timestamp, str]] = field(default_factory=set)
-    #holidays_remove: Set[pd.Timestamp] = field(default_factory=set)
-    
-    special_closes_add: Set[Tuple[pd.Timestamp, datetime.time, str]] = field(default_factory=set)
-    special_closes_remove: Set[pd.Timestamp] = field(default_factory=set)
-
-    special_opens_add: Set[Tuple[pd.Timestamp, datetime.time, str]] = field(default_factory=set)
-    special_opens_remove: Set[pd.Timestamp] = field(default_factory=set)
-    
-    quarterly_expiries_add: Set[Tuple[pd.Timestamp, str]] = field(default_factory=set)
-    quarterly_expiries_remove: Set[pd.Timestamp] = field(default_factory=set)
-    
-    monthly_expiries_add: Set[Tuple[pd.Timestamp, str]] = field(default_factory=set)
-    monthly_expiries_remove: Set[pd.Timestamp] = field(default_factory=set)
-    
-    def clear(self) -> "ExchangeCalendarChangeSet":
+    def clear(self) -> "ChangeSet":
         """
         Clear all changes.
 
@@ -94,17 +62,6 @@ class ExchangeCalendarChangeSet:
         -------
         ExchangeCalendarChangeSet : self
         """
-        self.holidays_add.clear()
-        self.holidays_remove.clear()
-        self.special_closes_add.clear()
-        self.special_closes_remove.clear()
-        self.special_opens_add.clear()
-        self.special_opens_remove.clear()
-        self.quarterly_expiries_add.clear()
-        self.quarterly_expiries_remove.clear()
-        self.monthly_expiries_add.clear()
-        self.monthly_expiries_remove.clear()
-
         for changes in self.changes.values():
             changes.add.clear()
             changes.remove.clear()
@@ -120,15 +77,31 @@ class ExchangeCalendarChangeSet:
         bool
             True if there are no changes.
         """
-        return not (any([
-            #self.holidays_add,
-            #self.holidays_remove,
-            self.special_closes_add,
-            self.special_closes_remove,
-            self.special_opens_add,
-            self.special_opens_remove,
-            self.quarterly_expiries_add,
-            self.quarterly_expiries_remove,
-            self.monthly_expiries_add,
-            self.monthly_expiries_remove,
-        ]) or any(changes.add or changes.remove for changes in self.changes.values()))
+        return not any(changes.add or changes.remove for changes in self.changes.values())
+
+    def is_consistent(self):
+        """
+        Return True if the change set is consistent.
+
+        A change set is consistent iff
+        - the dates of all days to add do not overlap across the different day types, and
+        - the dates to add and the days to remove do not overlap for each day type, respectively.
+
+        Returns
+        -------
+        bool
+            True if the change set is consistent, False otherwise.
+        """
+        # Get all dates to add.
+        dates_to_add = sorted(list(itertools.chain.from_iterable(changes.add.keys() for changes in self.changes.values())))
+
+        # Check if there are any overlapping dates to add.
+        if len(dates_to_add) != len(set(dates_to_add)):
+            # Duplicates in the dates to add. This is invalid since the same day cannot be added multiple times with a
+            # different day type each.
+            return False
+
+        if any([changes.add.keys() & changes.remove for changes in self.changes.values()]):
+            return False
+
+        return True

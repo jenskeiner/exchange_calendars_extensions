@@ -1,10 +1,9 @@
 import functools
 from datetime import time
-from types import NoneType
-from typing import Union, Optional, Callable, ParamSpec, TypeVar, Concatenate
+from typing import Optional, Callable, ParamSpec, TypeVar, Concatenate, Type
 
 import pandas as pd
-from exchange_calendars import calendar_utils, register_calendar_type
+from exchange_calendars import calendar_utils, register_calendar_type, ExchangeCalendar, get_calendar_names
 from exchange_calendars.exchange_calendar_asex import ASEXExchangeCalendar
 from exchange_calendars.exchange_calendar_xams import XAMSExchangeCalendar
 from exchange_calendars.exchange_calendar_xbru import XBRUExchangeCalendar
@@ -27,8 +26,9 @@ from exchange_calendars.exchange_calendar_xtae import XTAEExchangeCalendar
 from exchange_calendars.exchange_calendar_xtse import XTSEExchangeCalendar
 from exchange_calendars.exchange_calendar_xwar import XWARExchangeCalendar
 from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
+from exchange_calendars.calendar_utils import _default_calendar_factories
 
-from .changeset import ExchangeCalendarChangeSet, HolidaysAndSpecialSessions
+from .changeset import ChangeSet, HolidaysAndSpecialSessions
 from .holiday_calendar import extend_class, ExtendedExchangeCalendar
 
 # TODO: Add the following exchanges:
@@ -54,31 +54,31 @@ _changesets = dict()
 #     based on the respective vanilla class in exchange_calendars. Also, the changeset_provider is set to a lambda
 #     function that returns the changeset for the respective exchange in _changesets, or None, if no changeset exists.
 _extensions = {
-    "ASEX": extend_class(ASEXExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("ASEX")),
-    #"BMEX": extend_class(BMEXExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("BMEX")),
-    "XAMS": extend_class(XAMSExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XAMS")),
-    "XBRU": extend_class(XBRUExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XBRU")),
-    "XBUD": extend_class(XBUDExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XBUD")),
-    "XCSE": extend_class(XCSEExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XCSE")),
-    "XDUB": extend_class(XDUBExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XDUB")),
-    "XETR": extend_class(XETRExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XETR")),
-    #"XHEL": extend_class(XHELEXchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XHEL")),
-    "XIST": extend_class(XISTExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XIST")),
-    "XJSE": extend_class(XJSEExchangeCalendar, day_of_week_expiry=3, changeset_provider=lambda: _changesets.get("XJSE")),
-    "XLIS": extend_class(XLISExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XLIS")),
-    "XLON": extend_class(XLONExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XLON")),
-    "XMIL": extend_class(XMILExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XMIL")),
-    #"XNAS": extend_class(XNASExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XNAS")),
-    "XNYS": extend_class(XNYSExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XNYS")),
-    "XOSL": extend_class(XOSLExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XOSL")),
-    "XPAR": extend_class(XPARExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XPAR")),
-    "XPRA": extend_class(XPRAExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XPRA")),
-    "XSTO": extend_class(XSTOExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XSTO")),
-    "XSWX": extend_class(XSWXExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XSWX")),
-    "XTAE": extend_class(XTAEExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XTAE")),
-    "XTSE": extend_class(XTSEExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XTSE")),
-    "XWAR": extend_class(XWARExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XWAR")),
-    "XWBO": extend_class(XWBOExchangeCalendar, day_of_week_expiry=4, changeset_provider=lambda: _changesets.get("XWBO")),
+    "ASEX": (ASEXExchangeCalendar, 4),
+    #"BMEX": (BMEXExchangeCalendar, 4),
+    "XAMS": (XAMSExchangeCalendar, 4),
+    "XBRU": (XBRUExchangeCalendar, 4),
+    "XBUD": (XBUDExchangeCalendar, 4),
+    "XCSE": (XCSEExchangeCalendar, 4),
+    "XDUB": (XDUBExchangeCalendar, 4),
+    "XETR": (XETRExchangeCalendar, 4),
+    #"XHEL": (XHELEXchangeCalendar, 4),
+    "XIST": (XISTExchangeCalendar, 4),
+    "XJSE": (XJSEExchangeCalendar, 3),
+    "XLIS": (XLISExchangeCalendar, 4),
+    "XLON": (XLONExchangeCalendar, 4),
+    "XMIL": (XMILExchangeCalendar, 4),
+    #"XNAS": (XNASExchangeCalendar, 4),
+    "XNYS": (XNYSExchangeCalendar, 4),
+    "XOSL": (XOSLExchangeCalendar, 4),
+    "XPAR": (XPARExchangeCalendar, 4),
+    "XPRA": (XPRAExchangeCalendar, 4),
+    "XSTO": (XSTOExchangeCalendar, 4),
+    "XSWX": (XSWXExchangeCalendar, 4),
+    "XTAE": (XTAEExchangeCalendar, 4),
+    "XTSE": (XTSEExchangeCalendar, 4),
+    "XWAR": (XWARExchangeCalendar, 4),
+    "XWBO": (XWBOExchangeCalendar, 4),
 }
 
 
@@ -88,11 +88,21 @@ def apply_extensions() -> None:
 
     This registers all extended calendars in exchange_calendars, overwriting the respective vanilla calendars.
     """
+    calendar_names = set(get_calendar_names())
+
+    for k in calendar_names - set(_extensions.keys()):
+        cls = _default_calendar_factories.get(k)
+        if cls is not None:
+            cls = extend_class(cls, day_of_week_expiry=None, changeset_provider=lambda: _changesets.get(k))
+            register_calendar_type(k, cls, force=True)
+
     for k, v in _extensions.items():
-        register_calendar_type(k, v, force=True)
+        cls, day_of_week_expiry = v
+        cls = extend_class(cls, day_of_week_expiry=day_of_week_expiry, changeset_provider=lambda: _changesets.get(k))
+        register_calendar_type(k, cls, force=True)
 
 
-def register_extension(name: str, cls: type, day_of_week_expiry: Optional[int] = None) -> None:
+def register_extension(name: str, cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] = None) -> None:
     """
     Register an extended calendar class for a given exchange key and a given base class.
 
@@ -113,8 +123,7 @@ def register_extension(name: str, cls: type, day_of_week_expiry: Optional[int] =
     -------
     None
     """
-    _extensions[name] = extend_class(cls, day_of_week_expiry=day_of_week_expiry,
-                                     changeset_provider=lambda: _changesets.get(name))
+    _extensions[name] = (cls, day_of_week_expiry)
 
 
 def _remove_calendar_from_factory_cache(name: str):
@@ -131,7 +140,7 @@ P = ParamSpec('P')
 R = TypeVar('R')
 
 
-def _calendar_modification(f: Callable[Concatenate[ExchangeCalendarChangeSet, str, P], R]) -> Callable[Concatenate[str, P], R]:
+def _with_changeset(f: Callable[Concatenate[ChangeSet, P], R]) -> Callable[Concatenate[str, P], R]:
     """
     An annotation that obtains the changeset from _changesets that corresponds to the exchange key passed as the first
     positional argument to the wrapped function. Instead of passing the key, passes the retrieved changeset, or a newly
@@ -158,10 +167,13 @@ def _calendar_modification(f: Callable[Concatenate[ExchangeCalendarChangeSet, st
     @functools.wraps(f)
     def wrapper(exchange: str, *args: P.args, **kwargs: P.kwargs) -> R:
         # Retrieve changeset for key, create new empty one, if required.
-        cs: ExchangeCalendarChangeSet = _changesets.get(exchange, ExchangeCalendarChangeSet())
+        cs: ChangeSet = _changesets.get(exchange, ChangeSet())
 
         # Call wrapped function with changeset as first positional argument.
-        result = f(cs, exchange, *args, **kwargs)
+        result = f(cs, *args, **kwargs)
+
+        if not cs.is_consistent():
+            raise ValueError(f'Changeset for {str} is inconsistent: {cs}.')
 
         # Save changeset back to _changesets.
         _changesets[exchange] = cs
@@ -175,15 +187,70 @@ def _calendar_modification(f: Callable[Concatenate[ExchangeCalendarChangeSet, st
     return wrapper
 
 
-@_calendar_modification
-def add_holiday(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, name: str = "Holiday") -> None:
+@_with_changeset
+def _add_day(cs: ChangeSet, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, *args) -> None:
+    """
+    Add a day of a given type to the changeset for a given exchange calendar.
+
+    Parameters
+    ----------
+    cs : ChangeSet
+        The changeset to which to add the day.
+    day_type : HolidaysAndSpecialSessions
+        The type of the day to add.
+    date : pd.Timestamp
+        The date to add.
+    *args : Any
+        The properties to add for the day. Must match the properties required by the given day type.
+
+    Returns
+    -------
+    None
+    """
+    cs.changes[day_type].add_day(date, args)
+
+
+def add_day(exchange: str, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, *args) -> None:
+    _add_day(exchange, day_type, date, *args)
+
+
+@_with_changeset
+def _remove_day(cs: ChangeSet, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp) -> None:
+    """
+    Remove a day of a given type from the changeset for a given exchange calendar.
+
+    Parameters
+    ----------
+    cs : ChangeSet
+        The changeset from which to remove the day.
+    day_type : HolidaysAndSpecialSessions
+        The type of the day to remove.
+    date : pd.Timestamp
+        The date to remove.
+
+    Returns
+    -------
+    None
+    """
+    cs.changes[day_type].remove_day(date)
+
+
+def remove_day(exchange: str, day_type: Optional[HolidaysAndSpecialSessions], date: pd.Timestamp) -> None:
+    if day_type is not None:
+        _remove_day(exchange, day_type, date)
+    else:
+        for day_type0 in HolidaysAndSpecialSessions:
+            _remove_day(exchange, day_type0, date)
+
+
+def add_holiday(exchange: str, date: pd.Timestamp, name: str = "Holiday") -> None:
     """
     Add a holiday to an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
-        The changeset to which to add the holiday.
+    exchange : str
+        The exchange key for which to add the day.
     date : pd.Timestamp
         The date of the holiday.
     name : str
@@ -193,18 +260,17 @@ def add_holiday(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp
     -------
     None
     """
-    cs.changes[HolidaysAndSpecialSessions.HOLIDAY].add_day(date, name)
+    _add_day(exchange, HolidaysAndSpecialSessions.HOLIDAY, date, name)
 
 
-@_calendar_modification
-def remove_holiday(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
+def remove_holiday(exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a holiday from an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
-        The changeset from which to remove the holiday.
+    exchange : str
+        The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the holiday to remove.
 
@@ -212,18 +278,17 @@ def remove_holiday(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timest
     -------
     None
     """
-    cs.changes[HolidaysAndSpecialSessions.HOLIDAY].remove_day(date)
+    _remove_day(exchange, HolidaysAndSpecialSessions.HOLIDAY, date)
 
 
-@_calendar_modification
-def add_special_open(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, t: time, name: str = "Special Open") -> None:
+def add_special_open(exchange: str, date: pd.Timestamp, t: time, name: str = "Special Open") -> None:
     """
     Add a special open to an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
-        The changeset to which to add the special open.
+    exchange : str
+        The exchange key for which to add the day.
     date : pd.Timestamp
         The date of the special open.
     t : time
@@ -235,23 +300,17 @@ def add_special_open(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Time
     -------
     None
     """
-    # Check if special open to add is already in the set of special opens to remove.
-    if date in cs.special_opens_remove:
-        # Remove the special open from the set of special opens to remove.
-        cs.special_opens_remove.remove(date)
-    # Add the special open to the set of special opens to add.
-    cs.special_opens_add.add((date, t, name))
+    _add_day(exchange, HolidaysAndSpecialSessions.SPECIAL_OPEN, date, t, name)
 
 
-@_calendar_modification
-def remove_special_open(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
+def remove_special_open(exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a special close from an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
-        The changeset from which to remove the special open.
+    exchange : str
+        The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the special open to remove.
 
@@ -259,27 +318,17 @@ def remove_special_open(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.T
     -------
     None
     """
-    # Check if special open to remove is already in the set of special opens to add.
-    if date in map(lambda x: x[0], cs.special_opens_add):
-        # Find the tuple that corresponds to the special open to remove.
-        elem = next(x for x in cs.special_opens_add if x[0] == date)
-
-        # Remove element from the set.
-        cs.special_opens_add.remove(elem)
-
-    # Add the special open to the set of special opens to remove.
-    cs.special_opens_remove.add(date)
+    _remove_day(exchange, HolidaysAndSpecialSessions.SPECIAL_OPEN, date)
 
 
-@_calendar_modification
-def add_special_close(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, t: time, name: str = "Special Close") -> None:
+def add_special_close(exchange: str, date: pd.Timestamp, t: time, name: str = "Special Close") -> None:
     """
     Add a special close to an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
-        The changeset to which to add the special close.
+    exchange : str
+        The exchange key for which to add the day.
     date : pd.Timestamp
         The date of the special close.
     t : time
@@ -291,24 +340,17 @@ def add_special_close(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Tim
     -------
     None
     """
-    # Check if special close to add is already in the set of special closes to remove.
-    if date in cs.special_closes_remove:
-        # Remove the special close from the set of special closes to remove.
-        cs.special_closes_remove.remove(date)
-
-    # Add the special close to the set of special closes to add.
-    cs.special_closes_add.add((date, t, name))
+    _add_day(exchange, HolidaysAndSpecialSessions.SPECIAL_CLOSE, date, t, name)
 
 
-@_calendar_modification
-def remove_special_close(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
+def remove_special_close(exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a special close from an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
-        The changeset from which to remove the special close.
+    exchange : str
+        The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the special close to remove.
 
@@ -316,27 +358,17 @@ def remove_special_close(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.
     -------
     None
     """
-    # Check if special close to remove is already in the set of special closes to add.
-    if date in map(lambda x: x[0], cs.special_closes_add):
-        # Find the tuple that corresponds to the special close to remove.
-        elem = next(x for x in cs.special_closes_add if x[0] == date)
-
-        # Remove element from the set.
-        cs.special_closes_add.remove(elem)
-
-    # Add the special close to the set of special closes to remove.
-    cs.special_closes_remove.add(date)
+    _remove_day(exchange, HolidaysAndSpecialSessions.SPECIAL_CLOSE, date)
 
 
-@_calendar_modification
-def add_quarterly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, name: str = "Quarterly Expiry") -> None:
+def add_quarterly_expiry(exchange: str, date: pd.Timestamp, name: str = "Quarterly Expiry") -> None:
     """
     Add a quarterly expiry to an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
-        The changeset to which to add the quarterly expiry.
+    exchange : str
+        The exchange key for which to add the day.
     date : pd.Timestamp
         The date of the quarterly expiry.
     name : str
@@ -346,23 +378,17 @@ def add_quarterly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.
     -------
     None
     """
-    # Check if quarterly expiry to add is already in the set of quarterly expiries to remove.
-    if date in cs.quarterly_expiries_remove:
-        # Remove the quarterly expiry from the set of quarterly expiries to remove.
-        cs.quarterly_expiries_remove.remove(date)
-    # Add the quarterly expiry to the set of quarterly expiries to add.
-    cs.quarterly_expiries_add.add((date, name))
+    _add_day(exchange, HolidaysAndSpecialSessions.QUARTERLY_EXPIRY, date, name)
 
 
-@_calendar_modification
-def remove_quarterly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
+def remove_quarterly_expiry(exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a quarterly expiry from an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
-        The changeset from which to remove the quarterly expiry.
+    exchange : str
+        The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the quarterly expiry to remove.
 
@@ -370,27 +396,17 @@ def remove_quarterly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: 
     -------
     None
     """
-    # Check if quarterly expiry to remove is already in the set of quarterly expiries to add.
-    if date in map(lambda x: x[0], cs.quarterly_expiries_add):
-        # Find the tuple that corresponds to the quarterly expiry to remove.
-        elem = next(x for x in cs.quarterly_expiries_add if x[0] == date)
-
-        # Remove element from the set.
-        cs.quarterly_expiries_add.remove(elem)
-
-    # Add the quarterly expiry to the set of quarterly expiries to remove.
-    cs.quarterly_expiries_remove.add(date)
+    _remove_day(exchange, HolidaysAndSpecialSessions.QUARTERLY_EXPIRY, date)
 
 
-@_calendar_modification
-def add_monthly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, name: str = "Monthly Expiry") -> None:
+def add_monthly_expiry(exchange: str, date: pd.Timestamp, name: str = "Monthly Expiry") -> None:
     """
     Add a monthly expiry to an exchange calendar.
 
     Parameters
     ----------
-    exchange : ExchangeCalendarChangeSet
-        The changeset to which to add the monthly expiry.
+    exchange : str
+        The exchange key for which to add the day.
     date : pd.Timestamp
         The date of the monthly expiry.
     name : str
@@ -400,23 +416,17 @@ def add_monthly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Ti
     -------
     None
     """
-    # Check if monthly expiry to add is already in the set of monthly expiries to remove.
-    if date in cs.monthly_expiries_remove:
-        # Remove the monthly expiry from the set of monthly expiries to remove.
-        cs.monthly_expiries_remove.remove(date)
-    # Add the monthly expiry to the set of monthly expiries to add.
-    cs.monthly_expiries_add.add((date, name))
+    _add_day(exchange, HolidaysAndSpecialSessions.MONTHLY_EXPIRY, date, name)
+
     
-    
-@_calendar_modification
-def remove_monthly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
+def remove_monthly_expiry(exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a monthly expiry from an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
-        The changeset from which to remove the monthly expiry.
+    exchange : str
+        The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the monthly expiry to remove.
 
@@ -424,26 +434,17 @@ def remove_monthly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd
     -------
     None
     """
-    # Check if monthly expiry to remove is already in the set of monthly expiries to add.
-    if date in map(lambda x: x[0], cs.monthly_expiries_add):
-        # Find the tuple that corresponds to the monthly expiry to remove.
-        elem = next(x for x in cs.monthly_expiries_add if x[0] == date)
+    _remove_day(exchange, HolidaysAndSpecialSessions.MONTHLY_EXPIRY, date)
 
-        # Remove element from the set.
-        cs.monthly_expiries_add.remove(elem)
-
-    # Add the monthly expiry to the set of monthly expiries to remove.
-    cs.monthly_expiries_remove.add(date)
     
-    
-@_calendar_modification
-def reset_calendar(cs: ExchangeCalendarChangeSet) -> None:
+@_with_changeset
+def reset_calendar(cs: ChangeSet) -> None:
     """
     Reset an exchange calendar to its original state.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
+    cs : ChangeSet
         The changeset to reset.
 
     Returns
@@ -454,10 +455,10 @@ def reset_calendar(cs: ExchangeCalendarChangeSet) -> None:
     
 
 # Declare public names.
-__all__ = ["apply_extensions", "register_extension", "extend_class", "add_holiday", "remove_holiday",
-           "add_special_close", "remove_special_close", "add_special_open", "remove_special_open",
-           "add_quarterly_expiry", "remove_quarterly_expiry", "add_monthly_expiry", "remove_monthly_expiry",
-           "ExtendedExchangeCalendar"]
+__all__ = ["apply_extensions", "register_extension", "extend_class", "HolidaysAndSpecialSessions", "add_day",
+           "remove_day", "add_holiday", "remove_holiday", "add_special_close", "remove_special_close",
+           "add_special_open", "remove_special_open", "add_quarterly_expiry", "remove_quarterly_expiry",
+           "add_monthly_expiry", "remove_monthly_expiry", "ExtendedExchangeCalendar"]
 
 __version__ = None
 
