@@ -1,6 +1,7 @@
+import functools
 from datetime import time
 from types import NoneType
-from typing import Union, Optional, Callable
+from typing import Union, Optional, Callable, ParamSpec, TypeVar, Concatenate
 
 import pandas as pd
 from exchange_calendars import calendar_utils, register_calendar_type
@@ -27,7 +28,7 @@ from exchange_calendars.exchange_calendar_xtse import XTSEExchangeCalendar
 from exchange_calendars.exchange_calendar_xwar import XWARExchangeCalendar
 from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
 
-from .changeset import ExchangeCalendarChangeSet
+from .changeset import ExchangeCalendarChangeSet, HolidaysAndSpecialSessions
 from .holiday_calendar import extend_class, ExtendedExchangeCalendar
 
 # TODO: Add the following exchanges:
@@ -126,8 +127,11 @@ def _remove_calendar_from_factory_cache(name: str):
     calendar_utils.global_calendar_dispatcher._factory_output_cache.pop(name, None)
 
 
-# Define
-def _calendar_modification(f: Callable) -> Callable:
+P = ParamSpec('P')
+R = TypeVar('R')
+
+
+def _calendar_modification(f: Callable[Concatenate[ExchangeCalendarChangeSet, str, P], R]) -> Callable[Concatenate[str, P], R]:
     """
     An annotation that obtains the changeset from _changesets that corresponds to the exchange key passed as the first
     positional argument to the wrapped function. Instead of passing the key, passes the retrieved changeset, or a newly
@@ -151,15 +155,20 @@ def _calendar_modification(f: Callable) -> Callable:
     Callable
         The wrapped function.
     """
-    def wrapper(exchange: str, *args, **kwargs):
+    @functools.wraps(f)
+    def wrapper(exchange: str, *args: P.args, **kwargs: P.kwargs) -> R:
         # Retrieve changeset for key, create new empty one, if required.
-        cs = _changesets.get(exchange, ExchangeCalendarChangeSet())
+        cs: ExchangeCalendarChangeSet = _changesets.get(exchange, ExchangeCalendarChangeSet())
+
         # Call wrapped function with changeset as first positional argument.
-        result = f(cs, *args, **kwargs)
+        result = f(cs, exchange, *args, **kwargs)
+
         # Save changeset back to _changesets.
         _changesets[exchange] = cs
+
         # Remove calendar for exchange key from factory cache.
         _remove_calendar_from_factory_cache(exchange)
+
         # Return result of wrapped function.
         return result
 
@@ -167,7 +176,7 @@ def _calendar_modification(f: Callable) -> Callable:
 
 
 @_calendar_modification
-def add_holiday(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, name: str = "Holiday") -> None:
+def add_holiday(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, name: str = "Holiday") -> None:
     """
     Add a holiday to an exchange calendar.
 
@@ -184,16 +193,11 @@ def add_holiday(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, name: str = "
     -------
     None
     """
-    # Check if holiday to add is already in the set of holidays to remove.
-    if date in cs.holidays_remove:
-        # Remove the holiday from the set of holidays to remove.
-        cs.holidays_remove.remove(date)
-    # Add the holiday to the set of holidays to add.
-    cs.holidays_add.add((date, name))
+    cs.changes[HolidaysAndSpecialSessions.HOLIDAY].add_day(date, name)
 
 
 @_calendar_modification
-def remove_holiday(cs: ExchangeCalendarChangeSet, date: pd.Timestamp) -> None:
+def remove_holiday(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a holiday from an exchange calendar.
 
@@ -208,20 +212,11 @@ def remove_holiday(cs: ExchangeCalendarChangeSet, date: pd.Timestamp) -> None:
     -------
     None
     """
-    # Check if holiday to remove is already in the set of holidays to add.
-    if date in map(lambda x: x[0], cs.holidays_add):
-        # Find the tuple that corresponds to the holiday to remove.
-        elem = next(x for x in cs.holidays_add if x[0] == date)
-
-        # Remove element from the set.
-        cs.holidays_add.remove(elem)
-
-    # Add the holiday to the set of holidays to remove.
-    cs.holidays_remove.add(date)
+    cs.changes[HolidaysAndSpecialSessions.HOLIDAY].remove_day(date)
 
 
 @_calendar_modification
-def add_special_open(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, t: time, name: str = "Special Open") -> None:
+def add_special_open(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, t: time, name: str = "Special Open") -> None:
     """
     Add a special open to an exchange calendar.
 
@@ -249,7 +244,7 @@ def add_special_open(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, t: time,
 
 
 @_calendar_modification
-def remove_special_open(cs: ExchangeCalendarChangeSet, date: pd.Timestamp) -> None:
+def remove_special_open(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a special close from an exchange calendar.
 
@@ -277,7 +272,7 @@ def remove_special_open(cs: ExchangeCalendarChangeSet, date: pd.Timestamp) -> No
 
 
 @_calendar_modification
-def add_special_close(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, t: time, name: str = "Special Close") -> None:
+def add_special_close(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, t: time, name: str = "Special Close") -> None:
     """
     Add a special close to an exchange calendar.
 
@@ -306,7 +301,7 @@ def add_special_close(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, t: time
 
 
 @_calendar_modification
-def remove_special_close(cs: ExchangeCalendarChangeSet, date: pd.Timestamp) -> None:
+def remove_special_close(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a special close from an exchange calendar.
 
@@ -334,7 +329,7 @@ def remove_special_close(cs: ExchangeCalendarChangeSet, date: pd.Timestamp) -> N
 
 
 @_calendar_modification
-def add_quarterly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, name: str = "Quarterly Expiry") -> None:
+def add_quarterly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, name: str = "Quarterly Expiry") -> None:
     """
     Add a quarterly expiry to an exchange calendar.
 
@@ -360,7 +355,7 @@ def add_quarterly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, name
 
 
 @_calendar_modification
-def remove_quarterly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp) -> None:
+def remove_quarterly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a quarterly expiry from an exchange calendar.
 
@@ -388,13 +383,13 @@ def remove_quarterly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp) -
 
 
 @_calendar_modification
-def add_monthly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, name: str = "Monthly Expiry") -> None:
+def add_monthly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp, name: str = "Monthly Expiry") -> None:
     """
     Add a monthly expiry to an exchange calendar.
 
     Parameters
     ----------
-    cs : ExchangeCalendarChangeSet
+    exchange : ExchangeCalendarChangeSet
         The changeset to which to add the monthly expiry.
     date : pd.Timestamp
         The date of the monthly expiry.
@@ -414,7 +409,7 @@ def add_monthly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp, name: 
     
     
 @_calendar_modification
-def remove_monthly_expiry(cs: ExchangeCalendarChangeSet, date: pd.Timestamp) -> None:
+def remove_monthly_expiry(cs: ExchangeCalendarChangeSet, exchange: str, date: pd.Timestamp) -> None:
     """
     Remove a monthly expiry from an exchange calendar.
 
@@ -461,6 +456,7 @@ def reset_calendar(cs: ExchangeCalendarChangeSet) -> None:
 # Declare public names.
 __all__ = ["apply_extensions", "register_extension", "extend_class", "add_holiday", "remove_holiday",
            "add_special_close", "remove_special_close", "add_special_open", "remove_special_open",
+           "add_quarterly_expiry", "remove_quarterly_expiry", "add_monthly_expiry", "remove_monthly_expiry",
            "ExtendedExchangeCalendar"]
 
 __version__ = None

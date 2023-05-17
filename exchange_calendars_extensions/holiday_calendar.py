@@ -11,7 +11,7 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars.pandas_extensions.holiday import Holiday as ExchangeCalendarsHoliday
 from pandas.tseries.holiday import Holiday as PandasHoliday
 
-from exchange_calendars_extensions import ExchangeCalendarChangeSet
+from exchange_calendars_extensions import ExchangeCalendarChangeSet, HolidaysAndSpecialSessions
 from exchange_calendars_extensions.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday, \
     get_last_day_of_month_holiday
 from exchange_calendars_extensions.observance import get_roll_backward_observance
@@ -700,11 +700,11 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: int = 4,
             # Apply all changes pertaining to regular exchange calendar properties.
 
             # Remove holidays.
-            for ts in changeset.holidays_remove:
+            for ts in changeset.changes[HolidaysAndSpecialSessions.HOLIDAY].remove:
                 a.regular_holidays, a.adhoc_holidays = remove_holiday(ts, a.regular_holidays, a.adhoc_holidays)
 
             # Add holidays.
-            for ts, name in changeset.holidays_add:
+            for ts, name in changeset.changes[HolidaysAndSpecialSessions.HOLIDAY].add.items():
                 # Remove existing holiday, maybe.
                 a.regular_holidays, a.adhoc_holidays = remove_holiday(ts, a.regular_holidays, a.adhoc_holidays)
 

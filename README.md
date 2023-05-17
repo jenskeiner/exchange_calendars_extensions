@@ -2,21 +2,35 @@
 A Python package that transparently adds some features to the [exchange-calendars](https://pypi.org/project/exchange-calendars/) 
 package.
 
-For select exchanges, this package adds a holiday calendar for regular and ad-hoc holidays combined. This avoids the 
-need to combine regular and ad-hoc holidays manually.
+For select exchanges, this package adds three things:
+- Calendars that combine existing regular and ad-hoc holidays or special open/close days into a single 
+  calendar.
+- Calendars for additional special trading sessions, such as quarterly expiry days (aka quadruple witching).
+- The ability to modify exising calendars by adding or removing holidays, special open/close days, or others, 
+- programmatically at runtime.
 
-The package provides similar calendars for special open/close days as well, respectively. Note, however, that these 
-calendars may combine special open/close days with different open/close times and the time information cannot be 
-recovered.
+## Combined calendars
+This package adds combined calendars for holidays and special open/close days, respectively. These calendars combine 
+regular with ad-hoc occurrences of each respective type of day. Note that for special open/close days, this may 
+aggregate days with different open/close times into a single calendar. From the calendar, the open/close time for each 
+contained day cannot be recovered.
 
-A new calendar that contains all weekend days as per the underlying weekmask is also added.
-
-In addition to information already available in [exchange-calendars](https://pypi.org/project/exchange-calendars/), the 
-package provides calendars for the following trading sessions:
+## Additional calendars
+In addition to information that is already available in 
+[exchange-calendars](https://pypi.org/project/exchange-calendars/), this package also adds calendars for 
+the following (special) trading sessions:
 - quarterly expiry days (aka quadruple witching),
 - monthly expiry days (in all months without quarterly expiry day), 
 - last trading session of the month, and
 - last *regular* trading session of the month.
+
+A new calendar that contains all weekend days as per the underlying weekmask is also available.
+
+## Runtime modification of calendars
+This package also adds the ability to modify existing calendars at runtime. This can be used to add or remove holidays,
+special open/close days, or other special days, programmatically. This is useful for example when the exchange
+announces a special trading session on short notice, or when the exchange announces a change to the regular trading
+schedule, since the next release of the exchange-calendars package may not be available yet.
 
 ## Installation
 
@@ -57,6 +71,7 @@ assert isinstance(calendar, exchange_calendars.ExchangeCalendar)
 assert isinstance(calendar, exchange_calendars_extensions.ExchangeCalendarExtensions)
 ```
 
+### Additional properties
 Extended exchange calendars provide the following calendars as properties:
 - `holidays_all`: Regular and ad-hoc holidays combined into a single calendar.
 - `special_opens_all`: Regular and ad-hoc special open days combined into a single calendar.
@@ -73,6 +88,20 @@ Extended exchange calendars provide the following calendars as properties:
 - `last_session_of_months`: The last trading session for each month of the year.
 - `last_regular_session_of_months`: Last regular trading session of each month of the year, i.e. not a special 
   open/close or otherwise irregular day.
+
+### Adding/removing holidays, special open/close days, and others
+Extended exchange calendars provide the following methods at the package level to add or remove holidays, 
+special open/close days, or other special days, programmatically:
+- `add_holiday`: Add holiday to a given calendar.
+- `remove_holiday`: Remove holiday from given calendar.
+- `add_special_open`: Add special open to given calendar.
+- `remove_special_open`: Remove special open from given calendar.
+- `add_special_close`: Add special close to given calendar.
+- `remove_special_close`: Remove special close from given calendar.
+- `add_quarterly_expiry`: Add quarterly expiryto given calendar.
+- `remove_quarterly_expiry`: Remove quarterly expiry from given calendar.
+- `add_monthly_expiry`: Add monthly expiry to given calendar.
+- `remove_monthly_expiry`: Remove monthly expiry from given calendar.
 
 ## Examples
 ```python
