@@ -4,6 +4,7 @@ from collections import namedtuple
 from dataclasses import field, dataclass
 from enum import Enum
 from typing import Tuple, Set, Generic, TypeVar, Any, Dict, Self, TypedDict, Union
+from types import MappingProxyType
 from schema import Schema, Optional, Use
 
 import pandas as pd
@@ -13,31 +14,71 @@ T = TypeVar('T')
 
 @dataclass
 class Changes(Generic[T]):
+    
+    @property
+    def add(self) -> Dict[pd.Timestamp, T]:
+        return MappingProxyType(self._add)
+    
+    @property
+    def remove(self) -> Set[pd.Timestamp]:
+        return frozenset(self._remove)
 
     def __init__(self, schema: Schema):
         self._schema = schema
-        self.add = dict()
-        self.remove = set()
+        self._add = dict()
+        self._remove = set()
+        
+    def _remove_from_add(self, date: pd.Timestamp) -> None:
+        # Check if holiday to remove is already in the dictionary of holidays to add.
+        if self._add.get(date) is not None:
+            # Remove element from the dictionary.
+            del self._add[date]
+            
+    def _remove_from_remove(self, date: pd.Timestamp) -> None:
+        # Check if holiday to add is already in the set of holidays to remove.
+        if date in self._remove:
+            # Remove the holiday from the set of holidays to remove.
+            self._remove.remove(date)
 
-    def add_day(self, date: pd.Timestamp, value: T) -> None:
+    def add_day(self, date: pd.Timestamp, value: T, strict: bool) -> Self:
+        # Validate value against schema.
         value = self._schema.validate(value)
 
-        # Check if holiday to add is already in the set of holidays to remove.
-        if date in self.remove:
-            # Remove the holiday from the set of holidays to remove.
-            self.remove.remove(date)
+        # Ensure consistency by removing from days to remove, maybe.
+        if not strict:
+            self._remove_from_remove(date)
 
         # Add the holiday to the set of holidays to add. Also overwrites any previous entry for the date.
-        self.add[date] = value
+        self._add[date] = value
+        
+        # Check consistency.
+        if not self.is_consistent():
+            raise ValueError(f'Changes are not consistent: {self}.')
+        
+        return self
 
-    def remove_day(self, date: pd.Timestamp) -> None:
-        # Check if holiday to remove is already in the dictionary of holidays to add.
-        if self.add.get(date) is not None:
-            # Remove element from the dictionary.
-            del self.add[date]
+    def remove_day(self, date: pd.Timestamp, strict: bool) -> Self:
+        # Ensure consistency by removing from days to add, maybe.
+        if not strict:
+            self._remove_from_add(date)
 
         # Add the holiday to the set of holidays to remove. Will be a no-op if the date is already in the set.
-        self.remove.add(date)
+        self._remove.add(date)
+        
+        # Check consistency.
+        if not self.is_consistent():
+            raise ValueError(f'Changes are not consistent: {self}.')
+        
+        return self
+    
+    def reset_day(self, date: pd.Timestamp) -> Self:
+        # Remove the holiday from the set of holidays to add.
+        self._remove_from_add(date)
+
+        # Remove the holiday from the set of holidays to remove.
+        self._remove_from_remove(date)
+        
+        return self
 
     def is_consistent(self) -> bool:
         """
@@ -51,11 +92,14 @@ class Changes(Generic[T]):
         # Check if any dates are in both the set of holidays to add and the set of holidays to remove.
         return len(self.add.keys() & self.remove) == 0
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if not isinstance(other, Changes):
             return False
 
         return self.add == other.add and self.remove == other.remove
+    
+    def __str__(self) -> str:
+        return f'Changes(add={self.add}, remove={self.remove})'
 
 
 def _to_time(input: Union[str, dt.time]) -> dt.time:
@@ -125,7 +169,7 @@ class ChangeSet:
 
         return self
 
-    def add_day(self, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, value: Any) -> Self:
+    def add_day(self, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, value: Any, strict: bool = False) -> Self:
         """
         Add a day to the change set.
 
@@ -142,11 +186,11 @@ class ChangeSet:
         -------
         ExchangeCalendarChangeSet : self
         """
-        self.changes[day_type].add_day(date, value)
+        self.changes[day_type].add_day(date, value, strict)
         self._check_consistent()
         return self
 
-    def remove_day(self, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp) -> Self:
+    def remove_day(self, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, strict: bool = False) -> Self:
         """
         Remove a day from the change set.
 
@@ -161,7 +205,7 @@ class ChangeSet:
         -------
         ExchangeCalendarChangeSet : self
         """
-        self.changes[day_type].remove_day(date)
+        self.changes[day_type].remove_day(date, strict)
         self._check_consistent()
         return self
 
@@ -230,11 +274,11 @@ class ChangeSet:
 
                 if changes_incoming.get('add') is not None:
                     for item in changes_incoming.get('add'):
-                        changes.add_day(item['date'], item['value'])
+                        changes.add_day(item['date'], item['value'], strict=True)
 
                 if changes_incoming.get('remove') is not None:
                     for date in changes_incoming.get('remove'):
-                        changes.remove_day(date)
+                        changes.remove_day(date, strict=True)
         except Exception as e:
             raise ValueError(f"Invalid change set.") from e
 
