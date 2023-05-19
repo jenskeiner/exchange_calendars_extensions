@@ -705,7 +705,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
             # Add holidays.
             for ts, spec in changeset.changes[HolidaysAndSpecialSessions.HOLIDAY].add.items():
-                name, = spec
+                name = spec['name']
                 # Remove existing holiday, maybe.
                 a.regular_holidays, a.adhoc_holidays = remove_holiday(ts, a.regular_holidays, a.adhoc_holidays)
 
@@ -719,7 +719,8 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
             # Add special opens.
             for ts, spec in changeset.changes[HolidaysAndSpecialSessions.SPECIAL_OPEN].add.items():
-                t, name = spec
+                name, t = spec['name'], spec['time']
+
                 # Remove existing special open, maybe.
                 a.special_opens, a.adhoc_special_opens = remove_special_session(ts, a.special_opens,
                                                                                 a.adhoc_special_opens)
@@ -734,7 +735,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
             # Add special closes.
             for ts, spec in changeset.changes[HolidaysAndSpecialSessions.SPECIAL_CLOSE].add.items():
-                t, name = spec
+                name, t = spec['name'], spec['time']
 
                 # Remove existing special close, maybe.
                 a.special_closes, a.adhoc_special_closes = remove_special_session(ts, a.special_closes,
@@ -772,7 +773,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
             # Loop over quarterly expiries to add.
             for ts, spec in changeset.changes[HolidaysAndSpecialSessions.QUARTERLY_EXPIRY].add.items():
-                name, = spec
+                name = spec['name']
                 # Remove existing quarterly expiry, maybe.
                 a.quarterly_expiries, _ = remove_holiday(ts, a.quarterly_expiries)
 
@@ -789,7 +790,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
             # Loop over monthly expiries to add.
             for ts, spec in changeset.changes[HolidaysAndSpecialSessions.MONTHLY_EXPIRY].add.items():
-                name, = spec
+                name = spec['name']
                 # Remove existing monthly expiry, maybe.
                 a.monthly_expiries, _ = remove_holiday(ts, a.monthly_expiries)
 
