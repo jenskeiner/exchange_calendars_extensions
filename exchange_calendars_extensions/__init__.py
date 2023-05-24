@@ -207,7 +207,7 @@ def _add_day(cs: ChangeSet, day_type: HolidaysAndSpecialSessions, date: pd.Times
     ChangeSet
         The changeset with the added day.
     """
-    return cs.add_day(day_type, date, value)
+    return cs.add_day(date, value, day_type)
 
 
 def add_day(exchange: str, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, value: Union[DaySpec, DaySpecWithTime]) -> None:
@@ -233,7 +233,7 @@ def _remove_day(cs: ChangeSet, day_type: HolidaysAndSpecialSessions, date: pd.Ti
     ChangeSet
         The changeset with the removed day.
     """
-    return cs.remove_day(day_type, date)
+    return cs.remove_day(date, day_type)
 
 
 def remove_day(exchange: str, day_type: Optional[HolidaysAndSpecialSessions], date: pd.Timestamp) -> None:
