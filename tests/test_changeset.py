@@ -202,77 +202,233 @@ class TestHolidaysAndSpecialSessions:
             HolidaysAndSpecialSessions.from_str("invalid")
 
 
-def test_empty_changeset_from_dict():
-    d = {}
-    cs = ChangeSet.from_dict(d)
-    assert cs.is_empty()
-    assert cs.is_consistent()
+class TestChangeSet:
+    def test_empty_changeset_from_dict(self):
+        d = {}
+        cs = ChangeSet.from_dict(d)
+        assert cs.is_empty()
+        assert cs.is_consistent()
 
+    @pytest.mark.parametrize(["d_str", "normalize", "cs"], [
+        ("""{"holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]}}""",
+         False,
+         ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Holiday"}, HolidaysAndSpecialSessions.HOLIDAY)),
+        ("""{"special_open": {"add": [{"date": "2020-01-01", "value": {"name": "Special Open", "time": "10:00"}}]}}""",
+         False,
+         ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Special Open", "time": dt.time(10, 0)},
+                             HolidaysAndSpecialSessions.SPECIAL_OPEN)),
+        (
+        """{"special_close": {"add": [{"date": "2020-01-01", "value": {"name": "Special Close", "time": "16:00"}}]}}""",
+        False,
+        ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Special Close", "time": dt.time(16, 0)},
+                            HolidaysAndSpecialSessions.SPECIAL_CLOSE)),
+        ("""{"monthly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Monthly Expiry"}}]}}""",
+         False,
+         ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Monthly Expiry"},
+                             HolidaysAndSpecialSessions.MONTHLY_EXPIRY)),
+        ("""{"quarterly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Quarterly Expiry"}}]}}""",
+         False,
+         ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Quarterly Expiry"},
+                             HolidaysAndSpecialSessions.QUARTERLY_EXPIRY)),
+        ("""{"holiday": {"remove": ["2020-01-01"]}}""",
+         False,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.HOLIDAY)),
+        ("""{"special_open": {"remove": ["2020-01-01"]}}""",
+         False,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.SPECIAL_OPEN)),
+        ("""{"special_close": {"remove": ["2020-01-01"]}}""",
+         False,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.SPECIAL_CLOSE)),
+        ("""{"monthly_expiry": {"remove": ["2020-01-01"]}}""",
+         False,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.MONTHLY_EXPIRY)),
+        ("""{"quarterly_expiry": {"remove": ["2020-01-01"]}}""",
+         False,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.QUARTERLY_EXPIRY)),
+        ("""{"holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]}}""",
+         True,
+         ChangeSet()
+         .remove_day(pd.Timestamp("2020-01-01"), day_type=None, strict=True)
+         .add_day(pd.Timestamp("2020-01-01"), {"name": "Holiday"}, HolidaysAndSpecialSessions.HOLIDAY, strict=False)),
+        ("""{"special_open": {"add": [{"date": "2020-01-01", "value": {"name": "Special Open", "time": "10:00"}}]}}""",
+         True,
+         ChangeSet()
+         .remove_day(pd.Timestamp("2020-01-01"), day_type=None, strict=True)
+         .add_day(pd.Timestamp("2020-01-01"), {"name": "Special Open", "time": dt.time(10, 0)},
+                  HolidaysAndSpecialSessions.SPECIAL_OPEN, strict=False)),
+        (
+                """{"special_close": {"add": [{"date": "2020-01-01", "value": {"name": "Special Close", "time": "16:00"}}]}}""",
+                True,
+                ChangeSet()
+                .remove_day(pd.Timestamp("2020-01-01"), day_type=None, strict=True)
+                .add_day(pd.Timestamp("2020-01-01"), {"name": "Special Close", "time": dt.time(16, 0)},
+                         HolidaysAndSpecialSessions.SPECIAL_CLOSE, strict=False)),
+        ("""{"monthly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Monthly Expiry"}}]}}""",
+         True,
+         ChangeSet()
+         .remove_day(pd.Timestamp("2020-01-01"), day_type=None, strict=True)
+         .add_day(pd.Timestamp("2020-01-01"), {"name": "Monthly Expiry"}, HolidaysAndSpecialSessions.MONTHLY_EXPIRY,
+                  strict=False)),
+        ("""{"quarterly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Quarterly Expiry"}}]}}""",
+         True,
+         ChangeSet()
+         .remove_day(pd.Timestamp("2020-01-01"), day_type=None, strict=True)
+         .add_day(pd.Timestamp("2020-01-01"), {"name": "Quarterly Expiry"}, HolidaysAndSpecialSessions.QUARTERLY_EXPIRY,
+                  strict=False)),
+        ("""{"holiday": {"remove": ["2020-01-01"]}}""",
+         True,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.HOLIDAY)),
+        ("""{"special_open": {"remove": ["2020-01-01"]}}""",
+         True,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.SPECIAL_OPEN)),
+        ("""{"special_close": {"remove": ["2020-01-01"]}}""",
+         True,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.SPECIAL_CLOSE)),
+        ("""{"monthly_expiry": {"remove": ["2020-01-01"]}}""",
+         True,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.MONTHLY_EXPIRY)),
+        ("""{"quarterly_expiry": {"remove": ["2020-01-01"]}}""",
+         True,
+         ChangeSet().remove_day(pd.Timestamp("2020-01-01"), HolidaysAndSpecialSessions.QUARTERLY_EXPIRY)),
+        ("""{
+        "holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}], "remove": ["2020-01-02"]},
+        "special_open": {"add": [{"date": "2020-02-01", "value": {"name": "Special Open", "time": "10:00"}}], "remove": ["2020-02-02"]},
+        "special_close": {"add": [{"date": "2020-03-01", "value": {"name": "Special Close", "time": "16:00"}}], "remove": ["2020-03-02"]},
+        "monthly_expiry": {"add": [{"date": "2020-04-01", "value": {"name": "Monthly Expiry"}}], "remove": ["2020-04-02"]},
+        "quarterly_expiry": {"add": [{"date": "2020-05-01", "value": {"name": "Quarterly Expiry"}}], "remove": ["2020-05-02"]}
+        }""",
+         False,
+         ChangeSet()
+         .add_day(pd.Timestamp("2020-01-01"), {"name": "Holiday"}, HolidaysAndSpecialSessions.HOLIDAY, strict=True)
+         .remove_day(pd.Timestamp("2020-01-02"), day_type=HolidaysAndSpecialSessions.HOLIDAY, strict=True)
+         .add_day(pd.Timestamp("2020-02-01"), {"name": "Special Open", "time": dt.time(10, 0)},
+                  HolidaysAndSpecialSessions.SPECIAL_OPEN, strict=True)
+         .remove_day(pd.Timestamp("2020-02-02"), day_type=HolidaysAndSpecialSessions.SPECIAL_OPEN, strict=True)
+         .add_day(pd.Timestamp("2020-03-01"), {"name": "Special Close", "time": dt.time(16, 0)},
+                  HolidaysAndSpecialSessions.SPECIAL_CLOSE, strict=True)
+         .remove_day(pd.Timestamp("2020-03-02"), day_type=HolidaysAndSpecialSessions.SPECIAL_CLOSE, strict=True)
+         .add_day(pd.Timestamp("2020-04-01"), {"name": "Monthly Expiry"}, HolidaysAndSpecialSessions.MONTHLY_EXPIRY,
+                  strict=True)
+         .remove_day(pd.Timestamp("2020-04-02"), day_type=HolidaysAndSpecialSessions.MONTHLY_EXPIRY, strict=True)
+         .add_day(pd.Timestamp("2020-05-01"), {"name": "Quarterly Expiry"}, HolidaysAndSpecialSessions.QUARTERLY_EXPIRY,
+                  strict=True)
+         .remove_day(pd.Timestamp("2020-05-02"), day_type=HolidaysAndSpecialSessions.QUARTERLY_EXPIRY, strict=True)),
+        ("""{
+            "holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}], "remove": ["2020-01-02"]},
+            "special_open": {"add": [{"date": "2020-02-01", "value": {"name": "Special Open", "time": "10:00"}}], "remove": ["2020-02-02"]},
+            "special_close": {"add": [{"date": "2020-03-01", "value": {"name": "Special Close", "time": "16:00"}}], "remove": ["2020-03-02"]},
+            "monthly_expiry": {"add": [{"date": "2020-04-01", "value": {"name": "Monthly Expiry"}}], "remove": ["2020-04-02"]},
+            "quarterly_expiry": {"add": [{"date": "2020-05-01", "value": {"name": "Quarterly Expiry"}}], "remove": ["2020-05-02"]}
+            }""",
+         True,
+         ChangeSet()
+         .remove_day(pd.Timestamp("2020-01-01"), day_type=None, strict=True)
+         .add_day(pd.Timestamp("2020-01-01"), {"name": "Holiday"}, HolidaysAndSpecialSessions.HOLIDAY, strict=False)
+         .remove_day(pd.Timestamp("2020-01-02"), day_type=HolidaysAndSpecialSessions.HOLIDAY, strict=True)
+         .remove_day(pd.Timestamp("2020-02-01"), day_type=None, strict=True)
+         .add_day(pd.Timestamp("2020-02-01"), {"name": "Special Open", "time": dt.time(10, 0)},
+                  HolidaysAndSpecialSessions.SPECIAL_OPEN, strict=False)
+         .remove_day(pd.Timestamp("2020-02-02"), day_type=HolidaysAndSpecialSessions.SPECIAL_OPEN, strict=True)
+         .remove_day(pd.Timestamp("2020-03-01"), day_type=None, strict=True)
+         .add_day(pd.Timestamp("2020-03-01"), {"name": "Special Close", "time": dt.time(16, 0)},
+                  HolidaysAndSpecialSessions.SPECIAL_CLOSE, strict=False)
+         .remove_day(pd.Timestamp("2020-03-02"), day_type=HolidaysAndSpecialSessions.SPECIAL_CLOSE, strict=True)
+         .remove_day(pd.Timestamp("2020-04-01"), day_type=None, strict=True)
+         .add_day(pd.Timestamp("2020-04-01"), {"name": "Monthly Expiry"}, HolidaysAndSpecialSessions.MONTHLY_EXPIRY,
+                  strict=False)
+         .remove_day(pd.Timestamp("2020-04-02"), day_type=HolidaysAndSpecialSessions.MONTHLY_EXPIRY, strict=True)
+         .remove_day(pd.Timestamp("2020-05-01"), day_type=None, strict=True)
+         .add_day(pd.Timestamp("2020-05-01"), {"name": "Quarterly Expiry"}, HolidaysAndSpecialSessions.QUARTERLY_EXPIRY,
+                  strict=False)
+         .remove_day(pd.Timestamp("2020-05-02"), day_type=HolidaysAndSpecialSessions.QUARTERLY_EXPIRY, strict=True)),
+    ])
+    def test_changeset_from_valid_non_empty_dict(self, d_str: str, normalize: bool, cs: ChangeSet):
+        d = json.loads(d_str)
+        cs0 = ChangeSet.from_dict(d=d, normalize=normalize)
+        assert not cs0.is_empty()
+        assert cs0.is_consistent()
+        assert cs0 == cs
 
-@pytest.mark.parametrize(["d_str", "cs"], [
-    ("""{"holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]}}""",
-     ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Holiday"}, HolidaysAndSpecialSessions.HOLIDAY)),
-    ("""{"special_open": {"add": [{"date": "2020-01-01", "value": {"name": "Special Open", "time": "10:00"}}]}}""",
-     ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Special Open", "time": dt.time(10, 0)},
-                         HolidaysAndSpecialSessions.SPECIAL_OPEN)),
-    ("""{"special_close": {"add": [{"date": "2020-01-01", "value": {"name": "Special Close", "time": "16:00"}}]}}""",
-     ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Special Close", "time": dt.time(16, 0)},
-                         HolidaysAndSpecialSessions.SPECIAL_CLOSE)),
-    ("""{"monthly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Monthly Expiry"}}]}}""",
-     ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Monthly Expiry"},
-                         HolidaysAndSpecialSessions.MONTHLY_EXPIRY)),
-    ("""{"quarterly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Quarterly Expiry"}}]}}""",
-     ChangeSet().add_day(pd.Timestamp("2020-01-01"), {"name": "Quarterly Expiry"},
-                         HolidaysAndSpecialSessions.QUARTERLY_EXPIRY)),
-])
-def test_changeset_from_valid_non_empty_dict(d_str: str, cs: ChangeSet):
-    d = json.loads(d_str)
-    cs0 = ChangeSet.from_dict(d)
-    assert not cs0.is_empty()
-    assert cs0.is_consistent()
-    assert cs0 == cs
+    @pytest.mark.parametrize(["d_str"], [
+        # Invalid day type.
+        ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]}}""",),
+        ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]}}""",),
+        ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]}}""",),
+        # Missing date key.
+        ("""{"holiday": {"add": [{"value": {"name": "Holiday"}}]}}""",),
+        ("""{"monthly_expiry": {"add": [{"value": {"name": "Monthly Expiry"}}]}}""",),
+        ("""{"quarterly_expiry": {"add": [{"value": {"name": "Quarterly Expiry"}}]}}""",),
+        # Invalid date key.
+        ("""{"holiday": {"add": [{"date": "foo", "value": {"name": "Holiday"}}]}}""",),
+        ("""{"monthly_expiry": {"add": [{"date": "foo", "value": {"name": "Monthly Expiry"}}]}}""",),
+        ("""{"quarterly_expiry": {"add": [{"date": "foo", "value": {"name": "Quarterly Expiry"}}]}}""",),
+        # Missing value key.
+        ("""{"holiday": {"add": [{"date": "2020-01-01"}]}}""",),
+        ("""{"monthly_expiry": {"add": [{"date": "2020-01-01"}]}}""",),
+        ("""{"quarterly_expiry": {"add": [{"date": "2020-01-01"}]}}""",),
+        # Invalid value key.
+        ("""{"holiday": {"add": [{"date": "2020-01-01", "value": {"foo": "Holiday"}}]}}""",),
+        ("""{"monthly_expiry": {"add": [{"date": "2020-01-01", "value": {"foo": "Monthly Expiry"}}]}}""",),
+        ("""{"quarterly_expiry": {"add": [{"date": "2020-01-01", "value": {"foo": "Quarterly Expiry"}}]}}""",),
+        # Invalid day type.
+        ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Special Open", "time": "10:00"}}]}}""",),
+        ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Special Close", "time": "10:00"}}]}}""",),
+        # Missing date key.
+        ("""{"special_open": {"add": [{"value": {"name": "Special Open", "time": "10:00"}}]}}""",),
+        ("""{"special_close": {"add": [{"value": {"name": "Special Close", "time": "10:00"}}]}}""",),
+        # Invalid date key.
+        ("""{"special_open": {"add": [{"date": "foo", "value": {"name": "Special Open", "time": "10:00"}}]}}""",),
+        ("""{"special_close": {"add": [{"date": "foo", "value": {"name": "Special Close", "time": "10:00"}}]}}""",),
+        # Missing value key.
+        ("""{"special_open": {"add": [{"date": "2020-01-01"}]}}""",),
+        ("""{"special_close": {"add": [{"date": "2020-01-01"}]}}""",),
+        # Invalid value key.
+        ("""{"special_open": {"add": [{"date": "2020-01-01", "value": {"foo": "Special Open", "time": "10:00"}}]}}""",),
+        ("""{"special_open": {"add": [{"date": "2020-01-01", "value": {"name": "Special Open", "foo": "10:00"}}]}}""",),
+        ("""{"special_close": {"add": [{"date": "2020-01-01", "value": {"foo": "Special Close", "time": "10:00"}}]}}""",),
+        ("""{"special_close": {"add": [{"date": "2020-01-01", "value": {"name": "Special Close", "foo": "10:00"}}]}}""",),
+    ])
+    def test_changeset_from_invalid_dict(self, d_str: str):
+        d = json.loads(d_str)
+        with pytest.raises(ValueError):
+            ChangeSet.from_dict(d)
 
-
-@pytest.mark.parametrize(["d_str"], [
-    # Invalid day type.
-    ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]}}""",),
-    ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]}}""",),
-    ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]}}""",),
-    # Missing date key.
-    ("""{"holiday": {"add": [{"value": {"name": "Holiday"}}]}}""",),
-    ("""{"monthly_expiry": {"add": [{"value": {"name": "Monthly Expiry"}}]}}""",),
-    ("""{"quarterly_expiry": {"add": [{"value": {"name": "Quarterly Expiry"}}]}}""",),
-    # Invalid date key.
-    ("""{"holiday": {"add": [{"date": "foo", "value": {"name": "Holiday"}}]}}""",),
-    ("""{"monthly_expiry": {"add": [{"date": "foo", "value": {"name": "Monthly Expiry"}}]}}""",),
-    ("""{"quarterly_expiry": {"add": [{"date": "foo", "value": {"name": "Quarterly Expiry"}}]}}""",),
-    # Missing value key.
-    ("""{"holiday": {"add": [{"date": "2020-01-01"}]}}""",),
-    ("""{"monthly_expiry": {"add": [{"date": "2020-01-01"}]}}""",),
-    ("""{"quarterly_expiry": {"add": [{"date": "2020-01-01"}]}}""",),
-    # Invalid value key.
-    ("""{"holiday": {"add": [{"date": "2020-01-01", "value": {"foo": "Holiday"}}]}}""",),
-    ("""{"monthly_expiry": {"add": [{"date": "2020-01-01", "value": {"foo": "Monthly Expiry"}}]}}""",),
-    ("""{"quarterly_expiry": {"add": [{"date": "2020-01-01", "value": {"foo": "Quarterly Expiry"}}]}}""",),
-    # Invalid day type.
-    ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Special Open", "time": "10:00"}}]}}""",),
-    ("""{"foo": {"add": [{"date": "2020-01-01", "value": {"name": "Special Close", "time": "10:00"}}]}}""",),
-    # Missing date key.
-    ("""{"special_open": {"add": [{"value": {"name": "Special Open", "time": "10:00"}}]}}""",),
-    ("""{"special_close": {"add": [{"value": {"name": "Special Close", "time": "10:00"}}]}}""",),
-    # Invalid date key.
-    ("""{"special_open": {"add": [{"date": "foo", "value": {"name": "Special Open", "time": "10:00"}}]}}""",),
-    ("""{"special_close": {"add": [{"date": "foo", "value": {"name": "Special Close", "time": "10:00"}}]}}""",),
-    # Missing value key.
-    ("""{"special_open": {"add": [{"date": "2020-01-01"}]}}""",),
-    ("""{"special_close": {"add": [{"date": "2020-01-01"}]}}""",),
-    # Invalid value key.
-    ("""{"special_open": {"add": [{"date": "2020-01-01", "value": {"foo": "Special Open", "time": "10:00"}}]}}""",),
-    ("""{"special_open": {"add": [{"date": "2020-01-01", "value": {"name": "Special Open", "foo": "10:00"}}]}}""",),
-    ("""{"special_close": {"add": [{"date": "2020-01-01", "value": {"foo": "Special Close", "time": "10:00"}}]}}""",),
-    ("""{"special_close": {"add": [{"date": "2020-01-01", "value": {"name": "Special Close", "foo": "10:00"}}]}}""",),
-])
-def test_changeset_from_invalid_dict(d_str: str):
-    d = json.loads(d_str)
-    with pytest.raises(ValueError):
-        ChangeSet.from_dict(d)
+    @pytest.mark.parametrize(["d_str"], [
+        # Same day added twice for different day types.
+        ("""{
+            "holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]},
+            "special_open": {"add": [{"date": "2020-01-01", "value": {"name": "Special Open", "time": "10:00"}}]}
+        }""",),
+        ("""{
+            "holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]},
+            "special_close": {"add": [{"date": "2020-01-01", "value": {"name": "Special Close", "time": "16:00"}}]}
+        }""",),
+        ("""{
+            "holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]},
+            "monthly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Monthly Expiry"}}]}
+        }""",),
+        ("""{
+            "holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}]},
+            "quarterly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Quarterly Expiry"}}]}
+        }""",),
+        # Same day added and removed for same day type.
+        ("""{
+            "holiday": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}], "remove": ["2020-01-01"]}
+        }""",),
+        ("""{
+            "special_open": {"add": [{"date": "2020-01-01", "value": {"name": "Special Open", "time": "10:00"}}], "remove": ["2020-01-01"]}
+        }""",),
+        ("""{
+            "special_close": {"add": [{"date": "2020-01-01", "value": {"name": "Special Close", "time": "16:00"}}], "remove": ["2020-01-01"]}
+        }""",),
+        ("""{
+            "monthly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}], "remove": ["2020-01-01"]}
+        }""",),
+        ("""{
+        "quarterly_expiry": {"add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}], "remove": ["2020-01-01"]}
+        }""",),
+        ])
+    def test_changeset_from_inconsistent_dict(self, d_str: str):
+        d = json.loads(d_str)
+        with pytest.raises(ValueError):
+            ChangeSet.from_dict(d)

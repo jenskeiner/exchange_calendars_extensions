@@ -249,8 +249,42 @@ class Changes(Generic[T]):
         # Check if the dictionaries of dates to add and the sets of dates to remove are both equal.
         return self.add == other.add and self.remove == other.remove
 
+    @staticmethod
+    def _format_dict(d: Dict[pd.Timestamp, T]) -> str:
+        """
+        Format a dictionary of dates to values as a string.
+
+        Parameters
+        ----------
+        d : Dict[pd.Timestamp, T]
+            The dictionary to format.
+
+        Returns
+        -------
+        str
+            The formatted string.
+        """
+        return '{' + ', '.join([f'{k.date().isoformat()}: {v}' for k, v in d.items()]) + '}'
+
+    @staticmethod
+    def _format_set(s: Set[pd.Timestamp]) -> str:
+        """
+        Format a set of dates as a string.
+
+        Parameters
+        ----------
+        s : Set[pd.Timestamp]
+            The set to format.
+
+        Returns
+        -------
+        str
+            The formatted string.
+        """
+        return '{' + ', '.join([d.date().isoformat() for d in s]) + '}'
+
     def __str__(self) -> str:
-        return f'Changes(add={self._add}, remove={self._remove})'
+        return f'Changes(add={self._format_dict(self._add)}, remove={self._format_set(self._remove)})'
 
 
 def _to_time(input: Union[str, dt.time]) -> dt.time:
@@ -553,25 +587,82 @@ class ChangeSet:
 
         return self.changes == other.changes
 
+    def __str__(self):
+        changes_str = ", ".join([f'{k.name}: {c}' for k, c in self.changes.items() if not c.is_empty()])
+        return f'ChangeSet({changes_str})'
+
     @classmethod
-    def from_dict(cls, d: dict) -> "ChangeSet":
+    def from_dict(cls, d: dict, normalize: bool = False) -> "ChangeSet":
+        """
+        Create a change set from a dictionary.
+
+        The changes represented by the input dictionary need to result in a consistent change set. Otherwise, a
+        ValueError is raised.
+
+        If enabled, normalization is performed on the created change set. Normalization means that for every day type,
+        the dates to add are put into the dates to remove for all other day types. This ensures that when the changeset
+        is applied to an exchange calendar, the resulting calendar is consistent. For example, if the changeset contains
+        a date to add for the day type 'HolidaysAndSpecialSessions.HOLIDAY', and an exchange calendar contains the same
+        date as a special open day, then the resulting calendar would be inconsistent if the date was not removed from
+        the special open days. Normalization ensures that this is the case by adjusting the changeset to remove the date
+        from the special open days and all other day types for which the date is not added.
+
+        Another way to look at this is that normalization ensures that adding a day for a given day type to an exchange
+        calendar by applying a changeset becomes an upsert operation, i.e. the date is added as a new day of the given
+        type when if it is not already in the calendar as a holiday or special day type, and it is changed from the
+        existing type to given one if it is already in the calendar.
+
+        Parameters
+        ----------
+        d : dict
+            The dictionary to create the change set from.
+        normalize : bool
+            If True, normalize the created change set.
+
+        Returns
+        -------
+        ExchangeCalendarChangeSet
+            The created change set.
+
+        Raises
+        ------
+        ValueError
+            If the given dictionary does not represent a consistent change set.
+        """
         try:
+            # Validate the input dictionary.
             d = _SCHEMA.validate(d)
-
-            cs: ChangeSet = cls()
-
-            for day_type_str, changes_incoming in d.items():
-                day_type: HolidaysAndSpecialSessions = HolidaysAndSpecialSessions.from_str(day_type_str)
-                changes: Changes = cs.changes[day_type]
-
-                if changes_incoming.get('add') is not None:
-                    for item in changes_incoming.get('add'):
-                        changes.add_day(item['date'], item['value'], strict=True)
-
-                if changes_incoming.get('remove') is not None:
-                    for date in changes_incoming.get('remove'):
-                        changes.remove_day(date, strict=True)
         except Exception as e:
-            raise ValueError(f"Invalid change set.") from e
+            raise ValueError(f"Dictionary does not satisfy expected schema.") from e
+
+        # Create empty change set.
+        cs: ChangeSet = cls()
+
+        # Add the changes for each day type.
+        for day_type_str, changes_incoming in d.items():
+            try:
+                # Convert the day type string to the corresponding enum value.
+                day_type: HolidaysAndSpecialSessions = HolidaysAndSpecialSessions.from_str(day_type_str)
+            except ValueError as e:
+                raise ValueError(f"Invalid day type '{day_type_str}' in dictionary.") from e
+
+            if changes_incoming.get('add') is not None:
+                for item in changes_incoming.get('add'):
+                    cs.add_day(date=item['date'], value=item['value'], day_type=day_type, strict=True)
+
+            if changes_incoming.get('remove') is not None:
+                for date in changes_incoming.get('remove'):
+                    cs.remove_day(date=date, day_type=day_type, strict=True)
+
+        # Normalize the change set if enabled.
+        if normalize:
+            for day_type in HolidaysAndSpecialSessions:
+                # Get the dates to add for the day type.
+                dates_to_add = cs.changes[day_type].add.keys()
+                for day_type0 in HolidaysAndSpecialSessions:
+                    if day_type0 != day_type:
+                        # Add the dates to add for day_type to the dates to remove for day_type0.
+                        for date in dates_to_add:
+                            cs.changes[day_type0].remove_day(date, strict=True)
 
         return cs
