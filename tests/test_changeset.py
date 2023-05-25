@@ -152,7 +152,7 @@ class TestChanges:
         c = Changes[DaySpec](schema=_DaySchema)
         c.add_day(date=pd.Timestamp("2020-01-01"), value={"name": "Holiday"}, strict=True)
         c.remove_day(date=pd.Timestamp("2020-01-02"), strict=True)
-        assert str(c) == "Changes(add={Timestamp('2020-01-01 00:00:00'): {'name': 'Holiday'}}, remove={Timestamp('2020-01-02 00:00:00')})"
+        assert str(c) == "Changes(add={2020-01-01: {'name': 'Holiday'}}, remove={2020-01-02})"
 
     def test_eq(self):
         c1 = Changes[DaySpec](schema=_DaySchema)
