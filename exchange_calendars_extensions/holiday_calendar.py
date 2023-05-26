@@ -694,9 +694,19 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
                                               special_opens_orig(self).copy()],
                                adhoc_special_opens=adhoc_special_opens_orig(self).copy())
 
+        # Get changeset from provider, maybe.
         changeset: ChangeSet = changeset_provider() if changeset_provider is not None else None
 
-        if changeset is not None and not changeset.is_empty():
+        # Set changeset to None if it is empty.
+        if changeset is not None and changeset.is_empty():
+            changeset = None
+
+        # Normalize changeset, maybe.
+        if changeset is not None:
+            # Creates a normalized copy of the changeset.
+            changeset = changeset.normalize()
+
+        if changeset is not None:
             # Apply all changes pertaining to regular exchange calendar properties.
 
             # Remove holidays.

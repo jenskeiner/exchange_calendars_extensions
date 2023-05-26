@@ -1,13 +1,13 @@
 import datetime as dt
 import itertools
-from collections import namedtuple
-from dataclasses import field, dataclass
+from copy import deepcopy
+from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple, Set, Generic, TypeVar, Any, Dict, Self, TypedDict, Union, Optional
 from types import MappingProxyType
-import schema as s
+from typing import Set, Generic, TypeVar, Any, Dict, Self, TypedDict, Union, Optional
 
 import pandas as pd
+import schema as s
 
 T = TypeVar('T')
 
@@ -249,6 +249,18 @@ class Changes(Generic[T]):
         # Check if the dictionaries of dates to add and the sets of dates to remove are both equal.
         return self.add == other.add and self.remove == other.remove
 
+    def __copy__(self):
+        c = Changes()
+        c._add = self._add
+        c_remove = self._remove
+        return c
+
+    def __deepcopy__(self, memo):
+        c = Changes(self._schema)
+        c._add = deepcopy(self._add, memo)
+        c._remove = deepcopy(self._remove, memo)
+        return c
+
     @staticmethod
     def _format_dict(d: Dict[pd.Timestamp, T]) -> str:
         """
@@ -405,6 +417,24 @@ class ChangeSet:
     calendar at most once (if it was indeed a holiday or special day in the original calendar) or not at all otherwise.
     Therefore, changesets may specify the same day to be removed for multiple day types, just not for day types that
     also add the same date.
+
+    A changeset is normalized if and only if the following conditions are satisfied:
+    1) It is consistent.
+    2) When applied to an exchange calendar, the resulting calendar is consistent.
+
+    A changeset that is consistent can still cause an exchange calendar to become inconsistent when applied. This is
+    because consistency of a changeset requires the days to be added to be mutually exclusive only across all day types
+    within the changeset. However, there may be conflicting holidays or special days already present in a given exchange
+    calendar to which a changeset is applied. For example, assume the date 2020-01-01 is a holiday in the original
+    calendar. Then, a changeset that adds 2020-01-01 as a special open day will cause the resulting calendar to be
+    inconsistent. This is because the same day is now both a holiday and a special open day.
+
+    To resolve this issue, the date 2020-01-01 could be added to the changeset, respectively, for all day types (except
+    special opens) as a day to remove. Now, if the changeset is applied to the original calendar, 2020-01-01 will no
+    longer be a holiday and therefore no longer conflict with the new special open day. This form of sanitization
+    ensures that a consistent changeset can be applied safely to any exchange calendar. Effectively, normalization
+    ensures that adding a new day for a given day type becomes an upsert operation, i.e. the day is added if it does not
+    already exist in any day type category, and updated/moved to the new day type if it does.
     """
 
     @property
@@ -581,6 +611,71 @@ class ChangeSet:
 
         return True
 
+    def __copy__(self) -> 'ChangeSet':
+        """
+        Return a shallow copy of the change set.
+
+        Returns
+        -------
+        ChangeSet
+            The shallow copy.
+        """
+        cs = ChangeSet()
+        cs._changes = self.changes
+
+        return cs
+
+    def __deepcopy__(self, memo) -> 'ChangeSet':
+        """
+        Return a deep copy of the change set.
+
+        Returns
+        -------
+        ChangeSet
+            The deep copy.
+        """
+        cs = ChangeSet()
+        cs._changes = deepcopy(self._changes)
+
+        return cs
+
+    def normalize(self, inplace: bool = False) -> Self:
+        """
+        Normalize the change set.
+
+        A change set is normalized if
+        1) It is consistent.
+        2) When applied to an exchange calendar, the resulting calendar is consistent.
+
+        Normalization is performed by adding each day to add (for any day type category) also as a day to remove for all
+        other day type categories.
+
+        Parameters
+        ----------
+        inplace : bool
+            If True, normalize the change set in-place. If False, return a normalized copy of the change set.
+        """
+
+        # Determine instance to normalize.
+        if inplace:
+            # This instance.
+            cs: ChangeSet = self
+        else:
+            # A copy of this instance.
+            cs: ChangeSet = deepcopy(self)
+
+        for day_type in HolidaysAndSpecialSessions:
+            # Get the dates to add for the day type.
+            dates_to_add = cs._changes[day_type].add.keys()
+            # Loop over all day types.
+            for day_type0 in HolidaysAndSpecialSessions:
+                if day_type0 != day_type:
+                    # Add the dates to add for day_type to the dates to remove for day_type0.
+                    for date in dates_to_add:
+                        cs.remove_day(date, day_type0, strict=True)
+
+        return cs
+
     def __eq__(self, other):
         if not isinstance(other, ChangeSet):
             return False
@@ -592,32 +687,17 @@ class ChangeSet:
         return f'ChangeSet({changes_str})'
 
     @classmethod
-    def from_dict(cls, d: dict, normalize: bool = False) -> "ChangeSet":
+    def from_dict(cls, d: dict) -> "ChangeSet":
         """
         Create a change set from a dictionary.
 
         The changes represented by the input dictionary need to result in a consistent change set. Otherwise, a
         ValueError is raised.
 
-        If enabled, normalization is performed on the created change set. Normalization means that for every day type,
-        the dates to add are put into the dates to remove for all other day types. This ensures that when the changeset
-        is applied to an exchange calendar, the resulting calendar is consistent. For example, if the changeset contains
-        a date to add for the day type 'HolidaysAndSpecialSessions.HOLIDAY', and an exchange calendar contains the same
-        date as a special open day, then the resulting calendar would be inconsistent if the date was not removed from
-        the special open days. Normalization ensures that this is the case by adjusting the changeset to remove the date
-        from the special open days and all other day types for which the date is not added.
-
-        Another way to look at this is that normalization ensures that adding a day for a given day type to an exchange
-        calendar by applying a changeset becomes an upsert operation, i.e. the date is added as a new day of the given
-        type when if it is not already in the calendar as a holiday or special day type, and it is changed from the
-        existing type to given one if it is already in the calendar.
-
         Parameters
         ----------
         d : dict
             The dictionary to create the change set from.
-        normalize : bool
-            If True, normalize the created change set.
 
         Returns
         -------
@@ -653,16 +733,5 @@ class ChangeSet:
             if changes_incoming.get('remove') is not None:
                 for date in changes_incoming.get('remove'):
                     cs.remove_day(date=date, day_type=day_type, strict=True)
-
-        # Normalize the change set if enabled.
-        if normalize:
-            for day_type in HolidaysAndSpecialSessions:
-                # Get the dates to add for the day type.
-                dates_to_add = cs.changes[day_type].add.keys()
-                for day_type0 in HolidaysAndSpecialSessions:
-                    if day_type0 != day_type:
-                        # Add the dates to add for day_type to the dates to remove for day_type0.
-                        for date in dates_to_add:
-                            cs.changes[day_type0].remove_day(date, strict=True)
 
         return cs

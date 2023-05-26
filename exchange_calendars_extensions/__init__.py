@@ -187,7 +187,7 @@ def _with_changeset(f: Callable[Concatenate[ChangeSet, P], ChangeSet]) -> Callab
 
 
 @_with_changeset
-def _add_day(cs: ChangeSet, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, value: Union[DaySpec, DaySpecWithTime]) -> ChangeSet:
+def _add_day(cs: ChangeSet, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, value: Union[DaySpec, DaySpecWithTime], strict: bool) -> ChangeSet:
     """
     Add a day of a given type to the changeset for a given exchange calendar.
 
@@ -199,23 +199,97 @@ def _add_day(cs: ChangeSet, day_type: HolidaysAndSpecialSessions, date: pd.Times
         The type of the day to add.
     date : pd.Timestamp
         The date to add.
-    *args : Any
+    value : Union[DaySpec, DaySpecWithTime]
         The properties to add for the day. Must match the properties required by the given day type.
+    strict : bool
+        Whether to raise an error if the changeset would be inconsistent after adding the day.
 
     Returns
     -------
     ChangeSet
         The changeset with the added day.
+
+    Raises
+    ------
+    ValueError
+        If the changeset would be inconsistent after adding the day.
     """
-    return cs.add_day(date, value, day_type)
+    return cs.add_day(date, value, day_type, strict=strict)
 
 
-def add_day(exchange: str, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, value: Union[DaySpec, DaySpecWithTime]) -> None:
-    _add_day(exchange, day_type, date, value)
+def add_day(exchange: str, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp, value: Union[DaySpec, DaySpecWithTime], strict: bool = False) -> None:
+    """
+    Add a day of a given type to the given exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange key for which to add the day.
+    day_type : HolidaysAndSpecialSessions
+        The type of the day to add.
+    date : pd.Timestamp
+        The date to add.
+    value : Union[DaySpec, DaySpecWithTime]
+        The properties to add for the day. Must match the properties required by the given day type.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after adding the day.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after adding the day.
+    """
+    _add_day(exchange, day_type, date, value, strict=strict)
 
 
 @_with_changeset
-def _remove_day(cs: ChangeSet, day_type: HolidaysAndSpecialSessions, date: pd.Timestamp) -> ChangeSet:
+def _clear_day(cs: ChangeSet, date: pd.Timestamp, day_type: Optional[HolidaysAndSpecialSessions] = None) -> ChangeSet:
+    """
+    Clear a day of a given type from the changeset for a given exchange calendar.
+
+    Parameters
+    ----------
+    cs : ChangeSet
+        The changeset from which to clear the day.
+    date : pd.Timestamp
+        The date to clear.
+    day_type : Optional[HolidaysAndSpecialSessions]
+        The type of the day to clear. If None, clears all types of days.
+
+    Returns
+    -------
+    ChangeSet
+        The changeset with the cleared day.
+    """
+    return cs.clear_day(date, day_type)
+
+
+def clear_day(exchange: str, date: pd.Timestamp, day_type: Optional[HolidaysAndSpecialSessions] = None) -> None:
+    """
+    Clear a day of a given type from the given exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange key for which to clear the day.
+    date : pd.Timestamp
+        The date to clear.
+    day_type : Optional[HolidaysAndSpecialSessions]
+        The type of the day to clear. If None, clears all types of days.
+
+    Returns
+    -------
+    None
+    """
+    _clear_day(exchange, date, day_type)
+
+
+@_with_changeset
+def _remove_day(cs: ChangeSet, date: pd.Timestamp, day_type: HolidaysAndSpecialSessions, strict: bool) -> ChangeSet:
     """
     Remove a day of a given type from the changeset for a given exchange calendar.
 
@@ -223,28 +297,54 @@ def _remove_day(cs: ChangeSet, day_type: HolidaysAndSpecialSessions, date: pd.Ti
     ----------
     cs : ChangeSet
         The changeset from which to remove the day.
-    day_type : HolidaysAndSpecialSessions
-        The type of the day to remove.
     date : pd.Timestamp
         The date to remove.
+    day_type : HolidaysAndSpecialSessions
+        The type of the day to remove.
+    strict : bool
+        Whether to raise an error if the changeset would be inconsistent after removing the day.
 
     Returns
     -------
     ChangeSet
         The changeset with the removed day.
+
+    Raises
+    ------
+    ValueError
+        If the changeset would be inconsistent after removing the day.
     """
-    return cs.remove_day(date, day_type)
+    return cs.remove_day(date, day_type, strict=strict)
 
 
-def remove_day(exchange: str, day_type: Optional[HolidaysAndSpecialSessions], date: pd.Timestamp) -> None:
-    if day_type is not None:
-        _remove_day(exchange, day_type, date)
-    else:
-        for day_type0 in HolidaysAndSpecialSessions:
-            _remove_day(exchange, day_type0, date)
+def remove_day(exchange: str, date: pd.Timestamp, day_type: Optional[HolidaysAndSpecialSessions] = None, strict: bool = False) -> None:
+    """
+    Remove a day of a given type from the given exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange key for which to remove the day.
+    date : pd.Timestamp
+        The date to remove.
+    day_type : Optional[HolidaysAndSpecialSessions]
+        The type of the day to remove. If None, removes the day for all types of days.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after removing the day.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after removing the day.
+    """
+    _remove_day(exchange, date, day_type, strict=strict)
 
 
-def add_holiday(exchange: str, date: pd.Timestamp, name: str = "Holiday") -> None:
+def add_holiday(exchange: str, date: pd.Timestamp, name: str = "Holiday", strict: bool = False) -> None:
     """
     Add a holiday to an exchange calendar.
 
@@ -256,15 +356,22 @@ def add_holiday(exchange: str, date: pd.Timestamp, name: str = "Holiday") -> Non
         The date of the holiday.
     name : str
         The name of the holiday.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after adding the day.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, HolidaysAndSpecialSessions.HOLIDAY, date, {"name": name})
+    _add_day(exchange, HolidaysAndSpecialSessions.HOLIDAY, date, {"name": name}, strict=strict)
 
 
-def remove_holiday(exchange: str, date: pd.Timestamp) -> None:
+def remove_holiday(exchange: str, date: pd.Timestamp, strict: bool = False) -> None:
     """
     Remove a holiday from an exchange calendar.
 
@@ -274,15 +381,22 @@ def remove_holiday(exchange: str, date: pd.Timestamp) -> None:
         The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the holiday to remove.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after removing the day.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after removing the day.
     """
-    _remove_day(exchange, HolidaysAndSpecialSessions.HOLIDAY, date)
+    _remove_day(exchange, date, HolidaysAndSpecialSessions.HOLIDAY, strict=strict)
 
 
-def add_special_open(exchange: str, date: pd.Timestamp, t: time, name: str = "Special Open") -> None:
+def add_special_open(exchange: str, date: pd.Timestamp, t: time, name: str = "Special Open", strict: bool = False) -> None:
     """
     Add a special open to an exchange calendar.
 
@@ -296,15 +410,22 @@ def add_special_open(exchange: str, date: pd.Timestamp, t: time, name: str = "Sp
         The time of the special open.
     name : str
         The name of the special open.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after adding the day.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, HolidaysAndSpecialSessions.SPECIAL_OPEN, date, {"name": name, "time": t})
+    _add_day(exchange, HolidaysAndSpecialSessions.SPECIAL_OPEN, date, {"name": name, "time": t}, strict=strict)
 
 
-def remove_special_open(exchange: str, date: pd.Timestamp) -> None:
+def remove_special_open(exchange: str, date: pd.Timestamp, strict: bool = False) -> None:
     """
     Remove a special close from an exchange calendar.
 
@@ -314,15 +435,22 @@ def remove_special_open(exchange: str, date: pd.Timestamp) -> None:
         The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the special open to remove.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after removing the day.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after removing the day.
     """
-    _remove_day(exchange, HolidaysAndSpecialSessions.SPECIAL_OPEN, date)
+    _remove_day(exchange, date, HolidaysAndSpecialSessions.SPECIAL_OPEN, strict=strict)
 
 
-def add_special_close(exchange: str, date: pd.Timestamp, t: time, name: str = "Special Close") -> None:
+def add_special_close(exchange: str, date: pd.Timestamp, t: time, name: str = "Special Close", strict: bool = False) -> None:
     """
     Add a special close to an exchange calendar.
 
@@ -336,15 +464,22 @@ def add_special_close(exchange: str, date: pd.Timestamp, t: time, name: str = "S
         The time of the special close.
     name : str
         The name of the special close.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after adding the day.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, HolidaysAndSpecialSessions.SPECIAL_CLOSE, date, {"name": name, "time": t})
+    _add_day(exchange, HolidaysAndSpecialSessions.SPECIAL_CLOSE, date, {"name": name, "time": t}, strict=strict)
 
 
-def remove_special_close(exchange: str, date: pd.Timestamp) -> None:
+def remove_special_close(exchange: str, date: pd.Timestamp, strict: bool = False) -> None:
     """
     Remove a special close from an exchange calendar.
 
@@ -354,15 +489,22 @@ def remove_special_close(exchange: str, date: pd.Timestamp) -> None:
         The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the special close to remove.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after removing the day.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after removing the day.
     """
-    _remove_day(exchange, HolidaysAndSpecialSessions.SPECIAL_CLOSE, date)
+    _remove_day(exchange, date, HolidaysAndSpecialSessions.SPECIAL_CLOSE, strict=strict)
 
 
-def add_quarterly_expiry(exchange: str, date: pd.Timestamp, name: str = "Quarterly Expiry") -> None:
+def add_quarterly_expiry(exchange: str, date: pd.Timestamp, name: str = "Quarterly Expiry", strict: bool = False) -> None:
     """
     Add a quarterly expiry to an exchange calendar.
 
@@ -374,15 +516,22 @@ def add_quarterly_expiry(exchange: str, date: pd.Timestamp, name: str = "Quarter
         The date of the quarterly expiry.
     name : str
         The name of the quarterly expiry.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after adding the day.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, HolidaysAndSpecialSessions.QUARTERLY_EXPIRY, date, {"name": name})
+    _add_day(exchange, HolidaysAndSpecialSessions.QUARTERLY_EXPIRY, date, {"name": name}, strict=strict)
 
 
-def remove_quarterly_expiry(exchange: str, date: pd.Timestamp) -> None:
+def remove_quarterly_expiry(exchange: str, date: pd.Timestamp, strict: bool = False) -> None:
     """
     Remove a quarterly expiry from an exchange calendar.
 
@@ -392,15 +541,17 @@ def remove_quarterly_expiry(exchange: str, date: pd.Timestamp) -> None:
         The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the quarterly expiry to remove.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after removing the day.
 
     Returns
     -------
     None
     """
-    _remove_day(exchange, HolidaysAndSpecialSessions.QUARTERLY_EXPIRY, date)
+    _remove_day(exchange, date, HolidaysAndSpecialSessions.QUARTERLY_EXPIRY, strict=strict)
 
 
-def add_monthly_expiry(exchange: str, date: pd.Timestamp, name: str = "Monthly Expiry") -> None:
+def add_monthly_expiry(exchange: str, date: pd.Timestamp, name: str = "Monthly Expiry", strict: bool = False) -> None:
     """
     Add a monthly expiry to an exchange calendar.
 
@@ -412,15 +563,22 @@ def add_monthly_expiry(exchange: str, date: pd.Timestamp, name: str = "Monthly E
         The date of the monthly expiry.
     name : str
         The name of the monthly expiry.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after adding the day.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, HolidaysAndSpecialSessions.MONTHLY_EXPIRY, date, {"name": name})
+    _add_day(exchange, HolidaysAndSpecialSessions.MONTHLY_EXPIRY, date, {"name": name}, strict=strict)
 
     
-def remove_monthly_expiry(exchange: str, date: pd.Timestamp) -> None:
+def remove_monthly_expiry(exchange: str, date: pd.Timestamp, strict: bool = False) -> None:
     """
     Remove a monthly expiry from an exchange calendar.
 
@@ -430,12 +588,19 @@ def remove_monthly_expiry(exchange: str, date: pd.Timestamp) -> None:
         The exchange key for which to remove the day.
     date : pd.Timestamp
         The date of the monthly expiry to remove.
+    strict : bool
+        Whether to raise an error if the changeset for the exchange would be inconsistent after removing the day.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If the changeset for the exchange would be inconsistent after removing the day.
     """
-    _remove_day(exchange, HolidaysAndSpecialSessions.MONTHLY_EXPIRY, date)
+    _remove_day(exchange, date, HolidaysAndSpecialSessions.MONTHLY_EXPIRY)
 
     
 @_with_changeset

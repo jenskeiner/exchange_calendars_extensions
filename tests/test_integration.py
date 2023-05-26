@@ -1600,6 +1600,56 @@ def test_add_monthly_expiry():
 
 
 @pytest.mark.isolated
+def test_overwrite_regular_holiday_with_special_open():
+    add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2023-01-02")])
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_special_open("TEST", pd.Timestamp("2023-01-02"), time(11, 0), "Added Special Open")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Overwritten holiday should no longer be in regular holidays.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-02"): "Holiday 0",
+        pd.Timestamp("2024-01-02"): "Holiday 0"})).empty
+
+    # Ad-hoc holidays should be unmodified.
+    assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
+
+    # Overwritten holiday should no longer be in holidays_all calendar.
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-02"): "Holiday 0",
+        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
+        pd.Timestamp("2024-01-02"): "Holiday 0"})).empty
+
+    # Check number of distinct special open times.
+    assert len(c.special_opens) == 1
+
+    # Added special open should be in special opens for regular time.
+    assert c.special_opens[0][0] == time(11, 0)
+    assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-01-02"): "Added Special Open",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+    # Ad-hoc special opens should be unmodified.
+    assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
+
+    # Added special open should be in consolidated calendar.
+    assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-01-02"): "Added Special Open",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2023-06-01"): "ad-hoc special open",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+
+@pytest.mark.isolated
 def test_apply_changeset():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
