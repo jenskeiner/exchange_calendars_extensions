@@ -566,6 +566,19 @@ def test_add_and_remove_new_holiday():
 
 
 @pytest.mark.isolated
+def test_add_and_remove_new_holiday_strict():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Add and then remove the same day. This should be a no-op.
+    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), "Added Holiday", strict=True)
+    
+    with pytest.raises(ValueError):
+        ece.remove_holiday("TEST", pd.Timestamp("2023-07-03"), strict=True)
+
+
+@pytest.mark.isolated
 def test_add_and_remove_existing_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
@@ -593,6 +606,19 @@ def test_add_and_remove_existing_holiday():
         pd.Timestamp("2022-01-01"): "Holiday 0",
         pd.Timestamp("2023-02-01"): "ad-hoc holiday",
         pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_add_and_remove_existing_holiday_strict():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Add and then remove the same existing holiday. The day should be removed.
+    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday", strict=True)
+    
+    with pytest.raises(ValueError):
+        ece.remove_holiday("TEST", pd.Timestamp("2023-01-01"), strict=True)
 
 
 @pytest.mark.isolated
@@ -631,6 +657,20 @@ def test_remove_and_add_new_holiday():
 
 
 @pytest.mark.isolated
+def test_remove_and_add_new_holiday_strict():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Remove and then add the same new holiday. The removal of a non-existent holiday should be ignored, so the day
+    # should be added eventually.
+    ece.remove_holiday("TEST", pd.Timestamp("2023-07-03"), strict=True)
+    
+    with pytest.raises(ValueError):
+        ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), "Added Holiday", strict=True)
+
+
+@pytest.mark.isolated
 def test_remove_and_add_existing_regular_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
@@ -661,6 +701,20 @@ def test_remove_and_add_existing_regular_holiday():
         pd.Timestamp("2023-01-01"): "Added Holiday",
         pd.Timestamp("2023-02-01"): "ad-hoc holiday",
         pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_and_add_existing_regular_holiday_strict():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
+    # the existing regular holiday.
+    ece.remove_holiday("TEST", pd.Timestamp("2023-01-01"), strict=True)
+    
+    with pytest.raises(ValueError):
+        ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday", strict=True)
 
 
 @pytest.mark.isolated
@@ -695,6 +749,20 @@ def test_remove_and_add_existing_adhoc_holiday():
         pd.Timestamp("2023-01-01"): "Holiday 0",
         pd.Timestamp("2023-02-01"): "Added Holiday",
         pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_and_add_existing_adhoc_holiday_strict():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
+    # the existing regular holiday.
+    ece.remove_holiday("TEST", pd.Timestamp("2023-02-01"), strict=True)
+    
+    with pytest.raises(ValueError):
+        ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), "Added Holiday", strict=True)
 
 
 @pytest.mark.isolated
