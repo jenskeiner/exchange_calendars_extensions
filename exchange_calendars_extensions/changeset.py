@@ -405,6 +405,12 @@ class HolidaysAndSpecialSessions(Enum):
 
         return HolidaysAndSpecialSessions[key.upper()]
 
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, memodict={}):
+        return self
+
 
 # Define a schema for a dictionary to represent a changeset containing changes to an exchange calendar. Note that the
 # schema only defines the expected structure, i.e. the keys and the types of the values. It does not validate the values
