@@ -1,9 +1,8 @@
 import datetime as dt
+import json
 
 import pandas as pd
 import pytest
-import json
-
 from schema import SchemaError
 
 from exchange_calendars_extensions import HolidaysAndSpecialSessions

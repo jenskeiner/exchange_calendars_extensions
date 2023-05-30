@@ -1,7 +1,8 @@
-import pytest
 import pandas as pd
+import pytest
 
-from exchange_calendars_extensions.util import get_day_of_week_name, get_month_name, third_day_of_week_in_month, last_day_in_month
+from exchange_calendars_extensions.util import get_day_of_week_name, get_month_name, third_day_of_week_in_month, \
+    last_day_in_month
 
 
 def test_get_month_name():

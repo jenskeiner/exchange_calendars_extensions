@@ -1,8 +1,8 @@
-from exchange_calendars_extensions.observance import get_roll_backward_observance
+import pandas as pd
 from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.pandas_extensions.holiday import Holiday
 
-import pandas as pd
+from exchange_calendars_extensions.observance import get_roll_backward_observance
 
 
 def test_get_roll_backward_observance():
