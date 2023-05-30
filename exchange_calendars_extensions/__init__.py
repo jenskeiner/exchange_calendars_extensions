@@ -1,9 +1,10 @@
 import functools
 from datetime import time
-from typing import Optional, Callable, ParamSpec, TypeVar, Concatenate, Type, Union
+from typing import Optional, Callable, ParamSpec, Concatenate, Type, Union
 
 import pandas as pd
 from exchange_calendars import calendar_utils, register_calendar_type, ExchangeCalendar, get_calendar_names
+from exchange_calendars.calendar_utils import _default_calendar_factories
 from exchange_calendars.exchange_calendar_asex import ASEXExchangeCalendar
 from exchange_calendars.exchange_calendar_xams import XAMSExchangeCalendar
 from exchange_calendars.exchange_calendar_xbru import XBRUExchangeCalendar
@@ -26,7 +27,6 @@ from exchange_calendars.exchange_calendar_xtae import XTAEExchangeCalendar
 from exchange_calendars.exchange_calendar_xtse import XTSEExchangeCalendar
 from exchange_calendars.exchange_calendar_xwar import XWARExchangeCalendar
 from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
-from exchange_calendars.calendar_utils import _default_calendar_factories
 
 from .changeset import ChangeSet, HolidaysAndSpecialSessions, DaySpec, DaySpecWithTime
 from .holiday_calendar import extend_class, ExtendedExchangeCalendar
