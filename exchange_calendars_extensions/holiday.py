@@ -1,8 +1,9 @@
-from datetime import timedelta
-from typing import Optional, Callable
+from datetime import timedelta, tzinfo
+from typing import Optional, Callable, Union
 
 import pandas as pd
 from exchange_calendars.pandas_extensions.holiday import Holiday
+from pandas import Series, DatetimeIndex
 
 from exchange_calendars_extensions.offset import LastDayOfMonthOffsetClasses, \
     ThirdDayOfWeekInMonthOffsetClasses
@@ -13,19 +14,36 @@ def get_monthly_expiry_holiday(
         day_of_week: int,
         month: int,
         observance: Optional[Callable[[pd.Timestamp], pd.Timestamp]] = None,
-        start_date=None,
-        end_date=None,
-        tz=None) -> Holiday:
+        start_date: Optional[pd.Timestamp] = None,
+        end_date: Optional[pd.Timestamp] = None,
+        tz: Optional[tzinfo] = None) -> Holiday:
     """
-    Return a holiday that occurs yearly on the third day of the week in the given month.
-    :param name: The name of the holiday.
-    :param day_of_week: 0 = Monday, 1 = Tuesday, ..., 6 = Sunday.
-    :param month: 1 = January, 2 = February, ..., 12 = December.
-    :param observance: A function that takes a datetime and returns a datetime.
-    :param start_date: The first date on which this holiday is valid.
-    :param end_date: The last date on which this holiday is valid.
-    :param tz: The timezone in which to interpret the holiday.
-    :return: A Holiday object.
+    Return a holiday that occurs yearly on the third given day of the week in the given month of the year.
+
+    For example, when day_of_week=2 and month=1, this returns a holiday that occurs yearly on the third Wednesday in
+    January.
+
+    Parameters
+    ----------
+    name : str
+        The name of the holiday.
+    day_of_week : int
+        0 = Monday, 1 = Tuesday, ..., 6 = Sunday.
+    month : int
+        1 = January, 2 = February, ..., 12 = December.
+    observance : Optional[Callable[[pd.Timestamp], pd.Timestamp]], optional
+        A function that takes a datetime and returns a datetime, by default None.
+    start_date : Optional[pd.Timestamp], optional
+        The first date on which this holiday is valid, by default None.
+    end_date : Optional[pd.Timestamp], optional
+        The last date on which this holiday is valid, by default None.
+    tz : Optional[tzinfo], optional
+        The timezone in which to interpret the holiday, by default None.
+
+    Returns
+    -------
+    Holiday
+        A new Holiday object as specified.
     """
     return Holiday(name, month=1, day=1,
                    offset=ThirdDayOfWeekInMonthOffsetClasses[day_of_week][month](),
@@ -36,18 +54,33 @@ def get_last_day_of_month_holiday(
         name: str,
         month: int,
         observance: Optional[Callable[[pd.Timestamp], pd.Timestamp]] = None,
-        start_date=None,
-        end_date=None,
-        tz=None) -> Holiday:
+        start_date: Optional[pd.Timestamp] = None,
+        end_date: Optional[pd.Timestamp] = None,
+        tz: Optional[tzinfo] = None) -> Holiday:
     """
-    Return a holiday that occurs yearly on the last day of the given month.
-    :param name: The name of the holiday.
-    :param month: 1 = January, 2 = February, ..., 12 = December.
-    :param observance: A function that takes a datetime and returns a datetime.
-    :param start_date: The first date on which this holiday is valid.
-    :param end_date: The last date on which this holiday is valid.
-    :param tz: The timezone in which to interpret the holiday.
-    :return: A Holiday object.
+    Return a holiday that occurs yearly on the last day of the given month of the year.
+
+    For example, when month=1, this returns a holiday that occurs yearly on the last day of January.
+
+    Parameters
+    ----------
+    name : str
+        The name of the holiday.
+    month : int
+        1 = January, 2 = February, ..., 12 = December.
+    observance : Optional[Callable[[pd.Timestamp], pd.Timestamp]], optional
+        A function that takes a datetime and returns a datetime, by default None.
+    start_date : Optional[pd.Timestamp], optional
+        The first date on which this holiday is valid, by default None.
+    end_date : Optional[pd.Timestamp], optional
+        The last date on which this holiday is valid, by default None.
+    tz : Optional[tzinfo], optional
+        The timezone in which to interpret the holiday, by default None.
+
+    Returns
+    -------
+    Holiday
+        A new Holiday object as specified.
     """
     return Holiday(name, month=1, day=1,
                    offset=LastDayOfMonthOffsetClasses[month](),
@@ -61,19 +94,33 @@ class DayOfWeekPeriodicHoliday(Holiday):
 
     def __init__(
         self,
-        name,
+        name: str,
         day_of_week: int,
-        start_date=None,
-        end_date=None,
-        tz=None
-    ):
+        start_date: Optional[pd.Timestamp] = None,
+        end_date: Optional[pd.Timestamp] = None,
+        tz: Optional[tzinfo] = None
+    ) -> None:
         """
         Constructor.
-        :param name: Name of holiday.
-        :param day_of_week: 0 = Monday, 1 = Tuesday, ..., 6 = Sunday.
-        :param start_date: The first date on which this holiday is valid.
-        :param end_date: The last date on which this holiday is valid.
+
+        Parameters
+        ----------
+        name : str
+            The name of the holiday.
+        day_of_week : int
+            0 = Monday, 1 = Tuesday, ..., 6 = Sunday.
+        start_date : Optional[pd.Timestamp], optional
+            The first date on which this holiday is valid, by default None.
+        end_date : Optional[pd.Timestamp], optional
+            The last date on which this holiday is valid, by default None.
+        tz : Optional[tzinfo], optional
+            The timezone in which to interpret the holiday, by default None.
+
+        Returns
+        -------
+        None
         """
+        # Super constructor.
         super().__init__(
             name,
             year=None,
@@ -86,11 +133,23 @@ class DayOfWeekPeriodicHoliday(Holiday):
             days_of_week=None,
             tz=tz
         )
+
+        # Store day of week.
         self.day_of_week = day_of_week
 
-    def _dates(self, start_date, end_date):
+    def _dates(self, start_date, end_date) -> pd.DatetimeIndex:
         """
         Return a list of dates on which this holiday occurs between start_date and end_date.
+
+        Parameters
+        ----------
+        start_date : starting date, datetime-like, optional
+        end_date : ending date, datetime-like, optional
+
+        Returns
+        -------
+        pd.DatetimeIndex
+            A list of dates on which this holiday occurs between start_date and end_date.
         """
         # Determine effective start date.
         if self.start_date is not None:
@@ -101,12 +160,14 @@ class DayOfWeekPeriodicHoliday(Holiday):
             end_date = min(end_date, self.end_date.tz_localize(end_date.tz))
 
         if start_date > end_date:
+            # Empty result.
             return pd.DatetimeIndex([])
 
         # Get the first date larger or equal to start_date where the day of the week is the same as day_of_week.
         first = start_date + pd.Timedelta(days=(self.day_of_week - start_date.dayofweek) % 7)
 
         if first > end_date:
+            # Empty result.
             return pd.DatetimeIndex([])
 
         # Get the last date smaller or equal to end_date where the day of the week is the same as day_of_week.
@@ -118,8 +179,9 @@ class DayOfWeekPeriodicHoliday(Holiday):
         # Return the dates.
         return dates
 
-    def dates(self, start_date, end_date, return_name=False):
+    def dates(self, start_date, end_date, return_name=False) -> Union[DatetimeIndex, Series]:
         # Get DateTimeIndex with the dates of the holidays.
         dates = self._dates(start_date, end_date)
 
-        return pd.Series(self.name, index=dates, dtype=pd.DatetimeTZDtype) if return_name else dates
+        # Return the dates, either as a series (return_name=True) or as a DateTimeIndex (return_name=False).
+        return pd.Series(self.name, index=dates) if return_name else dates
