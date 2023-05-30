@@ -406,9 +406,11 @@ class HolidaysAndSpecialSessions(Enum):
         return HolidaysAndSpecialSessions[key.upper()]
 
     def __copy__(self):
+        # Enums are immutable, so return self.
         return self
 
     def __deepcopy__(self, memodict={}):
+        # Enums are immutable, so return self.
         return self
 
 
