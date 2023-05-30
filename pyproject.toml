@@ -34,7 +34,7 @@ exchange-calendars = ">=4.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "~=7.3.1"
-pytest-cov = "~=4.0.0"
+pytest-cov = "~=4.1.0"
 
 [tool.pytest.ini_options]
 addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"
