@@ -1,6 +1,6 @@
 import functools
 from datetime import time
-from typing import Optional, Callable, ParamSpec, Concatenate, Type, Union, Any
+from typing import Optional, Callable, Type, Union
 
 import pandas as pd
 from exchange_calendars import calendar_utils, register_calendar_type, ExchangeCalendar, get_calendar_names
