@@ -1,6 +1,7 @@
 import functools
 from datetime import time
 from typing import Optional, Callable, Type, Union
+from typing_extensions import ParamSpec, Concatenate
 
 import pandas as pd
 from exchange_calendars import calendar_utils, register_calendar_type, ExchangeCalendar, get_calendar_names
@@ -136,13 +137,10 @@ def _remove_calendar_from_factory_cache(name: str):
     calendar_utils.global_calendar_dispatcher._factory_output_cache.pop(name, None)
 
 
-# Since Python 3.10, cleaner way to specify args of wrapped and returned function would be to use ParamSpec and
-# Concatenate. Not used here to ensure compatibility with earlier versions.
-# P = ParamSpec('P')
-# ArgsOriginal = Concatenate[ChangeSet, P]
-# ArgsModified = Concatenate[str, P]
+P = ParamSpec('P')
 
-def _with_changeset(f: Callable[..., ChangeSet]) -> Callable[..., None]:
+
+def _with_changeset(f: Callable[Concatenate[ChangeSet, P], ChangeSet]) -> Callable[Concatenate[str, P], None]:
     """
     An annotation that obtains the changeset from _changesets that corresponds to the exchange key passed as the first
     positional argument to the wrapped function. Instead of passing the key, passes the retrieved changeset, or a newly

@@ -4,7 +4,9 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
-from typing import Set, Generic, TypeVar, Any, Dict, Self, TypedDict, Union, Optional
+from typing import Set, Generic, TypeVar, Any, Dict, TypedDict, Union, Optional
+from typing_extensions import Self
+
 
 import pandas as pd
 import schema as s
