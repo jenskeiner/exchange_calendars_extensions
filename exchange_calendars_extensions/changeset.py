@@ -301,7 +301,7 @@ class Changes(Generic[T]):
 
 def _to_time(input: Union[str, dt.time]) -> dt.time:
     """
-    Gracefull convert an input value to a datetime.time.
+    Gracefully convert an input value to a datetime.time.
 
     Parameters
     ----------
@@ -324,6 +324,30 @@ def _to_time(input: Union[str, dt.time]) -> dt.time:
         return dt.datetime.strptime(input, '%H:%M').time()
     except ValueError:
         return dt.datetime.strptime(input, '%H:%M:%S').time()
+    
+
+def _to_timestamp(input: Union[str, pd.Timestamp]) -> pd.Timestamp:
+    """
+    Gracefully convert an input value to a pandas.Timestamp.
+
+    Parameters
+    ----------
+    input : Union[str, pd.Timestamp]
+        The input value to convert.
+
+    Returns
+    -------
+    pd.Timestamp
+        The converted value.
+
+    Raises
+    ------
+    ValueError
+        If the input value cannot be converted to a pandas.Timestamp.
+    """
+    if isinstance(input, pd.Timestamp):
+        return input
+    return pd.Timestamp(input)
 
 
 # Define types and schemas for the different types of holidays and special sessions.
@@ -360,13 +384,13 @@ class HolidaysAndSpecialSessions(Enum):
     QUARTERLY_EXPIRY = (5, DaySpec, _DaySchema)
 
     @staticmethod
-    def from_str(key: str):
+    def to_enum(key: Union[str, 'HolidaysAndSpecialSessions']):
         """
         Return the enum value corresponding to the given key. Case-insensitive.
 
         Parameters
         ----------
-        key : str
+        key : Union[str, HolidaysAndSpecialSessions]
             The key to look up.
 
         Returns
@@ -374,6 +398,9 @@ class HolidaysAndSpecialSessions(Enum):
         HolidaysAndSpecialSessions
             The enum value corresponding to the given key.
         """
+        if isinstance(key, HolidaysAndSpecialSessions):
+            return key
+
         return HolidaysAndSpecialSessions[key.upper()]
 
 
@@ -383,11 +410,11 @@ class HolidaysAndSpecialSessions(Enum):
 # For example, it may contain a date that is in the set of dates to add for two different types of days like holidays
 # and special open. This is obviously inconsistent as the same day can only be one of those two types of days.
 _SCHEMA = s.Schema({
-    s.Optional('holiday'): {s.Optional('add'): [{'date': s.Use(pd.Timestamp), 'value': _DaySchema}], s.Optional('remove'): [s.Use(pd.Timestamp)]},
-    s.Optional('special_open'): {s.Optional('add'): [{'date': s.Use(pd.Timestamp), 'value': _DayWithTimeSchema}], s.Optional('remove'): [s.Use(pd.Timestamp)]},
-    s.Optional('special_close'): {s.Optional('add'): [{'date': s.Use(pd.Timestamp), 'value': _DayWithTimeSchema}], s.Optional('remove'): [s.Use(pd.Timestamp)]},
-    s.Optional('monthly_expiry'): {s.Optional('add'): [{'date': s.Use(pd.Timestamp), 'value': _DaySchema}], s.Optional('remove'): [s.Use(pd.Timestamp)]},
-    s.Optional('quarterly_expiry'): {s.Optional('add'): [{'date': s.Use(pd.Timestamp), 'value': _DaySchema}], s.Optional('remove'): [s.Use(pd.Timestamp)]},
+    s.Optional('holiday'): {s.Optional('add'): [{'date': s.Use(_to_timestamp), 'value': _DaySchema}], s.Optional('remove'): [s.Use(_to_timestamp)]},
+    s.Optional('special_open'): {s.Optional('add'): [{'date': s.Use(_to_timestamp), 'value': _DayWithTimeSchema}], s.Optional('remove'): [s.Use(_to_timestamp)]},
+    s.Optional('special_close'): {s.Optional('add'): [{'date': s.Use(_to_timestamp), 'value': _DayWithTimeSchema}], s.Optional('remove'): [s.Use(_to_timestamp)]},
+    s.Optional('monthly_expiry'): {s.Optional('add'): [{'date': s.Use(_to_timestamp), 'value': _DaySchema}], s.Optional('remove'): [s.Use(_to_timestamp)]},
+    s.Optional('quarterly_expiry'): {s.Optional('add'): [{'date': s.Use(_to_timestamp), 'value': _DaySchema}], s.Optional('remove'): [s.Use(_to_timestamp)]},
 })
 
 
@@ -722,7 +749,7 @@ class ChangeSet:
         for day_type_str, changes_incoming in d.items():
             try:
                 # Convert the day type string to the corresponding enum value.
-                day_type: HolidaysAndSpecialSessions = HolidaysAndSpecialSessions.from_str(day_type_str)
+                day_type: HolidaysAndSpecialSessions = HolidaysAndSpecialSessions.to_enum(day_type_str)
             except ValueError as e:
                 raise ValueError(f"Invalid day type '{day_type_str}' in dictionary.") from e
 

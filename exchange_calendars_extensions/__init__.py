@@ -659,10 +659,10 @@ def update_calendar(exchange: str, changes: dict) -> None:
 
 # Declare public names.
 __all__ = ["apply_extensions", "register_extension", "extend_class", "HolidaysAndSpecialSessions", "add_day",
-           "remove_day", "add_holiday", "remove_holiday", "add_special_close", "remove_special_close",
-           "add_special_open", "remove_special_open", "add_quarterly_expiry", "remove_quarterly_expiry",
-           "add_monthly_expiry", "remove_monthly_expiry", "reset_calendar", "update_calendar",
-           "ExtendedExchangeCalendar"]
+           "remove_day", "DaySpec", "DaySpecWithTime", "add_holiday", "remove_holiday", "add_special_close",
+           "remove_special_close", "add_special_open", "remove_special_open", "add_quarterly_expiry",
+           "remove_quarterly_expiry", "add_monthly_expiry", "remove_monthly_expiry", "reset_calendar",
+           "update_calendar", "ExtendedExchangeCalendar"]
 
 __version__ = None
 

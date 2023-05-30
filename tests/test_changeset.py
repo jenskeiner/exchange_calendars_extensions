@@ -189,17 +189,17 @@ class TestToTime:
 
 class TestHolidaysAndSpecialSessions:
     def test_from_str_valid(self):
-        assert HolidaysAndSpecialSessions.from_str("holiday") == HolidaysAndSpecialSessions.HOLIDAY
-        assert HolidaysAndSpecialSessions.from_str("HoLiDaY") == HolidaysAndSpecialSessions.HOLIDAY
-        assert HolidaysAndSpecialSessions.from_str("special_open") == HolidaysAndSpecialSessions.SPECIAL_OPEN
-        assert HolidaysAndSpecialSessions.from_str("SpEcIaL_OpEn") == HolidaysAndSpecialSessions.SPECIAL_OPEN
-        assert HolidaysAndSpecialSessions.from_str("special_close") == HolidaysAndSpecialSessions.SPECIAL_CLOSE
-        assert HolidaysAndSpecialSessions.from_str("monthly_expiry") == HolidaysAndSpecialSessions.MONTHLY_EXPIRY
-        assert HolidaysAndSpecialSessions.from_str("quarterly_expiry") == HolidaysAndSpecialSessions.QUARTERLY_EXPIRY
+        assert HolidaysAndSpecialSessions.to_enum("holiday") == HolidaysAndSpecialSessions.HOLIDAY
+        assert HolidaysAndSpecialSessions.to_enum("HoLiDaY") == HolidaysAndSpecialSessions.HOLIDAY
+        assert HolidaysAndSpecialSessions.to_enum("special_open") == HolidaysAndSpecialSessions.SPECIAL_OPEN
+        assert HolidaysAndSpecialSessions.to_enum("SpEcIaL_OpEn") == HolidaysAndSpecialSessions.SPECIAL_OPEN
+        assert HolidaysAndSpecialSessions.to_enum("special_close") == HolidaysAndSpecialSessions.SPECIAL_CLOSE
+        assert HolidaysAndSpecialSessions.to_enum("monthly_expiry") == HolidaysAndSpecialSessions.MONTHLY_EXPIRY
+        assert HolidaysAndSpecialSessions.to_enum("quarterly_expiry") == HolidaysAndSpecialSessions.QUARTERLY_EXPIRY
 
     def test_from_str_invalid(self):
         with pytest.raises(KeyError):
-            HolidaysAndSpecialSessions.from_str("invalid")
+            HolidaysAndSpecialSessions.to_enum("invalid")
 
 
 class TestChangeSet:

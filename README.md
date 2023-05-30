@@ -1,39 +1,51 @@
 # exchange-calendars-extensions
+[![PyPI](https://img.shields.io/pypi/v/exchange-calendars-extensions)](https://pypi.org/project/exchange-calendars-extensions/) ![Python Support](https://img.shields.io/pypi/pyversions/exchange_calendars_extensions) ![PyPI Downloads](https://img.shields.io/pypi/dd/exchange-calendars-extensions)
+
 A Python package that transparently adds some features to the [exchange-calendars](https://pypi.org/project/exchange-calendars/) 
 package.
 
-For select exchanges, this package adds three things:
+For all exchanges, this package adds the following:
 - Calendars that combine existing regular and ad-hoc holidays or special open/close days into a single 
-  calendar.
-- Calendars for additional special trading sessions, such as quarterly expiry days (aka quadruple witching).
+  calendar, respectively.
+- Calendars for the last trading session of each month, and the last *regular* trading session of each month.
 - The ability to modify exising calendars by adding or removing holidays, special open/close days, or others, 
-- programmatically at runtime.
+  programmatically at runtime.
+
+For select exchanges, this packages also adds:
+- Calendars for additional special trading sessions, such as quarterly expiry days (aka quadruple witching).
 
 ## Combined calendars
 This package adds combined calendars for holidays and special open/close days, respectively. These calendars combine 
-regular with ad-hoc occurrences of each respective type of day. Note that for special open/close days, this may 
+regular with ad-hoc occurrences of each type of day. Note that for special open/close days, this may 
 aggregate days with different open/close times into a single calendar. From the calendar, the open/close time for each 
 contained day cannot be recovered.
 
 ## Additional calendars
 In addition to information that is already available in 
 [exchange-calendars](https://pypi.org/project/exchange-calendars/), this package also adds calendars for 
-the following (special) trading sessions:
-- quarterly expiry days (aka quadruple witching),
-- monthly expiry days (in all months without quarterly expiry day), 
+the following trading sessions:
 - last trading session of the month, and
 - last *regular* trading session of the month.
 
-A new calendar that contains all weekend days as per the underlying weekmask is also available.
+For select exchanges (see [below](#supported-exchanges)), this package also adds calendars for:
+- quarterly expiry days (aka quadruple witching), and
+- monthly expiry days (in all months without quarterly expiry day).
 
-## Runtime modification of calendars
-This package also adds the ability to modify existing calendars at runtime. This can be used to add or remove holidays,
-special open/close days, or other special days, programmatically. This is useful for example when the exchange
-announces a special trading session on short notice, or when the exchange announces a change to the regular trading
-schedule, since the next release of the exchange-calendars package may not be available yet.
+Finally, a new calendar that contains all weekend days as per the underlying weekmask is also available.
+
+## Calendar modifications
+This package also adds the ability to modify existing calendars at runtime. This can be used to add or remove
+- holidays (regular and ad-hoc),
+- special open days (regular and ad-hoc),
+- special close days (regular and ad-hoc),
+- quarterly expiry days, and
+- monthly expiry days.
+
+This is useful for example when an exchange announces a special trading session on short notice, or when the exchange 
+announces a change to the regular trading schedule, and the next release of the exchange-calendars package may not be 
+available yet.
 
 ## Installation
-
 The package is available on [PyPI](https://pypi.org/project/exchange-calendars-extensions/) and can be installed via 
 [pip](https://pip.pypa.io/en/stable/) or any other suitable dependency management tool, e.g. 
 [Poetry](https://python-poetry.org/).
@@ -43,7 +55,6 @@ pip install exchange-calendars-extensions
 ```
 
 ## Usage
-
 Import the package.
 ```python
 import exchange_calendars_extensions
@@ -53,7 +64,8 @@ Register extended exchange calendar classes with the `exchange_calendars` module
 ```python
 exchange_calendars_extensions.apply_extensions()
 ```
-This will replace the default exchange calendar classes with the extended versions for supported exchanges; see [below](#supported-exchanges).
+This will replace the default exchange calendar classes with the extended versions. Note that this action currently 
+cannot be undone. A new Python interpreter session is required to revert to the original classes. 
 
 Get an exchange calendar instance.
 ```python
@@ -89,21 +101,6 @@ Extended exchange calendars provide the following calendars as properties:
 - `last_regular_session_of_months`: Last regular trading session of each month of the year, i.e. not a special 
   open/close or otherwise irregular day.
 
-### Adding/removing holidays, special open/close days, and others
-Extended exchange calendars provide the following methods at the package level to add or remove holidays, 
-special open/close days, or other special days, programmatically:
-- `add_holiday`: Add holiday to a given calendar.
-- `remove_holiday`: Remove holiday from given calendar.
-- `add_special_open`: Add special open to given calendar.
-- `remove_special_open`: Remove special open from given calendar.
-- `add_special_close`: Add special close to given calendar.
-- `remove_special_close`: Remove special close from given calendar.
-- `add_quarterly_expiry`: Add quarterly expiryto given calendar.
-- `remove_quarterly_expiry`: Remove quarterly expiry from given calendar.
-- `add_monthly_expiry`: Add monthly expiry to given calendar.
-- `remove_monthly_expiry`: Remove monthly expiry from given calendar.
-
-## Examples
 ```python
 calendar = get_calendar('XLON')
 print(calendar.holidays_all.holidays(start='2020-01-01', end='2020-12-31', return_name=True))
@@ -184,6 +181,210 @@ dtype: object
 dtype: object
 ```
 Note the difference in December, where 2023-12-29 is a special close day, while 2023-12-28 is a regular trading day.
+
+### Adding/removing holidays and special sessions
+Extended exchange calendars provide the methods of the form 
+`{add,remove}_{holiday,special_open,special_close,quarterly_expiry,monthly_expiry}(...)`at the package level to add or 
+remove certain holidays or special sessions programmatically. For example,
+
+```python
+import pandas as pd
+from exchange_calendars_extensions import add_holiday
+
+add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday')
+```
+will add a new holiday named `Holiday` to the calendar for the London Stock Exchange on 27 December 2021. Similarly,
+```python
+import pandas as pd
+from exchange_calendars_extensions import remove_holiday
+
+remove_holiday('XLON', pd.Timestamp('2021-12-27'))
+```
+will remove the holiday from the calendar again.
+
+Holidays are always added as regular holidays. Removing holidays works for both regular and ad-hoc holidays, regardless
+whether the affected days were in the original calendar or had been added programmatically at an earlier stage.
+
+Whenever a calendar has been modified programmatically, the changes are only reflected after obtaining a new exchange 
+calendar instance.
+```python
+# Changes not reflected in existing instances.
+...
+calendar = get_calendar('XLON')
+# Changes reflected in new instance.
+...
+```
+
+The day types that can be added are holidays, special open/close days, and quarterly/monthly expiries. Adding special 
+open/close days requires to specify the open/close time in addition to the date.
+```python
+import pandas as pd
+import datetime as dt
+from exchange_calendars_extensions import add_special_open
+
+add_special_open('XLON', pd.Timestamp('2021-12-27'), dt.time(11, 0), 'Special Open')
+```
+
+The numeration type `exchange_Calendars_extensions.HolidaysAndSpecialSessions` can be used to add or remove holidays in
+a more generic way.
+```python
+import pandas as pd
+import datetime as dt
+from exchange_calendars_extensions import add_day, remove_day, HolidaysAndSpecialSessions
+
+add_day('XLON', HolidaysAndSpecialSessions.SPECIAL_OPEN, pd.Timestamp('2021-12-27'), {'name': 'Special Open', 'time': dt.time(11, 0)})
+remove_day('XLON', pd.Timestamp('2021-12-27'), HolidaysAndSpecialSessions.SPECIAL_OPEN)
+```
+
+When removing a day, the day type is optional.
+```python
+remove_day('XLON', pd.Timestamp('2021-12-27'))
+```
+If not given, the day will be removed from all calendars it is present in. This is useful to make sure that a given day
+does not mark a holiday or any special session. Note that a day could still be a weekend day and that removing the day 
+does not change it into a business day.
+
+Removing a day is always handled gracefully when the day is not already present in the calendar, i.e. this does not 
+throw an exception.
+
+### Changesets
+When a calendar is modified programmatically, the changes are recorded in a changeset. When a new calendar instance is
+obtained, the changeset is applied to the underlying unmodified calendar.
+
+Changesets have a notion of consistency. A changeset is consistent if and only if the following conditions are satisfied:
+1) For each day type, the corresponding dates to add and dates to remove do not overlap.
+2) For each distinct pair of day types, the dates to add must not overlap.
+
+The first condition ensures that the same day is not added and removed at the same time for the same day type. The 
+second condition ensures that the same day is not added for two different day types. Note that marking the same day as
+a day to remove is valid for multiple day types at the same time since this it will be a no-op if the day is not already
+present in the calendar for a day type.
+
+### Strict mode
+Multiple calls to add or remove holidays or special sessions can lead to an inconsistent changeset for a calendar or 
+situations where the semantics of each action may not be immediately clear without further specification. For example, 
+what should happen if the same day is added as a holiday and then removed?
+```python
+...
+add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday')
+remove_holiday('XLON', pd.Timestamp('2021-12-27'))
+
+calendar = get_calendar('XLON')
+```
+By default, situations are handled gracefully as far as possible. Here, the holiday is first added to the changeset and 
+then marked as a day to remove for all day types. This would normally lead to an inconsistent changeset since the same
+day would now be marked as a holiday to add as well as a day to remove from the holidays (as well as all other day 
+types). To remain consistent, the day is is removed from the holidays to add. Now, the changeset only contains the day
+as a day to remove for all day types.
+
+This behaviour may not be desired in all cases which is why the `strict` flag can be set to `True` when adding or 
+removing a day. In strict mode, conflicting actions such as the ones above will raise an exception.
+```python
+...
+add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday', strict=True)
+remove_holiday('XLON', pd.Timestamp('2021-12-27'), strict=True)
+# The second call will raise an exception.
+```
+
+Another case to consider is trying to add the same day twice with two different day types.
+```python
+...
+add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday')
+add_special_open('XLON', pd.Timestamp('2021-12-27'), dt.time(11, 0), 'Special Open')
+
+calendar = get_calendar('XLON')
+```
+By default, this will not raise an exception. Instead, the second action will overwrite the first one. The resulting 
+calendar will therefore just have the day marked as a special open day. In strict mode, however, this will raise an 
+exception.
+```python
+...
+add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday', strict=True)
+add_special_open('XLON', pd.Timestamp('2021-12-27'), dt.time(11, 0), 'Special Open', strict=True)
+# The second call will raise an exception.
+```
+
+Strict mode may be particularly useful when an entire changeset is built up through multiple calls that are all expected
+to be compatible with each other.
+
+### Normalization
+A changeset needs to be consistent before it can be applied to an exchange calendar. However, consistency alone is not 
+enough to ensure that an exchange calendar with a changeset applied is itself consistent. The reason this can happen is 
+that a changeset e.g. may add a holiday, but the unmodified exchange calendar may already contain the same day as a 
+special open day. This is to say that the resulting calendar would contain the same day with two different, but mutually 
+exclusive, day types.
+
+To ensure that an exchange calendar with a changeset applied is consistent, the changeset is normalized before it is 
+applied. Normalization ensures that the same day can only be contained with one day type in the resulting exchange 
+calendar. This is achieved by augmenting the changeset before it is applied to remove any day that is added with one day
+type from all other day types. For example, this means that if a day is a holiday in the original exchange calendar, but
+the changeset adds the same day as a special open day, the resulting calendar will contain the day as a special open 
+day. In essence, adding days may overwrite the day type if the original calendar already contained the same day.
+
+Normalization happens transparently to the user, this section is only included to explain the rationale behind it. 
+Ensuring consistency of a changeset is enough to make it compatible with any exchange calendar, owing to the 
+normalization behind the scenes.
+
+### Reading changesets from dictionaries.
+Entire changesets can be applied to an exchange calendar can be imported through appropriately structured
+dictionaries. This enables reading and then applying entire collections of changes from files and other sources.
+```python
+from exchange_calendars_extensions import update_calendar
+from exchange_calendars_extensions import get_calendar
+
+changes = {
+    "holiday": {
+        "add": [{"date": "2020-01-01", "value": {"name": "Holiday"}}], 
+        "remove": ["2020-01-02"]
+    },
+    "special_open": {
+        "add": [{"date": "2020-02-01", "value": {"name": "Special Open", "time": "10:00"}}], 
+        "remove": ["2020-02-02"]
+    },
+    "special_close": {
+        "add": [{"date": "2020-03-01", "value": {"name": "Special Close", "time": "16:00"}}], 
+        "remove": ["2020-03-02"]
+    },
+    "monthly_expiry": {
+        "add": [{"date": "2020-04-01", "value": {"name": "Monthly Expiry"}}], 
+        "remove": ["2020-04-02"]
+    },
+    "quarterly_expiry": {
+        "add": [{"date": "2020-05-01", "value": {"name": "Quarterly Expiry"}}], 
+        "remove": ["2020-05-02"]
+    }
+}
+
+update_calendar('XLON', changes)
+
+calendar = get_calendar('XLON')
+# Calendar now contains the changes from the dictionary.
+```
+The above example lays out the complete schema that is expected for obtaining a changeset from a dictionary. Instead of 
+dates in ISO format, `pandas.Timestamp` instances may be used. Similarly, wall-clock times may be specified
+as `datetime.time` instances. SO, the following woulw work as well:
+```python
+update_calendar('XLON', {
+    'special_open': {
+        'add': [{"date": pd.Timestamp("2020-02-01"), "value": {"name": "Special Open", "time": dt.time(10, 0)}}]
+    }
+})
+```
+
+Updating an exchange calendar from a dictionary removes any previous changes that have been recorded, i.e. the incoming
+changes are not merged with the existing ones. This is to ensure that the resulting calendar is consistent. Of course,
+the incoming changes must result in a consistent changeset themselves or an exception will be raised.
+
+A use case for updating an exchange calendar from a dictionary is to read changes from a file. The following example
+reads changes from a JSON file and applies them to the exchange calendar.
+```python
+import json
+
+with open('changes.json', 'r') as f:
+    changes = json.load(f)
+    
+update_calendar('XLON', changes)
+```
 
 ## Supported exchanges
 This package currently provides extensions for the following subset of exchanges supported by `exchange_calendars`:
