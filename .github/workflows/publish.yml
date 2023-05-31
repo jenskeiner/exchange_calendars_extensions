@@ -45,11 +45,11 @@ jobs:
       run: |
         pip uninstall -y ${{ env.PACKAGE_NAME }}
         pip cache purge
-    - name: Publish package to PyPI.
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_PASSWORD }}
+#    - name: Publish package to PyPI.
+#      uses: pypa/gh-action-pypi-publish@release/v1
+#      with:
+#        user: __token__
+#        password: ${{ secrets.PYPI_PASSWORD }}
     - name: Install and import.
       run: |
         i=0
