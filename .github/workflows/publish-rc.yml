@@ -24,7 +24,8 @@ jobs:
     - name: Determine RC version number.
       run: |
         export RC_VERSION=$(echo ${{ github.ref_name }} | sed -e 's/^release\///')rc${{ github.run_number }}
-        echo "RC_VERSION=$RC_VERSION"
+        echo "RC version is $RC_VERSION."
+        echo "RC_VERSION=$RC_VERSION" >> $GITHUB_ENV
     - name: Set poetry package version from tag.
       run: poetry version ${{ env.RC_VERSION }}
     - name: Generate requirements.txt.
