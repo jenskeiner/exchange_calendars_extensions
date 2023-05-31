@@ -26,7 +26,7 @@ jobs:
         export RC_VERSION=$(echo ${{ github.ref_name }} | sed -e 's/^release\///')rc${{ github.run_number }}
         echo "RC_VERSION=$RC_VERSION"
     - name: Set poetry package version from tag.
-      run: poetry version $RC_VERSION
+      run: poetry version ${{ env.RC_VERSION }}
     - name: Generate requirements.txt.
       run: poetry export -f requirements.txt --without-hashes > requirements.txt
     - name: Build package with poetry.
@@ -36,13 +36,13 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.TEST_PYPI_PASSWORD }}
-        repository_url: https://test.pypi.org/legacy/
-        skip_existing: true
+        repository-url: https://test.pypi.org/legacy/
+        skip-existing: true
     - name: Install from testpypi and import.
       run: |
         i=0
-        while (($i<36)) && [[ ! $(curl -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])$RC_VERSION($|[[:space:]]) ]];\
+        while (($i<36)) && [[ ! $(curl -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ env.RC_VERSION }}($|[[:space:]]) ]];\
           do echo waiting for package to appear in test index, sleeping 5s; sleep 5s; let i++; done
-        pip install --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==$RC_VERSION --no-deps
+        pip install --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.RC_VERSION }} --no-deps
         pip install -r requirements.txt
         python -c 'import ${{ env.PACKAGE_NAME }};print(${{ env.PACKAGE_NAME }}.__version__)'
