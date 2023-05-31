@@ -42,7 +42,7 @@ jobs:
     - name: Install from testpypi and import.
       run: |
         i=0
-        while (($i<36)) && [[ ! $(curl -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ env.RC_VERSION }}($|[[:space:]]) ]];\
+        while (($i<120)) && [[ ! $(curl --max-time 120 -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ env.RC_VERSION }}($|[[:space:]]) ]];\
           do echo waiting for package to appear in test index, sleeping 5s; sleep 5s; let i++; done
         pip install --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.RC_VERSION }} --no-deps
         pip install -r requirements.txt
