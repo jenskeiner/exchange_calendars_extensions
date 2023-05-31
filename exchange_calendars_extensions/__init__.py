@@ -13,10 +13,12 @@ from exchange_calendars.exchange_calendar_xbud import XBUDExchangeCalendar
 from exchange_calendars.exchange_calendar_xcse import XCSEExchangeCalendar
 from exchange_calendars.exchange_calendar_xdub import XDUBExchangeCalendar
 from exchange_calendars.exchange_calendar_xetr import XETRExchangeCalendar
+from exchange_calendars.exchange_calendar_xhel import XHELExchangeCalendar
 from exchange_calendars.exchange_calendar_xist import XISTExchangeCalendar
 from exchange_calendars.exchange_calendar_xjse import XJSEExchangeCalendar
 from exchange_calendars.exchange_calendar_xlis import XLISExchangeCalendar
 from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
+from exchange_calendars.exchange_calendar_xmad import XMADExchangeCalendar
 from exchange_calendars.exchange_calendar_xmil import XMILExchangeCalendar
 from exchange_calendars.exchange_calendar_xnys import XNYSExchangeCalendar
 from exchange_calendars.exchange_calendar_xosl import XOSLExchangeCalendar
@@ -32,18 +34,6 @@ from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
 from .changeset import ChangeSet, HolidaysAndSpecialSessions, DaySpec, DaySpecWithTime
 from .holiday_calendar import extend_class, ExtendedExchangeCalendar
 
-# TODO: Add the following exchanges:
-# class BMEXExchangeCalendar:
-#     pass
-#
-#
-# class XHELEXchangeCalendar:
-#     pass
-#
-#
-# class XNASExchangeCalendar:
-#     pass
-
 # Dictionary that maps from exchange key to ExchangeCalendarChangeSet. Contains all changesets to apply when creating a
 # new calendar instance.
 _changesets = dict()
@@ -56,20 +46,19 @@ _changesets = dict()
 #     function that returns the changeset for the respective exchange in _changesets, or None, if no changeset exists.
 _extensions = {
     "ASEX": (ASEXExchangeCalendar, 4),
-    #"BMEX": (BMEXExchangeCalendar, 4),
     "XAMS": (XAMSExchangeCalendar, 4),
     "XBRU": (XBRUExchangeCalendar, 4),
     "XBUD": (XBUDExchangeCalendar, 4),
     "XCSE": (XCSEExchangeCalendar, 4),
     "XDUB": (XDUBExchangeCalendar, 4),
     "XETR": (XETRExchangeCalendar, 4),
-    #"XHEL": (XHELEXchangeCalendar, 4),
+    "XHEL": (XHELExchangeCalendar, 4),
     "XIST": (XISTExchangeCalendar, 4),
     "XJSE": (XJSEExchangeCalendar, 3),
     "XLIS": (XLISExchangeCalendar, 4),
     "XLON": (XLONExchangeCalendar, 4),
+    "XMAD": (XMADExchangeCalendar, 4),
     "XMIL": (XMILExchangeCalendar, 4),
-    #"XNAS": (XNASExchangeCalendar, 4),
     "XNYS": (XNYSExchangeCalendar, 4),
     "XOSL": (XOSLExchangeCalendar, 4),
     "XPAR": (XPARExchangeCalendar, 4),

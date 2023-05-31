@@ -386,8 +386,9 @@ with open('changes.json', 'r') as f:
 update_calendar('XLON', changes)
 ```
 
-## Supported exchanges
-This package currently provides extensions for the following subset of exchanges supported by `exchange_calendars`:
+## Supported exchanges for monthly/quarterly expiry
+This package currently provides support for monthly/querterly expiry calendars for the following subset of exchanges 
+from `exchange_calendars`:
 - ASEX
 - BMEX
 - XAMS
@@ -401,6 +402,7 @@ This package currently provides extensions for the following subset of exchanges
 - XJSE
 - XLIS
 - XLON
+- XMAD
 - XMIL
 - XNAS
 - XNYS
@@ -426,25 +428,28 @@ from exchange_calendars_extensions.holiday_calendar import extend_class
 
 xlon_extended_cls = extend_class(XLONExchangeCalendar, day_of_week_expiry=4)
 ```
-The first argument to `extend_class` should be the class of the exchange calendar to be extended. The second parameter 
-is the day of the week on which expiry days are normally observed. The returned extended class directly inherits from 
-the passed base class, but also adds the additional attributes like `quarterly_expiries` et cetera.
+The first argument to `extend_class` should be the class of the exchange calendar to extend. The second and optional
+parameter, which defaults to `None`, is the day of the week on which expiry days are normally observed. If this parameter 
+is `None`, this assumes that the underlying exchange does not support monthly or quarterly expiry days and the respective
+calendars will not be added.
 
-To register a new extended class for an exchange, use the `register_extension` function before calling `apply_extensions()`.
+The returned extended class directly inherits from the passed base class and adds the additional attributes like 
+`holidays_all` et cetera. The returned class also supports programmatic modifications using the corresponding exchange 
+key of the parent class.
+
+To register a new extended class for an exchange, use the `register_extension()` function before calling 
+`apply_extensions()`.
 ```python
 from exchange_calendars_extensions import register_extension, apply_extensions
 
 register_extension(key, cls)
-
 apply_extensions()
-
 ...
 ```
 Here, `key` should be the name, i.e. not an alias, under which the extended class is registered with the 
 `exchange_calendars` package, and `cls` should be the extended class.
 
 ## Caveat: Merging calendars
-
 For the various calendars, [exchange-calendars](https://pypi.org/project/exchange-calendars/) defines and uses the class
 `exchange_calendars.exchange_calendar.HolidayCalendar` which is a direct subclass of the abstract base class
 `pandas.tseries.holiday.AbstractHolidayCalendar`.
