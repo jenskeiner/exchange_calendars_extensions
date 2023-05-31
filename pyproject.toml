@@ -4,8 +4,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "exchange-calendars-extensions"
-version = "0.1.1"
-description = "Extensions of the exchange_calendars package"
+version = "0"
+description = "Extensions of the exchange-calendars package"
 license = "Apache-2.0"
 authors = ["Jens Keiner <jens.keiner@gmail.com>"]
 readme = "README.md"
@@ -31,10 +31,12 @@ packages = [{include = "exchange_calendars_extensions"}]
 [tool.poetry.dependencies]
 python = "~=3.8"
 exchange-calendars = ">=4.0.1"
+schema = "~=0.7.5"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "~=7.2.1"
-pytest-cov = "~=4.0.0"
+pytest = "~=7.3.1"
+pytest-cov = "~=4.1.0"
+typing-extensions = "~=4.6.2"
 
 [tool.pytest.ini_options]
 addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"
