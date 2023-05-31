@@ -437,7 +437,7 @@ files = [
 name = "typing-extensions"
 version = "4.6.2"
 description = "Backported and Experimental Type Hints for Python 3.7+"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -460,4 +460,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "~=3.8"
-content-hash = "4e1c84e81d714371f9da25c210dd0eb6ee49ccb951cd305b3c4a39d391f6f81a"
+content-hash = "821f48b7b0b5cbf1a9331cf58778ca271180b12fb038dc7f12b9a036e15c0707"
