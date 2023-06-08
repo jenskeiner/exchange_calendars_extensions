@@ -33,10 +33,12 @@ python = "~=3.8"
 exchange-calendars = ">=4.0.1"
 schema = "~=0.7.5"
 typing-extensions = "~=4.6.2"
+pydantic = "~=1.10.8"
+dt = "^1.1.61"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "~=7.3.1"
 pytest-cov = "~=4.1.0"
 
-[tool.pytest.ini_options]
-addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"
+#[tool.pytest.ini_options]
+#addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"

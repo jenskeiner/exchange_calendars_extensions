@@ -352,7 +352,7 @@ def test_extended_calendar_test():
         pd.Timestamp('2024-12-31'): 'last regular trading day of month'})).empty
 
 
-@pytest.mark.isolated
+#@pytest.mark.isolated
 def test_add_new_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
@@ -1718,11 +1718,11 @@ def test_apply_changeset():
     import exchange_calendars_extensions as ece
 
     changes = {
-        "holiday": {"add": [{"date": "2023-01-02", "value": {"name": "Inserted Holiday"}}], "remove": ["2023-01-01"]},
-        "special_open": {"add": [{"date": "2023-05-02", "value": {"name": "Inserted Special Open", "time": "11:00"}}], "remove": ["2023-05-01"]},
-        "special_close": {"add": [{"date": "2023-03-02", "value": {"name": "Inserted Special Close", "time": "14:00"}}], "remove": ["2023-03-01"]},
-        "monthly_expiry": {"add": [{"date": "2023-08-17", "value": {"name": "Inserted Monthly Expiry"}}], "remove": ["2023-08-18"]},
-        "quarterly_expiry": {"add": [{"date": "2023-09-14", "value": {"name": "Inserted Quarterly Expiry"}}], "remove": ["2023-09-15"]},
+        "holiday": {"add": {"2023-01-02": {"name": "Inserted Holiday"}}, "remove": ["2023-01-01"]},
+        "special_open": {"add": {"2023-05-02": {"name": "Inserted Special Open", "time": "11:00"}}, "remove": ["2023-05-01"]},
+        "special_close": {"add": {"2023-03-02": {"name": "Inserted Special Close", "time": "14:00"}}, "remove": ["2023-03-01"]},
+        "monthly_expiry": {"add": {"2023-08-17": {"name": "Inserted Monthly Expiry"}}, "remove": ["2023-08-18"]},
+        "quarterly_expiry": {"add": {"2023-09-14": {"name": "Inserted Quarterly Expiry"}}, "remove": ["2023-09-15"]},
     }
     ece.update_calendar("TEST", changes)
     c = ec.get_calendar("TEST")

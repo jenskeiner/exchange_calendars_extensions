@@ -227,13 +227,14 @@ add_special_open('XLON', pd.Timestamp('2021-12-27'), dt.time(11, 0), 'Special Op
 
 The numeration type `exchange_Calendars_extensions.HolidaysAndSpecialSessions` can be used to add or remove holidays in
 a more generic way.
+
 ```python
 import pandas as pd
 import datetime as dt
-from exchange_calendars_extensions import add_day, remove_day, HolidaysAndSpecialSessions
+from exchange_calendars_extensions import add_day, remove_day, DayType
 
-add_day('XLON', HolidaysAndSpecialSessions.SPECIAL_OPEN, pd.Timestamp('2021-12-27'), {'name': 'Special Open', 'time': dt.time(11, 0)})
-remove_day('XLON', pd.Timestamp('2021-12-27'), HolidaysAndSpecialSessions.SPECIAL_OPEN)
+add_day('XLON', DayType.SPECIAL_OPEN, pd.Timestamp('2021-12-27'), {'name': 'Special Open', 'time': dt.time(11, 0)})
+remove_day('XLON', pd.Timestamp('2021-12-27'), DayType.SPECIAL_OPEN)
 ```
 
 When removing a day, the day type is optional.
