@@ -43,11 +43,11 @@ This package also adds the ability to modify existing calendars at runtime. This
 
 This is useful for example when an exchange announces a special trading session on short notice, or when the exchange 
 announces a change to the regular trading schedule, and the next release of the exchange-calendars package may not be 
-available yet.
+in time.
 
 ## Installation
 The package is available on [PyPI](https://pypi.org/project/exchange-calendars-extensions/) and can be installed via 
-[pip](https://pip.pypa.io/en/stable/) or any other suitable dependency management tool, e.g. 
+[pip](https://pip.pypa.io/en/stable/) or any other suitable package/dependency management tool, e.g. 
 [Poetry](https://python-poetry.org/).
 
 ```bash
@@ -55,32 +55,47 @@ pip install exchange-calendars-extensions
 ```
 
 ## Usage
-Import the package.
+Import the package and register extended exchange calendar classes with the `exchange_calendars` module.
 ```python
-import exchange_calendars_extensions
+import exchange_calendars_extensions as ece
+
+ece.apply_extensions()
+```
+This replaces the default exchange calendar classes with the extended versions. 
+
+Get an exchange calendar instance and verify that extended exchange calendars are subclasses of the abstract base 
+class `ece.ExtendedExchangeCalendar`. This class inherits both from 
+`ec.ExchangeCalendar` and the new protocol class 
+`ece.ExchangeCalendarExtensions` which defines the extended properties.
+
+```python
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+calendar = ec.get_calendar('XLON')
+
+assert isinstance(calendar, ece.ExtendedExchangeCalendar)
+assert isinstance(calendar, ec.ExchangeCalendar)
+assert isinstance(calendar, ece.ExchangeCalendarExtensions)
 ```
 
-Register extended exchange calendar classes with the `exchange_calendars` module.
-```python
-exchange_calendars_extensions.apply_extensions()
-```
-This will replace the default exchange calendar classes with the extended versions. Note that this action currently 
-cannot be undone. A new Python interpreter session is required to revert to the original classes. 
+The original classes can be reinstated by calling `ece.remove_extensions()`.
 
-Get an exchange calendar instance.
 ```python
-from exchange_calendars import get_calendar
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
 
-calendar = get_calendar('XLON')
-```
+...
 
-Extended exchange calendars are subclasses of the abstract base class 
-`exchange_calendars_extensions.ExtendedExchangeCalendar`. This class inherits both from `exchange_calendars.ExchangeCalendar`
-and the new protocol class `exchange_calendars_extensions.ExchangeCalendarExtensions` which defines the extended properties.
-```python
-assert isinstance(calendar, exchange_calendars_extensions.ExtendedExchangeCalendar)
-assert isinstance(calendar, exchange_calendars.ExchangeCalendar)
-assert isinstance(calendar, exchange_calendars_extensions.ExchangeCalendarExtensions)
+ece.remove_extensions()
+
+calendar = ec.get_calendar('XLON')
+
+assert not isinstance(calendar, ece.ExtendedExchangeCalendar)
+assert isinstance(calendar, ec.ExchangeCalendar)
+assert not isinstance(calendar, ece.ExchangeCalendarExtensions)
 ```
 
 ### Additional properties
@@ -102,7 +117,11 @@ Extended exchange calendars provide the following calendars as properties:
   open/close or otherwise irregular day.
 
 ```python
-calendar = get_calendar('XLON')
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+calendar = ec.get_calendar('XLON')
 print(calendar.holidays_all.holidays(start='2020-01-01', end='2020-12-31', return_name=True))
 ```
 will output
@@ -123,7 +142,11 @@ even though it is not a regular holiday.
 
 Quarterly and monthly expiry days:
 ```python
-calendar = get_calendar('XLON')
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+calendar = ec.get_calendar('XLON')
 print(calendar.quarterly_expiries.holidays(start='2023-01-01', end='2023-12-31', return_name=True))
 print(calendar.monthly_expiries.holidays(start='2023-01-01', end='2023-12-31', return_name=True))
 ```
@@ -147,7 +170,12 @@ dtype: object
 
 Last trading days of months:
 ```python
-calendar = get_calendar('XLON')
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+
+calendar = ec.get_calendar('XLON')
 print(calendar.last_trading_days_of_months.holidays(start='2023-01-01', end='2023-12-31', return_name=True))
 print(calendar.last_regular_trading_days_of_months.holidays(start='2023-01-01', end='2023-12-31', return_name=True))
 ```
@@ -183,130 +211,356 @@ dtype: object
 Note the difference in December, where 2023-12-29 is a special close day, while 2023-12-28 is a regular trading day.
 
 ### Adding/removing holidays and special sessions
-Extended exchange calendars provide the methods of the form 
+The extended classes provide methods of the form 
 `{add,remove}_{holiday,special_open,special_close,quarterly_expiry,monthly_expiry}(...)`at the package level to add or 
 remove certain holidays or special sessions programmatically. For example,
 
 ```python
-import pandas as pd
-from exchange_calendars_extensions import add_holiday
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
 
-add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday')
+ece.add_holiday('XLON', '2022-12-28', 'Holiday')
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-28' in calendar.regular_holidays.holidays()
+assert '2022-12-28' in calendar.holidays_all.holidays()
 ```
-will add a new holiday named `Holiday` to the calendar for the London Stock Exchange on 27 December 2021. Similarly,
+will add a new holiday named `Holiday` to the calendar for the London Stock Exchange on 28 December 2022. Similarly,
 ```python
-import pandas as pd
-from exchange_calendars_extensions import remove_holiday
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
 
-remove_holiday('XLON', pd.Timestamp('2021-12-27'))
+ece.remove_holiday('XLON', '2022-12-27')
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-27' not in calendar.regular_holidays.holidays()
+assert '2022-12-27' not in calendar.holidays_all.holidays()
 ```
-will remove the holiday from the calendar again.
+will remove the holiday on 27 December 2022 from the calendar.
 
-Holidays are always added as regular holidays. Removing holidays works for both regular and ad-hoc holidays, regardless
-whether the affected days were in the original calendar or had been added programmatically at an earlier stage.
+To specify the date, you can use anything that can be converted into a valid `pandas.Timestamp`. This includes strings
+in the format `YYYY-MM-DD`, `datetime.date` objects, or `pandas.Timestamp` objects. The name of the holiday can be any
+string.
+
+Holidays are always added as regular holidays to allow for an individual name. Removing holidays works for both regular
+and ad-hoc holidays, regardless whether the affected days are in the original calendar or have been added 
+programmatically at an earlier stage.
 
 Whenever a calendar has been modified programmatically, the changes are only reflected after obtaining a new exchange 
 calendar instance.
 ```python
-# Changes not reflected in existing instances.
-...
-calendar = get_calendar('XLON')
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+calendar = ec.get_calendar('XLON')
+
+# Unchanged calendar.
+assert '2022-12-27' in calendar.holidays_all.holidays()
+assert '2022-12-28' not in calendar.holidays_all.holidays()
+
+# Modify calendar. Clears the cache, so ec.get_calendar('XLON') will return a new instance next time.
+ece.add_holiday('XLON', '2022-12-28', 'Holiday')
+ece.remove_holiday('XLON', '2022-12-27')
+
+# Changes not reflected in existing instance.
+assert '2022-12-27' in calendar.holidays_all.holidays()
+assert '2022-12-28' not in calendar.holidays_all.holidays()
+
+# Get new instance.
+calendar = ec.get_calendar('XLON')
+
 # Changes reflected in new instance.
-...
+assert '2022-12-27' not in calendar.holidays_all.holidays()
+assert '2022-12-28' in calendar.holidays_all.holidays()
+
+# Revert the changes.
+ece.remove_holiday('XLON', '2022-12-28')
+ece.add_holiday('XLON', '2022-12-27', 'Weekend Christmas')
+
+# Get new instance.
+calendar = ec.get_calendar('XLON')
+
+# Changes reverted in new instance.
+assert '2022-12-27' in calendar.holidays_all.holidays()
+assert '2022-12-28' not in calendar.holidays_all.holidays()
 ```
 
-The day types that can be added are holidays, special open/close days, and quarterly/monthly expiries. Adding special 
+It is possible to add or remove holidays, special open/close days, and quarterly/monthly expiries. Adding special 
 open/close days requires to specify the open/close time in addition to the date.
 ```python
-import pandas as pd
-import datetime as dt
-from exchange_calendars_extensions import add_special_open
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
 
-add_special_open('XLON', pd.Timestamp('2021-12-27'), dt.time(11, 0), 'Special Open')
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-28' not in calendar.special_opens_all.holidays()
+
+ece.add_special_open('XLON', '2022-12-28', '11:00', 'Special Open')
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-28' in calendar.special_opens_all.holidays()
 ```
 
-The numeration type `exchange_Calendars_extensions.HolidaysAndSpecialSessions` can be used to add or remove holidays in
-a more generic way.
+The open/close time can be in the format `HH:MM` or `HH:MM:SS`, or a `datetime.time` object.
+
+The ennumeration `DayType` can be used to add or remove holidays in a more generic way.
 
 ```python
-import pandas as pd
-import datetime as dt
-from exchange_calendars_extensions import add_day, remove_day, DayType
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
 
-add_day('XLON', DayType.SPECIAL_OPEN, pd.Timestamp('2021-12-27'), {'name': 'Special Open', 'time': dt.time(11, 0)})
-remove_day('XLON', pd.Timestamp('2021-12-27'), DayType.SPECIAL_OPEN)
+ece.add_day('XLON', '2022-12-28', {'name': 'Special Open', 'time': '11:00'}, ece.DayType.SPECIAL_OPEN)
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-28' in calendar.special_opens_all.holidays()
+
+ece.remove_day('XLON', '2022-12-28', ece.DayType.SPECIAL_OPEN)
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-28' not in calendar.special_opens_all.holidays()
 ```
 
-When removing a day, the day type is optional.
+When removing a day, the day type is optional. In this case, the day is just removed for all day types. 
 ```python
-remove_day('XLON', pd.Timestamp('2021-12-27'))
-```
-If not given, the day will be removed from all calendars it is present in. This is useful to make sure that a given day
-does not mark a holiday or any special session. Note that a day could still be a weekend day and that removing the day 
-does not change it into a business day.
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
 
-Removing a day is always handled gracefully when the day is not already present in the calendar, i.e. this does not 
-throw an exception.
+ece.add_day('XLON', '2022-12-28', {'name': 'Special Open', 'time': '11:00'}, ece.DayType.SPECIAL_OPEN)
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-27' in calendar.holidays_all.holidays()
+assert '2022-12-28' in calendar.special_opens_all.holidays()
+
+ece.remove_day('XLON', '2022-12-27')
+ece.remove_day('XLON', '2022-12-28')
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-27' not in calendar.holidays_all.holidays()
+assert '2022-12-28' not in calendar.special_opens_all.holidays()
+```
+This is useful to ensure that a given day does not mark a holiday or any special session. Note that a day could still be
+a weekend day and that removing the day does not change it into a business day.
+
+### Reverting changes
+
+It is sometimes necessary to revert individual changes made to a calendar such as adding or removing holidays or special
+sessions. To that end, the package provides the methods of the form 
+`reset_{holiday,special_open,special_close,quarterly_expiry,monthly_expiry}(...)` at the package level.
+
+```python
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+ece.add_holiday('XLON', '2022-12-28', 'Holiday')
+ece.remove_holiday('XLON', '2022-12-27')
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-27' not in calendar.holidays_all.holidays()
+assert '2022-12-28' in calendar.holidays_all.holidays()
+
+ece.reset_holiday('XLON', '2022-12-28')
+ece.reset_holiday('XLON', '2022-12-27')
+
+calendar = ec.get_calendar('XLON')
+
+# Calendar unchanged again.
+assert '2022-12-27' in calendar.holidays_all.holidays()
+assert '2022-12-28' not in calendar.holidays_all.holidays()
+```
+
+The is also a more generic method `reset_day(...)` that can be used to reset a day for a given day type. Again, 
+`day_type` is optional and omitting the argument will just reset the day for all day types.
+```python
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+ece.add_holiday('XLON', '2022-12-28', 'Holiday')
+ece.remove_holiday('XLON', '2022-12-27')
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-27' not in calendar.holidays_all.holidays()
+assert '2022-12-28' in calendar.holidays_all.holidays()
+
+ece.reset_day('XLON', '2022-12-27', ece.DayType.HOLIDAY)
+ece.reset_day('XLON', '2022-12-28')
+
+calendar = ec.get_calendar('XLON')
+
+# Calendar unchanged again.
+assert '2022-12-27' in calendar.holidays_all.holidays()
+assert '2022-12-28' not in calendar.holidays_all.holidays()
+```
+
+To reset an entire calendar to its original state, use the method `reset_calendar(...)`.
+
+```python
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+ece.add_holiday('XLON', '2022-12-28', 'Holiday')
+ece.remove_holiday('XLON', '2022-12-27')
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-12-27' not in calendar.holidays_all.holidays()
+assert '2022-12-28' in calendar.holidays_all.holidays()
+
+ece.reset_calendar('XLON')
+
+calendar = ec.get_calendar('XLON')
+
+# Calendar unchanged again.
+assert '2022-12-27' in calendar.holidays_all.holidays()
+assert '2022-12-28' not in calendar.holidays_all.holidays()
+```
+
+
+### Strict mode
+
+Removing a day is always handled gracefully when the day is not already present as a special day in the calendar, i.e. 
+this does not throw an exception. In contrast, the same day cannot be added for multiple day types at the same time. By default, this 
+is also handled gracefully by keeping just the last definition in place.
+
+This default behavior may sometimes be inadequate, e.g. when it is important to enforce consistency of all applied 
+changes. For example, the following code will not throw an exception:
+```python
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+ece.add_day('XLON', '2022-12-28', {'name': 'Special Open', 'time': '11:00'}, ece.DayType.SPECIAL_OPEN)
+ece.add_day('XLON', '2022-12-28', {'name': 'Special Close', 'time': '12:00'}, ece.DayType.SPECIAL_CLOSE)
+
+c = ec.get_calendar('XLON')
+
+assert '2022-12-28' not in c.special_opens_all.holidays()
+assert '2022-12-28' in c.special_closes_all.holidays()
+```
+
+This is because the default behavior keeps the special close day that supersedes the special open day.
+
+To enforce consistency of all changes at any stage, the optional keyword argument `strict` maybe be set to `True`. For 
+example,
+```python
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+ece.add_day('XLON', '2022-12-28', {'name': 'Special Open', 'time': '11:00'}, ece.DayType.SPECIAL_OPEN, strict=True)
+ece.add_day('XLON', '2022-12-28', {'name': 'Special Close', 'time': '12:00'}, ece.DayType.SPECIAL_CLOSE, strict=True)
+
+c = ec.get_calendar('XLON')
+```
+will throw `ValidationError` when the same day is added a second time for a different day types. The same is true when 
+the same day is added and removed for the same day type.
+```python
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
+
+ece.add_day('XLON', '2022-12-28', {'name': 'Special Open', 'time': '11:00'}, ece.DayType.SPECIAL_OPEN, strict=True)
+ece.remove_day('XLON', '2022-12-28', ece.DayType.SPECIAL_OPEN, strict=True)
+
+c = ec.get_calendar('XLON')
+```
 
 ### Changesets
-When a calendar is modified programmatically, the changes are recorded in a changeset. When a new calendar instance is
-obtained, the changeset is applied to the underlying unmodified calendar.
+
+Internally, whenever a calendar for an exchange is modified through a call to an appropriate function, the resulting 
+changes are accumulated in a changeset, i.e. a collection of zero or more changes, that are specific to that exchange. 
+That is, subsequent calls for the same exchange will update the same changeset. 
+
+When a new exchange calendar instance is created, the changes from the corresponding changeset are applied to the 
+underlying and still unmodified exchange calendar. This is why a new fresh instance of a calendar needs to be obtained 
+to reflect any previously made changes. 
+
+As a user, you don't need to interact with changesets directly, but it is important to understand the concept to
+understand the behavior of this package.
 
 Changesets have a notion of consistency. A changeset is consistent if and only if the following conditions are satisfied:
 1) For each day type, the corresponding dates to add and dates to remove do not overlap.
-2) For each distinct pair of day types, the dates to add must not overlap.
+2) For each distinct pair of day types, the dates to add do not overlap.
 
 The first condition ensures that the same day is not added and removed at the same time for the same day type. The 
 second condition ensures that the same day is not added for two different day types. Note that marking the same day as
-a day to remove is valid for multiple day types at the same time since this it will be a no-op if the day is not already
-present in the calendar for a day type.
+a day to remove is valid for multiple day types at the same time since this it will be a no-op if the day is not 
+actually present in the calendar for a day type.
 
-### Strict mode
-Multiple calls to add or remove holidays or special sessions can lead to an inconsistent changeset for a calendar or 
-situations where the semantics of each action may not be immediately clear without further specification. For example, 
-what should happen if the same day is added as a holiday and then removed?
+In essence, consistency ensures that the changes in a changeset do not contradict each other.
+
+By default, any call to a function that modifies a calendar will ensure that the resulting changeset is consistent, as
+described above. This can be disabled by setting the optional keyword argument `strict` to `False`. In this case, the 
+function throws an exception if the resulting changeset would become inconsistent. The underlying changeset remains in 
+the last consistent state. 
+
+
+### Applying changesets to a calendar
+
+In certain scenarios, it may be desirable to apply an entire set of changes to an exchange calendar. For example, the 
+changes could be read from a file or a database. This can be achieved using the `update_calendar(...)` function. For 
+example,
 ```python
-...
-add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday')
-remove_holiday('XLON', pd.Timestamp('2021-12-27'))
+import exchange_calendars_extensions as ece
+ece.apply_extensions()
+import exchange_calendars as ec
 
-calendar = get_calendar('XLON')
+changes = {
+    "holiday": {
+        "add": {"2022-01-10": {"name": "Holiday"}}, 
+        "remove": ["2022-01-11"]
+    },
+    "special_open": {
+        "add": {"2022-01-12": {"name": "Special Open", "time": "10:00"}}, 
+        "remove": ["2022-01-13"]
+    },
+    "special_close": {
+        "add": {"2022-01-14": {"name": "Special Close", "time": "16:00"}}, 
+        "remove": ["2022-01-17"]
+    },
+    "monthly_expiry": {
+        "add": {"2022-01-18": {"name": "Monthly Expiry"}}, 
+        "remove": ["2022-01-19"]
+    },
+    "quarterly_expiry": {
+        "add": {"2022-01-20": {"name": "Quarterly Expiry"}}, 
+        "remove": ["2022-01-21"]
+    }
+}
+
+ece.update_calendar('XLON', changes)
+
+calendar = ec.get_calendar('XLON')
+
+assert '2022-01-10' in calendar.holidays_all.holidays()
+assert '2022-01-11' not in calendar.holidays_all.holidays()
+assert '2022-01-12' in calendar.special_opens_all.holidays()
+assert '2022-01-13' not in calendar.special_opens_all.holidays()
+assert '2022-01-14' in calendar.special_closes_all.holidays()
+assert '2022-01-17' not in calendar.special_closes_all.holidays()
+assert '2022-01-18' in calendar.monthly_expiries.holidays()
+assert '2022-01-19' not in calendar.monthly_expiries.holidays()
+assert '2022-01-20' in calendar.quarterly_expiries.holidays()
+assert '2022-01-21' not in calendar.quarterly_expiries.holidays()
 ```
-By default, situations are handled gracefully as far as possible. Here, the holiday is first added to the changeset and 
-then marked as a day to remove for all day types. This would normally lead to an inconsistent changeset since the same
-day would now be marked as a holiday to add as well as a day to remove from the holidays (as well as all other day 
-types). To remain consistent, the day is is removed from the holidays to add. Now, the changeset only contains the day
-as a day to remove for all day types.
 
-This behaviour may not be desired in all cases which is why the `strict` flag can be set to `True` when adding or 
-removing a day. In strict mode, conflicting actions such as the ones above will raise an exception.
-```python
-...
-add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday', strict=True)
-remove_holiday('XLON', pd.Timestamp('2021-12-27'), strict=True)
-# The second call will raise an exception.
-```
-
-Another case to consider is trying to add the same day twice with two different day types.
-```python
-...
-add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday')
-add_special_open('XLON', pd.Timestamp('2021-12-27'), dt.time(11, 0), 'Special Open')
-
-calendar = get_calendar('XLON')
-```
-By default, this will not raise an exception. Instead, the second action will overwrite the first one. The resulting 
-calendar will therefore just have the day marked as a special open day. In strict mode, however, this will raise an 
-exception.
-```python
-...
-add_holiday('XLON', pd.Timestamp('2021-12-27'), 'Holiday', strict=True)
-add_special_open('XLON', pd.Timestamp('2021-12-27'), dt.time(11, 0), 'Special Open', strict=True)
-# The second call will raise an exception.
-```
-
-Strict mode may be particularly useful when an entire changeset is built up through multiple calls that are all expected
-to be compatible with each other.
 
 ### Normalization
 A changeset needs to be consistent before it can be applied to an exchange calendar. However, consistency alone is not 

@@ -352,7 +352,7 @@ def test_extended_calendar_test():
         pd.Timestamp('2024-12-31'): 'last regular trading day of month'})).empty
 
 
-#@pytest.mark.isolated
+@pytest.mark.isolated
 def test_add_new_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec

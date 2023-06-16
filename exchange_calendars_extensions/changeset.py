@@ -6,6 +6,7 @@ from typing import Set, Generic, TypeVar, Dict, Union, Optional, Type, Any
 
 import pandas as pd
 from pydantic import BaseModel, Field, validator, ValidationError, root_validator
+from pydantic.error_wrappers import ErrorWrapper
 from pydantic.fields import ModelField
 from pydantic.generics import GenericModel
 from typing_extensions import Self
@@ -14,7 +15,7 @@ from typing_extensions import Self
 def wrap_validation_error(e: Exception, cls: Type):
     # Wrap e if it is not already a ValidationError.
     if not isinstance(e, ValidationError):
-        e = ValidationError([e], cls)
+        e = ValidationError([ErrorWrapper(exc=e, loc='n/a')], cls)
     return e
 
 
@@ -163,7 +164,7 @@ class Changes(GenericModel, Generic[DaySpecT], extra='forbid'):
         try:
             date = self._validate_timestamp(date)
         except ValueError as e:
-            raise wrap_validation_error(e, self.__class__)
+            raise wrap_validation_error(e, self.__class__) from e
 
         # Validate value.
         if isinstance(value, dict):
@@ -187,7 +188,7 @@ class Changes(GenericModel, Generic[DaySpecT], extra='forbid'):
             # Revert addition.
             del self.add[date]
 
-            raise wrap_validation_error(e, self.__class__)
+            raise wrap_validation_error(e, self.__class__) from e
 
         return self
 
@@ -220,7 +221,7 @@ class Changes(GenericModel, Generic[DaySpecT], extra='forbid'):
         try:
             date = self._validate_timestamp(date)
         except ValueError as e:
-            raise wrap_validation_error(e, self.__class__)
+            raise wrap_validation_error(e, self.__class__) from e
 
         # Add the holiday to the set of holidays to remove.
         self.remove.add(date)
@@ -232,7 +233,7 @@ class Changes(GenericModel, Generic[DaySpecT], extra='forbid'):
             # Revert.
             self.remove.remove(date)
 
-            raise wrap_validation_error(e, self.__class__)
+            raise wrap_validation_error(e, self.__class__) from e
 
         return self
 
@@ -254,7 +255,7 @@ class Changes(GenericModel, Generic[DaySpecT], extra='forbid'):
         try:
             date = self._validate_timestamp(date)
         except ValueError as e:
-            raise wrap_validation_error(e, self.__class__)
+            raise wrap_validation_error(e, self.__class__) from e
 
         # Remove the holiday from the set of holidays to add.
 
@@ -424,7 +425,7 @@ class ChangeSet(BaseModel, extra='forbid', validate_all=True):
         except Exception as e:
             # Failed to add the day to the set of changes, so the set of changes should be unmodified as a result.
             # Just let the exception bubble up.
-            raise wrap_validation_error(e, self.__class__)
+            raise wrap_validation_error(e, self.__class__) from e
         else:
             # If we get here, then the day has been added to the set of changes successfully.
 
@@ -440,7 +441,7 @@ class ChangeSet(BaseModel, extra='forbid', validate_all=True):
                 self.__dict__[day_type].clear_day(date)
 
                 # Let exception bubble up.
-                raise wrap_validation_error(e, self.__class__)
+                raise wrap_validation_error(e, self.__class__) from e
 
         return self
 
