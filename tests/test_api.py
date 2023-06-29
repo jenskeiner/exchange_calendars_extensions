@@ -16,23 +16,23 @@ def apply_extensions():
     ece.apply_extensions()
 
 
-def add_test_calendar_and_apply_extensions(holidays: Optional[Iterable[pd.Timestamp]] = (pd.Timestamp("2023-01-01")),
+def add_test_calendar_and_apply_extensions(holidays: Optional[Iterable[pd.Timestamp]] = (pd.Timestamp("2023-01-01"),),
                                            adhoc_holidays: Optional[Iterable[pd.Timestamp]] = (
-                                           pd.Timestamp("2023-02-01")),
+                                           pd.Timestamp("2023-02-01"),),
                                            regular_special_close: Optional[time] = time(14, 00),
                                            special_closes: Optional[
                                                Iterable[Tuple[datetime.time, Iterable[pd.Timestamp]]]] = (
-                                                   (time(14, 00), [pd.Timestamp("2023-03-01")])),
+                                                   (time(14, 00), (pd.Timestamp("2023-03-01"),)),),
                                            adhoc_special_closes: Optional[Iterable[
                                                Tuple[datetime.time, Union[pd.Timestamp, Iterable[pd.Timestamp]]]]] = (
-                                                   (time(14, 00), pd.Timestamp("2023-04-03"))),
+                                                   (time(14, 00), pd.Timestamp("2023-04-03")),),
                                            regular_special_open: Optional[time] = time(11, 00),
                                            special_opens: Optional[
                                                Iterable[Tuple[datetime.time, Iterable[pd.Timestamp]]]] = (
-                                                   (time(11, 00), [pd.Timestamp("2023-05-01")])),
+                                                   (time(11, 00), (pd.Timestamp("2023-05-01"),)),),
                                            adhoc_special_opens: Optional[Iterable[
                                                Tuple[datetime.time, Union[pd.Timestamp, Iterable[pd.Timestamp]]]]] = (
-                                                   (time(11, 00), pd.Timestamp("2023-06-01"))),
+                                                   (time(11, 00), pd.Timestamp("2023-06-01")),),
                                            weekmask: Optional[str] = "1111100",
                                            day_of_week_expiry: Optional[int] = 4):
     def is_iterable(obj):

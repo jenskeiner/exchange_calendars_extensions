@@ -1,5 +1,6 @@
 import datetime
 from abc import ABC
+from copy import copy
 from dataclasses import field, dataclass
 from functools import reduce
 from typing import Iterable, Optional, Callable, Union, Type, Protocol, List, Tuple, runtime_checkable
@@ -743,14 +744,14 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     def __init__(self, *args, **kwargs):
         # Save adjusted properties. Initialize with copies of the original properties.
-        a = AdjustedProperties(regular_holidays=regular_holidays_orig(self).rules.copy(),
-                               adhoc_holidays=adhoc_holidays_orig(self).copy(),
-                               special_closes=[(t, d if isinstance(d, int) else d.rules.copy()) for t, d in
-                                               special_closes_orig(self).copy()],
-                               adhoc_special_closes=adhoc_special_closes_orig(self).copy(),
-                               special_opens=[(t, d if isinstance(d, int) else d.rules.copy()) for t, d in
-                                              special_opens_orig(self).copy()],
-                               adhoc_special_opens=adhoc_special_opens_orig(self).copy())
+        a = AdjustedProperties(regular_holidays=list(copy(regular_holidays_orig(self).rules)),
+                               adhoc_holidays=list(copy(adhoc_holidays_orig(self))),
+                               special_closes=[(t, d if isinstance(d, int) else list(copy(d.rules))) for t, d in
+                                               copy(special_closes_orig(self))],
+                               adhoc_special_closes=list(copy(adhoc_special_closes_orig(self))),
+                               special_opens=[(t, d if isinstance(d, int) else list(copy(d.rules))) for t, d in
+                                              copy(special_opens_orig(self))],
+                               adhoc_special_opens=list(copy(adhoc_special_opens_orig(self))))
 
         # Get changeset from provider, maybe.
         changeset: ChangeSet = changeset_provider() if changeset_provider is not None else None
@@ -876,7 +877,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def adhoc_holidays(self) -> List[pd.Timestamp]:
-        return self._adjusted_properties.adhoc_holidays.copy()
+        return copy(self._adjusted_properties.adhoc_holidays)
 
     @property
     def special_closes(self) -> List[Tuple[datetime.time, Union[HolidayCalendar, int]]]:
@@ -884,7 +885,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def special_closes_adhoc(self) -> List[Tuple[datetime.time, pd.DatetimeIndex]]:
-        return self._adjusted_properties.adhoc_special_closes.copy()
+        return copy(self._adjusted_properties.adhoc_special_closes)
 
     @property
     def special_opens(self) -> List[Tuple[datetime.time, Union[HolidayCalendar, int]]]:
@@ -892,7 +893,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def special_opens_adhoc(self) -> List[Tuple[datetime.time, pd.DatetimeIndex]]:
-        return self._adjusted_properties.adhoc_special_opens.copy()
+        return copy(self._adjusted_properties.adhoc_special_opens)
 
     @property
     def weekend_days(self) -> Union[HolidayCalendar, None]:
