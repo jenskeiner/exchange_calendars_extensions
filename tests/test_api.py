@@ -1547,318 +1547,318 @@ def test_remove_existing_ad_hoc_special_close():
         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
 
 
-# @pytest.mark.isolated
-# def test_remove_non_existent_special_close():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.remove_special_close("TEST", pd.Timestamp("2023-07-03"))
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 1
-#
-#     # Special Closes for regular special close time should exclude the overwritten day.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     # Ad-hoc special closes should now be empty.
-#     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-04-03"): "ad-hoc special close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_add_quarterly_expiry():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     # Add quarterly expiry.
-#     ece.add_quarterly_expiry("TEST", pd.Timestamp("2023-06-15"), "Added Quarterly Expiry")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Quarterly expiry dates should be empty.
-#     assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-18"): "quarterly expiry",
-#         pd.Timestamp("2022-06-17"): "quarterly expiry",
-#         pd.Timestamp("2022-09-16"): "quarterly expiry",
-#         pd.Timestamp("2022-12-16"): "quarterly expiry",
-#         pd.Timestamp("2023-03-17"): "quarterly expiry",
-#         pd.Timestamp("2023-06-15"): "Added Quarterly Expiry",
-#         pd.Timestamp("2023-06-16"): "quarterly expiry",
-#         pd.Timestamp("2023-09-15"): "quarterly expiry",
-#         pd.Timestamp("2023-12-15"): "quarterly expiry",
-#         pd.Timestamp("2024-03-15"): "quarterly expiry",
-#         pd.Timestamp("2024-06-21"): "quarterly expiry",
-#         pd.Timestamp("2024-09-20"): "quarterly expiry",
-#         pd.Timestamp("2024-12-20"): "quarterly expiry"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_remove_quarterly_expiry():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     # Add quarterly expiry.
-#     ece.remove_quarterly_expiry("TEST", pd.Timestamp("2023-06-16"))
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Quarterly expiry dates should be empty.
-#     assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-18"): "quarterly expiry",
-#         pd.Timestamp("2022-06-17"): "quarterly expiry",
-#         pd.Timestamp("2022-09-16"): "quarterly expiry",
-#         pd.Timestamp("2022-12-16"): "quarterly expiry",
-#         pd.Timestamp("2023-03-17"): "quarterly expiry",
-#         pd.Timestamp("2023-09-15"): "quarterly expiry",
-#         pd.Timestamp("2023-12-15"): "quarterly expiry",
-#         pd.Timestamp("2024-03-15"): "quarterly expiry",
-#         pd.Timestamp("2024-06-21"): "quarterly expiry",
-#         pd.Timestamp("2024-09-20"): "quarterly expiry",
-#         pd.Timestamp("2024-12-20"): "quarterly expiry"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_add_monthly_expiry():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     # Add quarterly expiry.
-#     ece.add_monthly_expiry("TEST", pd.Timestamp("2023-01-19"), "Added Monthly Expiry")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Quarterly expiry dates should be empty.
-#     assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-01-21"): "monthly expiry",
-#         pd.Timestamp("2022-02-18"): "monthly expiry",
-#         pd.Timestamp("2022-04-15"): "monthly expiry",
-#         pd.Timestamp("2022-05-20"): "monthly expiry",
-#         pd.Timestamp("2022-07-15"): "monthly expiry",
-#         pd.Timestamp("2022-08-19"): "monthly expiry",
-#         pd.Timestamp("2022-10-21"): "monthly expiry",
-#         pd.Timestamp("2022-11-18"): "monthly expiry",
-#         pd.Timestamp("2023-01-19"): "Added Monthly Expiry",
-#         pd.Timestamp("2023-01-20"): "monthly expiry",
-#         pd.Timestamp("2023-02-17"): "monthly expiry",
-#         pd.Timestamp("2023-04-21"): "monthly expiry",
-#         pd.Timestamp("2023-05-19"): "monthly expiry",
-#         pd.Timestamp("2023-07-21"): "monthly expiry",
-#         pd.Timestamp("2023-08-18"): "monthly expiry",
-#         pd.Timestamp("2023-10-20"): "monthly expiry",
-#         pd.Timestamp("2023-11-17"): "monthly expiry",
-#         pd.Timestamp("2024-01-19"): "monthly expiry",
-#         pd.Timestamp("2024-02-16"): "monthly expiry",
-#         pd.Timestamp("2024-04-19"): "monthly expiry",
-#         pd.Timestamp("2024-05-17"): "monthly expiry",
-#         pd.Timestamp("2024-07-19"): "monthly expiry",
-#         pd.Timestamp("2024-08-16"): "monthly expiry",
-#         pd.Timestamp("2024-10-18"): "monthly expiry",
-#         pd.Timestamp("2024-11-15"): "monthly expiry"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_overwrite_regular_holiday_with_special_open():
-#     add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2023-01-02")])
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.add_special_open("TEST", pd.Timestamp("2023-01-02"), time(11, 0), "Added Special Open")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Overwritten holiday should no longer be in regular holidays.
-#     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-01-02"): "Holiday 0",
-#         pd.Timestamp("2024-01-02"): "Holiday 0"})).empty
-#
-#     # Ad-hoc holidays should be unmodified.
-#     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
-#
-#     # Overwritten holiday should no longer be in holidays_all calendar.
-#     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-01-02"): "Holiday 0",
-#         pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-#         pd.Timestamp("2024-01-02"): "Holiday 0"})).empty
-#
-#     # Check number of distinct special open times.
-#     assert len(c.special_opens) == 1
-#
-#     # Added special open should be in special opens for regular time.
-#     assert c.special_opens[0][0] == time(11, 0)
-#     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-01-02"): "Added Special Open",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#     # Ad-hoc special opens should be unmodified.
-#     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
-#
-#     # Added special open should be in consolidated calendar.
-#     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-01-02"): "Added Special Open",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2023-06-01"): "ad-hoc special open",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_apply_changeset():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     changes = {
-#         "holiday": {"add": {"2023-01-02": {"name": "Inserted Holiday"}}, "remove": ["2023-01-01"]},
-#         "special_open": {"add": {"2023-05-02": {"name": "Inserted Special Open", "time": "11:00"}},
-#                          "remove": ["2023-05-01"]},
-#         "special_close": {"add": {"2023-03-02": {"name": "Inserted Special Close", "time": "14:00"}},
-#                           "remove": ["2023-03-01"]},
-#         "monthly_expiry": {"add": {"2023-08-17": {"name": "Inserted Monthly Expiry"}}, "remove": ["2023-08-18"]},
-#         "quarterly_expiry": {"add": {"2023-09-14": {"name": "Inserted Quarterly Expiry"}}, "remove": ["2023-09-15"]},
-#     }
-#     ece.update_calendar("TEST", changes)
-#     c = ec.get_calendar("TEST")
-#
-#     assert isinstance(c, ece.ExtendedExchangeCalendar)
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Verify regular holidays for 2022, 2023, and 2024.
-#     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-01-01"): "Holiday 0",
-#         # removed: pd.Timestamp("2023-01-01"): "Holiday 0",
-#         pd.Timestamp("2023-01-02"): "Inserted Holiday",
-#         pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
-#
-#     # Verify adhoc holidays.
-#     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
-#
-#     # Verify special closes for 2022, 2023, and 2024.
-#     assert len(c.special_closes) == 1
-#     assert len(c.special_closes[0]) == 2
-#     assert c.special_closes[0][0] == datetime.time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp('2022-03-01'): 'Special Close 0',
-#         # removed: pd.Timestamp('2023-03-01'): 'Special Close 0',
-#         pd.Timestamp('2023-03-02'): 'Inserted Special Close',
-#         pd.Timestamp('2024-03-01'): 'Special Close 0'})).empty
-#
-#     # Verify adhoc special closes.
-#     assert c.special_closes_adhoc == [(datetime.time(14, 0), pd.DatetimeIndex([pd.Timestamp("2023-04-03")]))]
-#
-#     # Verify special opens for 2022, 2023, and 2024.
-#     assert len(c.special_opens) == 1
-#     assert len(c.special_opens[0]) == 2
-#     assert c.special_opens[0][0] == datetime.time(11, 0)
-#     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp('2022-05-02'): 'Special Open 0',
-#         # removed pd.Timestamp('2023-05-01'): 'Special Open 0',
-#         pd.Timestamp('2023-05-02'): 'Inserted Special Open',
-#         pd.Timestamp('2024-05-01'): 'Special Open 0'})).empty
-#
-#     # Verify adhoc special opens.
-#     assert c.special_opens_adhoc == [(datetime.time(11, 0), pd.DatetimeIndex([pd.Timestamp("2023-06-01")]))]
-#
-#     # Verify additional holiday calendars.
-#
-#     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-01-01"): "Holiday 0",
-#         # removed: pd.Timestamp("2023-01-01"): "Holiday 0",
-#         pd.Timestamp("2023-01-02"): "Inserted Holiday",
-#         pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-#         pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
-#
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp('2022-03-01'): 'Special Close 0',
-#         # removed: pd.Timestamp('2023-03-01'): 'Special Close 0',
-#         pd.Timestamp('2023-03-02'): 'Inserted Special Close',
-#         pd.Timestamp('2023-04-03'): "ad-hoc special close",
-#         pd.Timestamp('2024-03-01'): 'Special Close 0'})).empty
-#
-#     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp('2022-05-02'): 'Special Open 0',
-#         # removed: pd.Timestamp('2023-05-01'): 'Special Open 0',
-#         pd.Timestamp('2023-05-02'): 'Inserted Special Open',
-#         pd.Timestamp('2023-06-01'): "ad-hoc special open",
-#         pd.Timestamp('2024-05-01'): 'Special Open 0'})).empty
-#
-#     assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp('2022-03-18'): 'quarterly expiry',
-#         pd.Timestamp('2022-06-17'): 'quarterly expiry',
-#         pd.Timestamp('2022-09-16'): 'quarterly expiry',
-#         pd.Timestamp('2022-12-16'): 'quarterly expiry',
-#         pd.Timestamp('2023-03-17'): 'quarterly expiry',
-#         pd.Timestamp('2023-06-16'): 'quarterly expiry',
-#         pd.Timestamp('2023-09-14'): 'Inserted Quarterly Expiry',
-#         # removed: pd.Timestamp('2023-09-15'): 'quarterly expiry',
-#         pd.Timestamp('2023-12-15'): 'quarterly expiry',
-#         pd.Timestamp('2024-03-15'): 'quarterly expiry',
-#         pd.Timestamp('2024-06-21'): 'quarterly expiry',
-#         pd.Timestamp('2024-09-20'): 'quarterly expiry',
-#         pd.Timestamp('2024-12-20'): 'quarterly expiry'})).empty
-#
-#     assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp('2022-01-21'): 'monthly expiry',
-#         pd.Timestamp('2022-02-18'): 'monthly expiry',
-#         pd.Timestamp('2022-04-15'): 'monthly expiry',
-#         pd.Timestamp('2022-05-20'): 'monthly expiry',
-#         pd.Timestamp('2022-07-15'): 'monthly expiry',
-#         pd.Timestamp('2022-08-19'): 'monthly expiry',
-#         pd.Timestamp('2022-10-21'): 'monthly expiry',
-#         pd.Timestamp('2022-11-18'): 'monthly expiry',
-#         pd.Timestamp('2023-01-20'): 'monthly expiry',
-#         pd.Timestamp('2023-02-17'): 'monthly expiry',
-#         pd.Timestamp('2023-04-21'): 'monthly expiry',
-#         pd.Timestamp('2023-05-19'): 'monthly expiry',
-#         pd.Timestamp('2023-07-21'): 'monthly expiry',
-#         pd.Timestamp('2023-08-17'): 'Inserted Monthly Expiry',
-#         # removed: pd.Timestamp('2023-08-18'): 'monthly expiry',
-#         pd.Timestamp('2023-10-20'): 'monthly expiry',
-#         pd.Timestamp('2023-11-17'): 'monthly expiry',
-#         pd.Timestamp('2024-01-19'): 'monthly expiry',
-#         pd.Timestamp('2024-02-16'): 'monthly expiry',
-#         pd.Timestamp('2024-04-19'): 'monthly expiry',
-#         pd.Timestamp('2024-05-17'): 'monthly expiry',
-#         pd.Timestamp('2024-07-19'): 'monthly expiry',
-#         pd.Timestamp('2024-08-16'): 'monthly expiry',
-#         pd.Timestamp('2024-10-18'): 'monthly expiry',
-#         pd.Timestamp('2024-11-15'): 'monthly expiry'})).empty
-#
-#
+@pytest.mark.isolated
+def test_remove_non_existent_special_close():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.remove_special_close("TEST", pd.Timestamp("2023-07-03"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 1
+
+    # Special Closes for regular special close time should exclude the overwritten day.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    # Ad-hoc special closes should now be empty.
+    assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2023-04-03"): "ad-hoc special close",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+
+@pytest.mark.isolated
+def test_add_quarterly_expiry():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Add quarterly expiry.
+    ece.add_quarterly_expiry("TEST", pd.Timestamp("2023-06-15"), "Added Quarterly Expiry")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Quarterly expiry dates should be empty.
+    assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-18"): "quarterly expiry",
+        pd.Timestamp("2022-06-17"): "quarterly expiry",
+        pd.Timestamp("2022-09-16"): "quarterly expiry",
+        pd.Timestamp("2022-12-16"): "quarterly expiry",
+        pd.Timestamp("2023-03-17"): "quarterly expiry",
+        pd.Timestamp("2023-06-15"): "Added Quarterly Expiry",
+        pd.Timestamp("2023-06-16"): "quarterly expiry",
+        pd.Timestamp("2023-09-15"): "quarterly expiry",
+        pd.Timestamp("2023-12-15"): "quarterly expiry",
+        pd.Timestamp("2024-03-15"): "quarterly expiry",
+        pd.Timestamp("2024-06-21"): "quarterly expiry",
+        pd.Timestamp("2024-09-20"): "quarterly expiry",
+        pd.Timestamp("2024-12-20"): "quarterly expiry"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_quarterly_expiry():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Add quarterly expiry.
+    ece.remove_quarterly_expiry("TEST", pd.Timestamp("2023-06-16"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Quarterly expiry dates should be empty.
+    assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-18"): "quarterly expiry",
+        pd.Timestamp("2022-06-17"): "quarterly expiry",
+        pd.Timestamp("2022-09-16"): "quarterly expiry",
+        pd.Timestamp("2022-12-16"): "quarterly expiry",
+        pd.Timestamp("2023-03-17"): "quarterly expiry",
+        pd.Timestamp("2023-09-15"): "quarterly expiry",
+        pd.Timestamp("2023-12-15"): "quarterly expiry",
+        pd.Timestamp("2024-03-15"): "quarterly expiry",
+        pd.Timestamp("2024-06-21"): "quarterly expiry",
+        pd.Timestamp("2024-09-20"): "quarterly expiry",
+        pd.Timestamp("2024-12-20"): "quarterly expiry"})).empty
+
+
+@pytest.mark.isolated
+def test_add_monthly_expiry():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    # Add quarterly expiry.
+    ece.add_monthly_expiry("TEST", pd.Timestamp("2023-01-19"), "Added Monthly Expiry")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Quarterly expiry dates should be empty.
+    assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-21"): "monthly expiry",
+        pd.Timestamp("2022-02-18"): "monthly expiry",
+        pd.Timestamp("2022-04-15"): "monthly expiry",
+        pd.Timestamp("2022-05-20"): "monthly expiry",
+        pd.Timestamp("2022-07-15"): "monthly expiry",
+        pd.Timestamp("2022-08-19"): "monthly expiry",
+        pd.Timestamp("2022-10-21"): "monthly expiry",
+        pd.Timestamp("2022-11-18"): "monthly expiry",
+        pd.Timestamp("2023-01-19"): "Added Monthly Expiry",
+        pd.Timestamp("2023-01-20"): "monthly expiry",
+        pd.Timestamp("2023-02-17"): "monthly expiry",
+        pd.Timestamp("2023-04-21"): "monthly expiry",
+        pd.Timestamp("2023-05-19"): "monthly expiry",
+        pd.Timestamp("2023-07-21"): "monthly expiry",
+        pd.Timestamp("2023-08-18"): "monthly expiry",
+        pd.Timestamp("2023-10-20"): "monthly expiry",
+        pd.Timestamp("2023-11-17"): "monthly expiry",
+        pd.Timestamp("2024-01-19"): "monthly expiry",
+        pd.Timestamp("2024-02-16"): "monthly expiry",
+        pd.Timestamp("2024-04-19"): "monthly expiry",
+        pd.Timestamp("2024-05-17"): "monthly expiry",
+        pd.Timestamp("2024-07-19"): "monthly expiry",
+        pd.Timestamp("2024-08-16"): "monthly expiry",
+        pd.Timestamp("2024-10-18"): "monthly expiry",
+        pd.Timestamp("2024-11-15"): "monthly expiry"})).empty
+
+
+@pytest.mark.isolated
+def test_overwrite_regular_holiday_with_special_open():
+    add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2023-01-02")])
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_special_open("TEST", pd.Timestamp("2023-01-02"), time(11, 0), "Added Special Open")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Overwritten holiday should no longer be in regular holidays.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-02"): "Holiday 0",
+        pd.Timestamp("2024-01-02"): "Holiday 0"})).empty
+
+    # Ad-hoc holidays should be unmodified.
+    assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
+
+    # Overwritten holiday should no longer be in holidays_all calendar.
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-02"): "Holiday 0",
+        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
+        pd.Timestamp("2024-01-02"): "Holiday 0"})).empty
+
+    # Check number of distinct special open times.
+    assert len(c.special_opens) == 1
+
+    # Added special open should be in special opens for regular time.
+    assert c.special_opens[0][0] == time(11, 0)
+    assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-01-02"): "Added Special Open",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+    # Ad-hoc special opens should be unmodified.
+    assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
+
+    # Added special open should be in consolidated calendar.
+    assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-01-02"): "Added Special Open",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2023-06-01"): "ad-hoc special open",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+
+@pytest.mark.isolated
+def test_apply_changeset():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    changes = {
+        "holiday": {"add": {"2023-01-02": {"name": "Inserted Holiday"}}, "remove": ["2023-01-01"]},
+        "special_open": {"add": {"2023-05-02": {"name": "Inserted Special Open", "time": "11:00"}},
+                         "remove": ["2023-05-01"]},
+        "special_close": {"add": {"2023-03-02": {"name": "Inserted Special Close", "time": "14:00"}},
+                          "remove": ["2023-03-01"]},
+        "monthly_expiry": {"add": {"2023-08-17": {"name": "Inserted Monthly Expiry"}}, "remove": ["2023-08-18"]},
+        "quarterly_expiry": {"add": {"2023-09-14": {"name": "Inserted Quarterly Expiry"}}, "remove": ["2023-09-15"]},
+    }
+    ece.update_calendar("TEST", changes)
+    c = ec.get_calendar("TEST")
+
+    assert isinstance(c, ece.ExtendedExchangeCalendar)
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Verify regular holidays for 2022, 2023, and 2024.
+    assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        # removed: pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-02"): "Inserted Holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+    # Verify adhoc holidays.
+    assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
+
+    # Verify special closes for 2022, 2023, and 2024.
+    assert len(c.special_closes) == 1
+    assert len(c.special_closes[0]) == 2
+    assert c.special_closes[0][0] == datetime.time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-03-01'): 'Special Close 0',
+        # removed: pd.Timestamp('2023-03-01'): 'Special Close 0',
+        pd.Timestamp('2023-03-02'): 'Inserted Special Close',
+        pd.Timestamp('2024-03-01'): 'Special Close 0'})).empty
+
+    # Verify adhoc special closes.
+    assert c.special_closes_adhoc == [(datetime.time(14, 0), pd.DatetimeIndex([pd.Timestamp("2023-04-03")]))]
+
+    # Verify special opens for 2022, 2023, and 2024.
+    assert len(c.special_opens) == 1
+    assert len(c.special_opens[0]) == 2
+    assert c.special_opens[0][0] == datetime.time(11, 0)
+    assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-05-02'): 'Special Open 0',
+        # removed pd.Timestamp('2023-05-01'): 'Special Open 0',
+        pd.Timestamp('2023-05-02'): 'Inserted Special Open',
+        pd.Timestamp('2024-05-01'): 'Special Open 0'})).empty
+
+    # Verify adhoc special opens.
+    assert c.special_opens_adhoc == [(datetime.time(11, 0), pd.DatetimeIndex([pd.Timestamp("2023-06-01")]))]
+
+    # Verify additional holiday calendars.
+
+    assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-01-01"): "Holiday 0",
+        # removed: pd.Timestamp("2023-01-01"): "Holiday 0",
+        pd.Timestamp("2023-01-02"): "Inserted Holiday",
+        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
+        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-03-01'): 'Special Close 0',
+        # removed: pd.Timestamp('2023-03-01'): 'Special Close 0',
+        pd.Timestamp('2023-03-02'): 'Inserted Special Close',
+        pd.Timestamp('2023-04-03'): "ad-hoc special close",
+        pd.Timestamp('2024-03-01'): 'Special Close 0'})).empty
+
+    assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-05-02'): 'Special Open 0',
+        # removed: pd.Timestamp('2023-05-01'): 'Special Open 0',
+        pd.Timestamp('2023-05-02'): 'Inserted Special Open',
+        pd.Timestamp('2023-06-01'): "ad-hoc special open",
+        pd.Timestamp('2024-05-01'): 'Special Open 0'})).empty
+
+    assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-03-18'): 'quarterly expiry',
+        pd.Timestamp('2022-06-17'): 'quarterly expiry',
+        pd.Timestamp('2022-09-16'): 'quarterly expiry',
+        pd.Timestamp('2022-12-16'): 'quarterly expiry',
+        pd.Timestamp('2023-03-17'): 'quarterly expiry',
+        pd.Timestamp('2023-06-16'): 'quarterly expiry',
+        pd.Timestamp('2023-09-14'): 'Inserted Quarterly Expiry',
+        # removed: pd.Timestamp('2023-09-15'): 'quarterly expiry',
+        pd.Timestamp('2023-12-15'): 'quarterly expiry',
+        pd.Timestamp('2024-03-15'): 'quarterly expiry',
+        pd.Timestamp('2024-06-21'): 'quarterly expiry',
+        pd.Timestamp('2024-09-20'): 'quarterly expiry',
+        pd.Timestamp('2024-12-20'): 'quarterly expiry'})).empty
+
+    assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-01-21'): 'monthly expiry',
+        pd.Timestamp('2022-02-18'): 'monthly expiry',
+        pd.Timestamp('2022-04-15'): 'monthly expiry',
+        pd.Timestamp('2022-05-20'): 'monthly expiry',
+        pd.Timestamp('2022-07-15'): 'monthly expiry',
+        pd.Timestamp('2022-08-19'): 'monthly expiry',
+        pd.Timestamp('2022-10-21'): 'monthly expiry',
+        pd.Timestamp('2022-11-18'): 'monthly expiry',
+        pd.Timestamp('2023-01-20'): 'monthly expiry',
+        pd.Timestamp('2023-02-17'): 'monthly expiry',
+        pd.Timestamp('2023-04-21'): 'monthly expiry',
+        pd.Timestamp('2023-05-19'): 'monthly expiry',
+        pd.Timestamp('2023-07-21'): 'monthly expiry',
+        pd.Timestamp('2023-08-17'): 'Inserted Monthly Expiry',
+        # removed: pd.Timestamp('2023-08-18'): 'monthly expiry',
+        pd.Timestamp('2023-10-20'): 'monthly expiry',
+        pd.Timestamp('2023-11-17'): 'monthly expiry',
+        pd.Timestamp('2024-01-19'): 'monthly expiry',
+        pd.Timestamp('2024-02-16'): 'monthly expiry',
+        pd.Timestamp('2024-04-19'): 'monthly expiry',
+        pd.Timestamp('2024-05-17'): 'monthly expiry',
+        pd.Timestamp('2024-07-19'): 'monthly expiry',
+        pd.Timestamp('2024-08-16'): 'monthly expiry',
+        pd.Timestamp('2024-10-18'): 'monthly expiry',
+        pd.Timestamp('2024-11-15'): 'monthly expiry'})).empty
+
+
 # def test_test():
 #     import exchange_calendars_extensions as ece
 #     ece.apply_extensions()
