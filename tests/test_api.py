@@ -110,72 +110,72 @@ def add_test_calendar_and_apply_extensions(holidays: Optional[Iterable[pd.Timest
     ece.apply_extensions()
 
 
-# @pytest.mark.isolated
-# def test_unmodified_calendars():
-#     """ Test that calendars are unmodified when the module is just imported, without calling apply_extensions() """
-#     import exchange_calendars_extensions as ece
-#
-#     import exchange_calendars as ec
-#     c = ec.get_calendar("XETR")
-#
-#     # Check if returned Calendar is of expected type.
-#     assert isinstance(c, ec.ExchangeCalendar)
-#
-#     # Check if returned Calendar is not of extended type.
-#     assert not isinstance(c, ece.ExtendedExchangeCalendar)
-#     assert not isinstance(c, ece.holiday_calendar.ExchangeCalendarExtensions)
-#
-#
-# @pytest.mark.isolated
-# def test_apply_extensions():
-#     """ Test that calendars are modified when apply_extensions() is called """
-#     apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     c = ec.get_calendar("XETR")
-#
-#     # Check if returned Calendar is of expected types.
-#     assert isinstance(c, ec.ExchangeCalendar)
-#     assert isinstance(c, ece.ExtendedExchangeCalendar)
-#     assert isinstance(c, ece.holiday_calendar.ExchangeCalendarExtensions)
-#
-#
-# @pytest.mark.isolated
-# def test_extended_calendar_xetr():
-#     """ Test the additional properties of the extended XETR calendar. """
-#     apply_extensions()
-#
-#     import exchange_calendars as ec
-#
-#     c = ec.get_calendar("XETR")
-#
-#     # Check if additional properties are present.
-#     assert hasattr(c, "holidays_all")
-#     assert isinstance(c.holidays_all, ec.exchange_calendar.HolidayCalendar)
-#
-#     assert hasattr(c, "special_opens_all")
-#     assert isinstance(c.special_opens_all, ec.exchange_calendar.HolidayCalendar)
-#
-#     assert hasattr(c, "special_closes_all")
-#     assert isinstance(c.special_closes_all, ec.exchange_calendar.HolidayCalendar)
-#
-#     assert hasattr(c, "weekend_days")
-#     assert isinstance(c.weekend_days, ec.exchange_calendar.HolidayCalendar)
-#
-#     assert hasattr(c, "monthly_expiries")
-#     assert isinstance(c.monthly_expiries, ec.exchange_calendar.HolidayCalendar)
-#
-#     assert hasattr(c, "quarterly_expiries")
-#     assert isinstance(c.quarterly_expiries, ec.exchange_calendar.HolidayCalendar)
-#
-#     assert hasattr(c, "last_trading_days_of_months")
-#     assert isinstance(c.last_trading_days_of_months, ec.exchange_calendar.HolidayCalendar)
-#
-#     assert hasattr(c, "last_regular_trading_days_of_months")
-#     assert isinstance(c.last_regular_trading_days_of_months, ec.exchange_calendar.HolidayCalendar)
-#
-#
+@pytest.mark.isolated
+def test_unmodified_calendars():
+    """ Test that calendars are unmodified when the module is just imported, without calling apply_extensions() """
+    import exchange_calendars_extensions as ece
+
+    import exchange_calendars as ec
+    c = ec.get_calendar("XETR")
+
+    # Check if returned Calendar is of expected type.
+    assert isinstance(c, ec.ExchangeCalendar)
+
+    # Check if returned Calendar is not of extended type.
+    assert not isinstance(c, ece.ExtendedExchangeCalendar)
+    assert not isinstance(c, ece.holiday_calendar.ExchangeCalendarExtensions)
+
+
+@pytest.mark.isolated
+def test_apply_extensions():
+    """ Test that calendars are modified when apply_extensions() is called """
+    apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    c = ec.get_calendar("XETR")
+
+    # Check if returned Calendar is of expected types.
+    assert isinstance(c, ec.ExchangeCalendar)
+    assert isinstance(c, ece.ExtendedExchangeCalendar)
+    assert isinstance(c, ece.holiday_calendar.ExchangeCalendarExtensions)
+
+
+@pytest.mark.isolated
+def test_extended_calendar_xetr():
+    """ Test the additional properties of the extended XETR calendar. """
+    apply_extensions()
+
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("XETR")
+
+    # Check if additional properties are present.
+    assert hasattr(c, "holidays_all")
+    assert isinstance(c.holidays_all, ec.exchange_calendar.HolidayCalendar)
+
+    assert hasattr(c, "special_opens_all")
+    assert isinstance(c.special_opens_all, ec.exchange_calendar.HolidayCalendar)
+
+    assert hasattr(c, "special_closes_all")
+    assert isinstance(c.special_closes_all, ec.exchange_calendar.HolidayCalendar)
+
+    assert hasattr(c, "weekend_days")
+    assert isinstance(c.weekend_days, ec.exchange_calendar.HolidayCalendar)
+
+    assert hasattr(c, "monthly_expiries")
+    assert isinstance(c.monthly_expiries, ec.exchange_calendar.HolidayCalendar)
+
+    assert hasattr(c, "quarterly_expiries")
+    assert isinstance(c.quarterly_expiries, ec.exchange_calendar.HolidayCalendar)
+
+    assert hasattr(c, "last_trading_days_of_months")
+    assert isinstance(c.last_trading_days_of_months, ec.exchange_calendar.HolidayCalendar)
+
+    assert hasattr(c, "last_regular_trading_days_of_months")
+    assert isinstance(c.last_regular_trading_days_of_months, ec.exchange_calendar.HolidayCalendar)
+
+
 # @pytest.mark.isolated
 # def test_extended_calendar_test():
 #     add_test_calendar_and_apply_extensions()
@@ -1903,7 +1903,7 @@ def add_test_calendar_and_apply_extensions(holidays: Optional[Iterable[pd.Timest
 #     assert '2022-01-21' not in calendar.quarterly_expiries.holidays()
 #
 #
-#@pytest.mark.isolated
+@pytest.mark.isolated
 def test_quarterly_expiry_rollback_one_day():
     add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-03-18")],
                                            adhoc_holidays=[],
