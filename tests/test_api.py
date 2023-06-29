@@ -1028,525 +1028,525 @@ def test_overwrite_existing_regular_special_open_with_existing_time():
         pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
 
 
-# @pytest.mark.isolated
-# def test_overwrite_existing_ad_hoc_special_open_with_new_time():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(12, 0), "Added Special Open")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special open times.
-#     assert len(c.special_opens) == 2
-#
-#     # Special opens for regular special open time should exclude the overwritten day.
-#     assert c.special_opens[0][0] == time(11, 0)
-#     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#     assert c.special_opens[1][0] == time(12, 0)
-#     assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2023-06-01"): "Added Special Open"})).empty
-#
-#     # Ad-hoc special opens should now be empty.
-#     assert c.special_opens_adhoc == []
-#
-#     # Added special open should be in consolidated calendar.
-#     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2023-06-01"): "Added Special Open",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_overwrite_existing_ad_hoc_special_open_with_existing_time():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(11, 0), "Added Special Open")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special open times.
-#     assert len(c.special_opens) == 1
-#
-#     # Special opens for regular special open time should exclude the overwritten day.
-#     assert c.special_opens[0][0] == time(11, 0)
-#     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2023-06-01"): "Added Special Open",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#     # Ad-hoc special opens should now be empty.
-#     assert c.special_opens_adhoc == []
-#
-#     # Added special open should be in consolidated calendar.
-#     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2023-06-01"): "Added Special Open",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_remove_existing_regular_special_open():
-#     add_test_calendar_and_apply_extensions(
-#         special_opens=[(time(11, 00), [pd.Timestamp("2023-05-01")]), (time(12, 00), [pd.Timestamp("2023-05-04")])])
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.remove_special_open("TEST", pd.Timestamp("2023-05-01"))
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special open times.
-#     assert len(c.special_opens) == 2
-#
-#     # Special opens for regular special open time should exclude the overwritten day.
-#     assert c.special_opens[0][0] == time(11, 0)
-#     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#     assert c.special_opens[1][0] == time(12, 0)
-#     assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-04"): "Special Open 0",
-#         pd.Timestamp("2023-05-04"): "Special Open 0",
-#         pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
-#
-#     # Ad-hoc special opens should now be empty.
-#     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
-#
-#     # Added special open should be in consolidated calendar.
-#     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2022-05-04"): "Special Open 0",
-#         pd.Timestamp("2023-05-04"): "Special Open 0",
-#         pd.Timestamp("2023-06-01"): "ad-hoc special open",
-#         pd.Timestamp("2024-05-01"): "Special Open 0",
-#         pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_remove_existing_ad_hoc_special_open():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.remove_special_open("TEST", pd.Timestamp("2023-06-01"))
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special open times.
-#     assert len(c.special_opens) == 1
-#
-#     # Special opens for regular special open time should exclude the overwritten day.
-#     assert c.special_opens[0][0] == time(11, 0)
-#     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#     # Ad-hoc special opens should now be empty.
-#     assert c.special_opens_adhoc == []
-#
-#     # Added special open should be in consolidated calendar.
-#     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_remove_non_existent_special_open():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.remove_special_open("TEST", pd.Timestamp("2023-07-03"))
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special open times.
-#     assert len(c.special_opens) == 1
-#
-#     # Special opens for regular special open time should exclude the overwritten day.
-#     assert c.special_opens[0][0] == time(11, 0)
-#     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#     # Ad-hoc special opens should now be empty.
-#     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
-#
-#     # Added special open should be in consolidated calendar.
-#     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-05-02"): "Special Open 0",
-#         pd.Timestamp("2023-05-01"): "Special Open 0",
-#         pd.Timestamp("2023-06-01"): "ad-hoc special open",
-#         pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_add_new_special_close_with_new_time():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(15, 0), "Added Special Close")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 2
-#
-#     # Special closes for regular special close time should be unchanged.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     # There should be a new calendar for the added special close time.
-#     assert c.special_closes[1][0] == time(15, 0)
-#     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2023-07-03"): "Added Special Close"})).empty
-#
-#     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
-#     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-04-03"): "ad-hoc special close",
-#         pd.Timestamp("2023-07-03"): "Added Special Close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_add_new_special_close_with_existing_time():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(14, 0), "Added Special Close")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 1
-#
-#     # Special Closes for regular special close time should be unchanged.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-07-03"): "Added Special Close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
-#     assert c.special_closes_adhoc == [(time(14, 0), pd.Timestamp("2023-04-03"))]
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-04-03"): "ad-hoc special close",
-#         pd.Timestamp("2023-07-03"): "Added Special Close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_overwrite_existing_regular_special_close_with_new_time():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), "Added Special Close")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 2
-#
-#     # Special Closes for regular special close time should exclude the overwritten day.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     # There should be a new calendar for the added special close time.
-#     assert c.special_closes[1][0] == time(15, 0)
-#     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2023-03-01"): "Added Special Close"})).empty
-#
-#     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
-#     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Added Special Close",
-#         pd.Timestamp("2023-04-03"): "ad-hoc special close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_overwrite_existing_regular_special_close_with_existing_time():
-#     add_test_calendar_and_apply_extensions(
-#         special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 2
-#
-#     # Special Closes for regular special close time should exclude the overwritten day.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     assert c.special_closes[1][0] == time(15, 0)
-#     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-04"): "Special Close 0",
-#         pd.Timestamp("2023-03-06"): "Special Close 0",
-#         pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
-#
-#     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
-#     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2022-03-04"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-06"): "Special Close 0",
-#         pd.Timestamp("2023-04-03"): "ad-hoc special close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
-#
-#     ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), "Added Special Close")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 2
-#
-#     # Special Closes for regular special close time should exclude the overwritten day.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     assert c.special_closes[1][0] == time(15, 0)
-#     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-04"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Added Special Close",
-#         pd.Timestamp("2023-03-06"): "Special Close 0",
-#         pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
-#
-#     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
-#     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2022-03-04"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Added Special Close",
-#         pd.Timestamp("2023-03-06"): "Special Close 0",
-#         pd.Timestamp("2023-04-03"): "ad-hoc special close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_overwrite_existing_ad_hoc_special_close_with_new_time():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(15, 0), "Added Special Close")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 2
-#
-#     # Special Closes for regular special close time should exclude the overwritten day.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     assert c.special_closes[1][0] == time(15, 0)
-#     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2023-04-03"): "Added Special Close"})).empty
-#
-#     # Ad-hoc special closes should now be empty.
-#     assert c.special_closes_adhoc == []
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-04-03"): "Added Special Close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_overwrite_existing_ad_hoc_special_close_with_existing_time():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(14, 0), "Added Special Close")
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 1
-#
-#     # Special Closes for regular special close time should exclude the overwritten day.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-04-03"): "Added Special Close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     # Ad-hoc special closes should now be empty.
-#     assert c.special_closes_adhoc == []
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-04-03"): "Added Special Close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_remove_existing_regular_special_close():
-#     add_test_calendar_and_apply_extensions(
-#         special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.remove_special_close("TEST", pd.Timestamp("2023-03-01"))
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 2
-#
-#     # Special Closes for regular special close time should exclude the overwritten day.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     assert c.special_closes[1][0] == time(15, 0)
-#     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-04"): "Special Close 0",
-#         pd.Timestamp("2023-03-06"): "Special Close 0",
-#         pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
-#
-#     # Ad-hoc special closes should now be empty.
-#     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2022-03-04"): "Special Close 0",
-#         pd.Timestamp("2023-03-06"): "Special Close 0",
-#         pd.Timestamp("2023-04-03"): "ad-hoc special close",
-#         pd.Timestamp("2024-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_remove_existing_ad_hoc_special_close():
-#     add_test_calendar_and_apply_extensions()
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions as ece
-#
-#     ece.remove_special_close("TEST", pd.Timestamp("2023-04-03"))
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2024-12-31")
-#
-#     # Check number of distinct special close times.
-#     assert len(c.special_closes) == 1
-#
-#     # Special Closes for regular special close time should exclude the overwritten day.
-#     assert c.special_closes[0][0] == time(14, 0)
-#     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#     # Ad-hoc special closes should now be empty.
-#     assert c.special_closes_adhoc == []
-#
-#     # Added special close should be in consolidated calendar.
-#     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp("2022-03-01"): "Special Close 0",
-#         pd.Timestamp("2023-03-01"): "Special Close 0",
-#         pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
-#
-#
+@pytest.mark.isolated
+def test_overwrite_existing_ad_hoc_special_open_with_new_time():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(12, 0), "Added Special Open")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special open times.
+    assert len(c.special_opens) == 2
+
+    # Special opens for regular special open time should exclude the overwritten day.
+    assert c.special_opens[0][0] == time(11, 0)
+    assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+    assert c.special_opens[1][0] == time(12, 0)
+    assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2023-06-01"): "Added Special Open"})).empty
+
+    # Ad-hoc special opens should now be empty.
+    assert c.special_opens_adhoc == []
+
+    # Added special open should be in consolidated calendar.
+    assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2023-06-01"): "Added Special Open",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+
+@pytest.mark.isolated
+def test_overwrite_existing_ad_hoc_special_open_with_existing_time():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(11, 0), "Added Special Open")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special open times.
+    assert len(c.special_opens) == 1
+
+    # Special opens for regular special open time should exclude the overwritten day.
+    assert c.special_opens[0][0] == time(11, 0)
+    assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2023-06-01"): "Added Special Open",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+    # Ad-hoc special opens should now be empty.
+    assert c.special_opens_adhoc == []
+
+    # Added special open should be in consolidated calendar.
+    assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2023-06-01"): "Added Special Open",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_existing_regular_special_open():
+    add_test_calendar_and_apply_extensions(
+        special_opens=[(time(11, 00), [pd.Timestamp("2023-05-01")]), (time(12, 00), [pd.Timestamp("2023-05-04")])])
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.remove_special_open("TEST", pd.Timestamp("2023-05-01"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special open times.
+    assert len(c.special_opens) == 2
+
+    # Special opens for regular special open time should exclude the overwritten day.
+    assert c.special_opens[0][0] == time(11, 0)
+    assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+    assert c.special_opens[1][0] == time(12, 0)
+    assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-04"): "Special Open 0",
+        pd.Timestamp("2023-05-04"): "Special Open 0",
+        pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
+
+    # Ad-hoc special opens should now be empty.
+    assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
+
+    # Added special open should be in consolidated calendar.
+    assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2022-05-04"): "Special Open 0",
+        pd.Timestamp("2023-05-04"): "Special Open 0",
+        pd.Timestamp("2023-06-01"): "ad-hoc special open",
+        pd.Timestamp("2024-05-01"): "Special Open 0",
+        pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_existing_ad_hoc_special_open():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.remove_special_open("TEST", pd.Timestamp("2023-06-01"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special open times.
+    assert len(c.special_opens) == 1
+
+    # Special opens for regular special open time should exclude the overwritten day.
+    assert c.special_opens[0][0] == time(11, 0)
+    assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+    # Ad-hoc special opens should now be empty.
+    assert c.special_opens_adhoc == []
+
+    # Added special open should be in consolidated calendar.
+    assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_non_existent_special_open():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.remove_special_open("TEST", pd.Timestamp("2023-07-03"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special open times.
+    assert len(c.special_opens) == 1
+
+    # Special opens for regular special open time should exclude the overwritten day.
+    assert c.special_opens[0][0] == time(11, 0)
+    assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+    # Ad-hoc special opens should now be empty.
+    assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
+
+    # Added special open should be in consolidated calendar.
+    assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-05-02"): "Special Open 0",
+        pd.Timestamp("2023-05-01"): "Special Open 0",
+        pd.Timestamp("2023-06-01"): "ad-hoc special open",
+        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+
+
+@pytest.mark.isolated
+def test_add_new_special_close_with_new_time():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(15, 0), "Added Special Close")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 2
+
+    # Special closes for regular special close time should be unchanged.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    # There should be a new calendar for the added special close time.
+    assert c.special_closes[1][0] == time(15, 0)
+    assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2023-07-03"): "Added Special Close"})).empty
+
+    # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
+    assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2023-04-03"): "ad-hoc special close",
+        pd.Timestamp("2023-07-03"): "Added Special Close",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+
+@pytest.mark.isolated
+def test_add_new_special_close_with_existing_time():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(14, 0), "Added Special Close")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 1
+
+    # Special Closes for regular special close time should be unchanged.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2023-07-03"): "Added Special Close",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
+    assert c.special_closes_adhoc == [(time(14, 0), pd.Timestamp("2023-04-03"))]
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2023-04-03"): "ad-hoc special close",
+        pd.Timestamp("2023-07-03"): "Added Special Close",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+
+@pytest.mark.isolated
+def test_overwrite_existing_regular_special_close_with_new_time():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), "Added Special Close")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 2
+
+    # Special Closes for regular special close time should exclude the overwritten day.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    # There should be a new calendar for the added special close time.
+    assert c.special_closes[1][0] == time(15, 0)
+    assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2023-03-01"): "Added Special Close"})).empty
+
+    # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
+    assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Added Special Close",
+        pd.Timestamp("2023-04-03"): "ad-hoc special close",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+
+@pytest.mark.isolated
+def test_overwrite_existing_regular_special_close_with_existing_time():
+    add_test_calendar_and_apply_extensions(
+        special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 2
+
+    # Special Closes for regular special close time should exclude the overwritten day.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    assert c.special_closes[1][0] == time(15, 0)
+    assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-04"): "Special Close 0",
+        pd.Timestamp("2023-03-06"): "Special Close 0",
+        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+
+    # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
+    assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2022-03-04"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-06"): "Special Close 0",
+        pd.Timestamp("2023-04-03"): "ad-hoc special close",
+        pd.Timestamp("2024-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+
+    ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), "Added Special Close")
+
+    c = ec.get_calendar("TEST")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 2
+
+    # Special Closes for regular special close time should exclude the overwritten day.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    assert c.special_closes[1][0] == time(15, 0)
+    assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-04"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Added Special Close",
+        pd.Timestamp("2023-03-06"): "Special Close 0",
+        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+
+    # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
+    assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2022-03-04"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Added Special Close",
+        pd.Timestamp("2023-03-06"): "Special Close 0",
+        pd.Timestamp("2023-04-03"): "ad-hoc special close",
+        pd.Timestamp("2024-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+
+
+@pytest.mark.isolated
+def test_overwrite_existing_ad_hoc_special_close_with_new_time():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(15, 0), "Added Special Close")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 2
+
+    # Special Closes for regular special close time should exclude the overwritten day.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    assert c.special_closes[1][0] == time(15, 0)
+    assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2023-04-03"): "Added Special Close"})).empty
+
+    # Ad-hoc special closes should now be empty.
+    assert c.special_closes_adhoc == []
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2023-04-03"): "Added Special Close",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+
+@pytest.mark.isolated
+def test_overwrite_existing_ad_hoc_special_close_with_existing_time():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(14, 0), "Added Special Close")
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 1
+
+    # Special Closes for regular special close time should exclude the overwritten day.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2023-04-03"): "Added Special Close",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    # Ad-hoc special closes should now be empty.
+    assert c.special_closes_adhoc == []
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2023-04-03"): "Added Special Close",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_existing_regular_special_close():
+    add_test_calendar_and_apply_extensions(
+        special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.remove_special_close("TEST", pd.Timestamp("2023-03-01"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 2
+
+    # Special Closes for regular special close time should exclude the overwritten day.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    assert c.special_closes[1][0] == time(15, 0)
+    assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-04"): "Special Close 0",
+        pd.Timestamp("2023-03-06"): "Special Close 0",
+        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+
+    # Ad-hoc special closes should now be empty.
+    assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2022-03-04"): "Special Close 0",
+        pd.Timestamp("2023-03-06"): "Special Close 0",
+        pd.Timestamp("2023-04-03"): "ad-hoc special close",
+        pd.Timestamp("2024-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+
+
+@pytest.mark.isolated
+def test_remove_existing_ad_hoc_special_close():
+    add_test_calendar_and_apply_extensions()
+    import exchange_calendars as ec
+    import exchange_calendars_extensions as ece
+
+    ece.remove_special_close("TEST", pd.Timestamp("2023-04-03"))
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2024-12-31")
+
+    # Check number of distinct special close times.
+    assert len(c.special_closes) == 1
+
+    # Special Closes for regular special close time should exclude the overwritten day.
+    assert c.special_closes[0][0] == time(14, 0)
+    assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+    # Ad-hoc special closes should now be empty.
+    assert c.special_closes_adhoc == []
+
+    # Added special close should be in consolidated calendar.
+    assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp("2022-03-01"): "Special Close 0",
+        pd.Timestamp("2023-03-01"): "Special Close 0",
+        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+
+
 # @pytest.mark.isolated
 # def test_remove_non_existent_special_close():
 #     add_test_calendar_and_apply_extensions()
