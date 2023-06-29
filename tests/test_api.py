@@ -1903,7 +1903,7 @@ def test_test():
     assert '2022-01-21' not in calendar.quarterly_expiries.holidays()
 
 
-@pytest.mark.isolated
+#@pytest.mark.isolated
 def test_quarterly_expiry_rollback_one_day():
     add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-03-18")],
                                            adhoc_holidays=[],
@@ -1918,6 +1918,9 @@ def test_quarterly_expiry_rollback_one_day():
     import exchange_calendars as ec
 
     c = ec.get_calendar("TEST")
+
+    print(type(c))
+    print(c.__dict__)
 
     start = pd.Timestamp("2022-01-01")
     end = pd.Timestamp("2022-12-31")
