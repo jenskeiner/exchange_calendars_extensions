@@ -91,23 +91,27 @@ def apply_extensions() -> None:
             return _changesets.get(name)
         return fn
 
+    print('Applying generic extension for calendars that have no explicit extension defined.')
     for k in calendar_names - set(_extensions.keys()):
         cls = _default_calendar_factories.get(k)
         if cls is not None:
             # Store the original class for later use.
             _original_classes[k] = cls
             # Create extended class.
+            print(f'Extending {k}: {cls}')
             cls = extend_class(cls, day_of_week_expiry=None, changeset_provider=get_changeset_fn(k))
             # Register extended class.
             register_calendar_type(k, cls, force=True)
             # Remove original class from factory cache.
             _remove_calendar_from_factory_cache(k)
 
+    print('Applying extension for calendars with explicit extension defined.')
     for k, v in _extensions.items():
         cls, day_of_week_expiry = v
         # Store the original class for later use.
         _original_classes[k] = cls
         # Create extended class.
+        print(f'Extending {k}: {cls} day_of_week_expiry={day_of_week_expiry}')
         cls = extend_class(cls, day_of_week_expiry=day_of_week_expiry, changeset_provider=get_changeset_fn(k))
         # Register extended class.
         register_calendar_type(k, cls, force=True)
