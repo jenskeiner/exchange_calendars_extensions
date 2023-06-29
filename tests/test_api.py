@@ -1859,6 +1859,7 @@ def test_apply_changeset():
         pd.Timestamp('2024-11-15'): 'monthly expiry'})).empty
 
 
+@pytest.mark.isolated
 def test_test():
     import exchange_calendars_extensions as ece
     ece.apply_extensions()
@@ -1931,87 +1932,87 @@ def test_quarterly_expiry_rollback_one_day():
         pd.Timestamp('2022-12-16'): 'quarterly expiry'})).empty
 
 
-# @pytest.mark.isolated
-# def test_quarterly_expiry_rollback_multiple_days():
-#     add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-03-18")],
-#                                            adhoc_holidays=[pd.Timestamp("2022-03-17")],
-#                                            regular_special_close=time(14, 00),
-#                                            special_closes=[(time(14, 00), [pd.Timestamp("2022-03-16")])],
-#                                            adhoc_special_closes=[(time(14, 00), [pd.Timestamp("2022-03-15")])],
-#                                            regular_special_open=time(11, 00),
-#                                            special_opens=[(time(11, 00), [pd.Timestamp("2022-03-14")])],
-#                                            adhoc_special_opens=[],
-#                                            weekmask="1111100",
-#                                            day_of_week_expiry=4)
-#     import exchange_calendars as ec
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2022-12-31")
-#
-#     assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp('2022-03-11'): 'quarterly expiry',  # Should be rolled back from 2022-03-18.
-#         pd.Timestamp('2022-06-17'): 'quarterly expiry',
-#         pd.Timestamp('2022-09-16'): 'quarterly expiry',
-#         pd.Timestamp('2022-12-16'): 'quarterly expiry'})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_monthly_expiry_rollback_one_day():
-#     add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-02-18")],
-#                                            adhoc_holidays=[],
-#                                            regular_special_close=time(14, 00),
-#                                            special_closes=[],
-#                                            adhoc_special_closes=[],
-#                                            regular_special_open=time(11, 00),
-#                                            special_opens=[],
-#                                            adhoc_special_opens=[],
-#                                            weekmask="1111100",
-#                                            day_of_week_expiry=4)
-#     import exchange_calendars as ec
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2022-12-31")
-#
-#     assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp('2022-01-21'): 'monthly expiry',
-#         pd.Timestamp('2022-02-17'): 'monthly expiry',  # Should be rolled back from 2022-02-18 since it is a holiday.
-#         pd.Timestamp('2022-04-15'): 'monthly expiry',
-#         pd.Timestamp('2022-05-20'): 'monthly expiry',
-#         pd.Timestamp('2022-07-15'): 'monthly expiry',
-#         pd.Timestamp('2022-08-19'): 'monthly expiry',
-#         pd.Timestamp('2022-10-21'): 'monthly expiry',
-#         pd.Timestamp('2022-11-18'): 'monthly expiry'})).empty
-#
-#
-# @pytest.mark.isolated
-# def test_quarterly_expiry_rollback_multiple_days():
-#     add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-02-18")],
-#                                            adhoc_holidays=[pd.Timestamp("2022-02-17")],
-#                                            regular_special_close=time(14, 00),
-#                                            special_closes=[(time(14, 00), [pd.Timestamp("2022-02-16")])],
-#                                            adhoc_special_closes=[(time(14, 00), [pd.Timestamp("2022-02-15")])],
-#                                            regular_special_open=time(11, 00),
-#                                            special_opens=[(time(11, 00), [pd.Timestamp("2022-02-14")])],
-#                                            adhoc_special_opens=[],
-#                                            weekmask="1111100",
-#                                            day_of_week_expiry=4)
-#     import exchange_calendars as ec
-#
-#     c = ec.get_calendar("TEST")
-#
-#     start = pd.Timestamp("2022-01-01")
-#     end = pd.Timestamp("2022-12-31")
-#
-#     assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-#         pd.Timestamp('2022-01-21'): 'monthly expiry',
-#         pd.Timestamp('2022-02-11'): 'monthly expiry',  # Should be rolled back from 2022-02-18.
-#         pd.Timestamp('2022-04-15'): 'monthly expiry',
-#         pd.Timestamp('2022-05-20'): 'monthly expiry',
-#         pd.Timestamp('2022-07-15'): 'monthly expiry',
-#         pd.Timestamp('2022-08-19'): 'monthly expiry',
-#         pd.Timestamp('2022-10-21'): 'monthly expiry',
-#         pd.Timestamp('2022-11-18'): 'monthly expiry'})).empty
+@pytest.mark.isolated
+def test_quarterly_expiry_rollback_multiple_days():
+    add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-03-18")],
+                                           adhoc_holidays=[pd.Timestamp("2022-03-17")],
+                                           regular_special_close=time(14, 00),
+                                           special_closes=[(time(14, 00), [pd.Timestamp("2022-03-16")])],
+                                           adhoc_special_closes=[(time(14, 00), [pd.Timestamp("2022-03-15")])],
+                                           regular_special_open=time(11, 00),
+                                           special_opens=[(time(11, 00), [pd.Timestamp("2022-03-14")])],
+                                           adhoc_special_opens=[],
+                                           weekmask="1111100",
+                                           day_of_week_expiry=4)
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2022-12-31")
+
+    assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-03-11'): 'quarterly expiry',  # Should be rolled back from 2022-03-18.
+        pd.Timestamp('2022-06-17'): 'quarterly expiry',
+        pd.Timestamp('2022-09-16'): 'quarterly expiry',
+        pd.Timestamp('2022-12-16'): 'quarterly expiry'})).empty
+
+
+@pytest.mark.isolated
+def test_monthly_expiry_rollback_one_day():
+    add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-02-18")],
+                                           adhoc_holidays=[],
+                                           regular_special_close=time(14, 00),
+                                           special_closes=[],
+                                           adhoc_special_closes=[],
+                                           regular_special_open=time(11, 00),
+                                           special_opens=[],
+                                           adhoc_special_opens=[],
+                                           weekmask="1111100",
+                                           day_of_week_expiry=4)
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2022-12-31")
+
+    assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-01-21'): 'monthly expiry',
+        pd.Timestamp('2022-02-17'): 'monthly expiry',  # Should be rolled back from 2022-02-18 since it is a holiday.
+        pd.Timestamp('2022-04-15'): 'monthly expiry',
+        pd.Timestamp('2022-05-20'): 'monthly expiry',
+        pd.Timestamp('2022-07-15'): 'monthly expiry',
+        pd.Timestamp('2022-08-19'): 'monthly expiry',
+        pd.Timestamp('2022-10-21'): 'monthly expiry',
+        pd.Timestamp('2022-11-18'): 'monthly expiry'})).empty
+
+
+@pytest.mark.isolated
+def test_quarterly_expiry_rollback_multiple_days():
+    add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-02-18")],
+                                           adhoc_holidays=[pd.Timestamp("2022-02-17")],
+                                           regular_special_close=time(14, 00),
+                                           special_closes=[(time(14, 00), [pd.Timestamp("2022-02-16")])],
+                                           adhoc_special_closes=[(time(14, 00), [pd.Timestamp("2022-02-15")])],
+                                           regular_special_open=time(11, 00),
+                                           special_opens=[(time(11, 00), [pd.Timestamp("2022-02-14")])],
+                                           adhoc_special_opens=[],
+                                           weekmask="1111100",
+                                           day_of_week_expiry=4)
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2022-12-31")
+
+    assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-01-21'): 'monthly expiry',
+        pd.Timestamp('2022-02-11'): 'monthly expiry',  # Should be rolled back from 2022-02-18.
+        pd.Timestamp('2022-04-15'): 'monthly expiry',
+        pd.Timestamp('2022-05-20'): 'monthly expiry',
+        pd.Timestamp('2022-07-15'): 'monthly expiry',
+        pd.Timestamp('2022-08-19'): 'monthly expiry',
+        pd.Timestamp('2022-10-21'): 'monthly expiry',
+        pd.Timestamp('2022-11-18'): 'monthly expiry'})).empty
