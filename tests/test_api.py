@@ -1859,50 +1859,50 @@ def test_apply_changeset():
         pd.Timestamp('2024-11-15'): 'monthly expiry'})).empty
 
 
-# def test_test():
-#     import exchange_calendars_extensions as ece
-#     ece.apply_extensions()
-#     import exchange_calendars as ec
-#
-#     changes = {
-#         "holiday": {
-#             "add": {"2022-01-10": {"name": "Holiday"}},
-#             "remove": ["2022-01-11"]
-#         },
-#         "special_open": {
-#             "add": {"2022-01-12": {"name": "Special Open", "time": "10:00"}},
-#             "remove": ["2022-01-13"]
-#         },
-#         "special_close": {
-#             "add": {"2022-01-14": {"name": "Special Close", "time": "16:00"}},
-#             "remove": ["2022-01-17"]
-#         },
-#         "monthly_expiry": {
-#             "add": {"2022-01-18": {"name": "Monthly Expiry"}},
-#             "remove": ["2022-01-19"]
-#         },
-#         "quarterly_expiry": {
-#             "add": {"2022-01-20": {"name": "Quarterly Expiry"}},
-#             "remove": ["2022-01-21"]
-#         }
-#     }
-#
-#     ece.update_calendar('XLON', changes)
-#
-#     calendar = ec.get_calendar('XLON')
-#
-#     assert '2022-01-10' in calendar.holidays_all.holidays()
-#     assert '2022-01-11' not in calendar.holidays_all.holidays()
-#     assert '2022-01-12' in calendar.special_opens_all.holidays()
-#     assert '2022-01-13' not in calendar.special_opens_all.holidays()
-#     assert '2022-01-14' in calendar.special_closes_all.holidays()
-#     assert '2022-01-17' not in calendar.special_closes_all.holidays()
-#     assert '2022-01-18' in calendar.monthly_expiries.holidays()
-#     assert '2022-01-19' not in calendar.monthly_expiries.holidays()
-#     assert '2022-01-20' in calendar.quarterly_expiries.holidays()
-#     assert '2022-01-21' not in calendar.quarterly_expiries.holidays()
-#
-#
+def test_test():
+    import exchange_calendars_extensions as ece
+    ece.apply_extensions()
+    import exchange_calendars as ec
+
+    changes = {
+        "holiday": {
+            "add": {"2022-01-10": {"name": "Holiday"}},
+            "remove": ["2022-01-11"]
+        },
+        "special_open": {
+            "add": {"2022-01-12": {"name": "Special Open", "time": "10:00"}},
+            "remove": ["2022-01-13"]
+        },
+        "special_close": {
+            "add": {"2022-01-14": {"name": "Special Close", "time": "16:00"}},
+            "remove": ["2022-01-17"]
+        },
+        "monthly_expiry": {
+            "add": {"2022-01-18": {"name": "Monthly Expiry"}},
+            "remove": ["2022-01-19"]
+        },
+        "quarterly_expiry": {
+            "add": {"2022-01-20": {"name": "Quarterly Expiry"}},
+            "remove": ["2022-01-21"]
+        }
+    }
+
+    ece.update_calendar('XLON', changes)
+
+    calendar = ec.get_calendar('XLON')
+
+    assert '2022-01-10' in calendar.holidays_all.holidays()
+    assert '2022-01-11' not in calendar.holidays_all.holidays()
+    assert '2022-01-12' in calendar.special_opens_all.holidays()
+    assert '2022-01-13' not in calendar.special_opens_all.holidays()
+    assert '2022-01-14' in calendar.special_closes_all.holidays()
+    assert '2022-01-17' not in calendar.special_closes_all.holidays()
+    assert '2022-01-18' in calendar.monthly_expiries.holidays()
+    assert '2022-01-19' not in calendar.monthly_expiries.holidays()
+    assert '2022-01-20' in calendar.quarterly_expiries.holidays()
+    assert '2022-01-21' not in calendar.quarterly_expiries.holidays()
+
+
 @pytest.mark.isolated
 def test_quarterly_expiry_rollback_one_day():
     add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-03-18")],
