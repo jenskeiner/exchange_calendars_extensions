@@ -32,7 +32,7 @@ packages = [{include = "exchange_calendars_extensions"}]
 python = "~=3.8"
 exchange-calendars = ">=4.0.1"
 schema = "~=0.7.5"
-typing-extensions = "~=4.6.2"
+typing-extensions = ">=4.6.2,<4.8.0"
 pydantic = "~=1.10.8"
 dt = "^1.1.61"
 
@@ -40,5 +40,5 @@ dt = "^1.1.61"
 pytest = ">=7.3.1,<7.5.0"
 pytest-cov = "~=4.1.0"
 
-#[tool.pytest.ini_options]
-#addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"
+[tool.pytest.ini_options]
+addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"
