@@ -1,7 +1,6 @@
 import datetime as dt
 from copy import deepcopy
 from enum import Enum, unique
-from types import NoneType
 from typing import Set, Generic, TypeVar, Dict, Union, Optional, Type, Any
 
 import pandas as pd
