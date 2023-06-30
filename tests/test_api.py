@@ -1989,7 +1989,7 @@ def test_monthly_expiry_rollback_one_day():
 
 
 @pytest.mark.isolated
-def test_quarterly_expiry_rollback_multiple_days():
+def test_monthly_expiry_rollback_multiple_days():
     add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-02-18")],
                                            adhoc_holidays=[pd.Timestamp("2022-02-17")],
                                            regular_special_close=time(14, 00),

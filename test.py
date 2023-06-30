@@ -1,11 +1,7 @@
 import pandas as pd
-from exchange_calendars import get_calendar, ExchangeCalendar
-from exchange_calendars.exchange_calendar_xetr import XETRExchangeCalendar
-from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
-from exchange_calendars.exchange_calendar_xmil import XMILExchangeCalendar
+from exchange_calendars import get_calendar
 
-from exchange_calendars_extensions import ExtendedExchangeCalendar, apply_extensions, add_holiday, remove_holiday
-from exchange_calendars_extensions import __version__ as version
+from exchange_calendars_extensions import apply_extensions, add_holiday, remove_holiday
 apply_extensions()
 add_holiday("XETR", pd.Timestamp("2020-04-09"), "Gründonnerstag")
 add_holiday("XETR", pd.Timestamp("2020-04-09"), "Test")
