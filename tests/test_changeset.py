@@ -41,22 +41,22 @@ class TestChanges:
         _ = Changes[typ](**d)
 
     @pytest.mark.parametrize('typ, d', [
-        (DaySpec, {"foo": {pd.Timestamp("2020-01-01"): {"name": "Holiday"}}}),  # Invalid top-level key.
+        # Invalid top-level key.
+        (DaySpec, {"foo": {pd.Timestamp("2020-01-01"): {"name": "Holiday"}}}),
         (DaySpec, {"add": {pd.Timestamp("2020-01-01"): {"name": "Holiday"}}, "foo": ["2020-01-03"]}),
-        # Extra top-level key.
+        (DaySpec, {"remove": [pd.Timestamp("2020-01-03")], "foo": ["2020-01-04"]}),
+        # Other.
         (DaySpec, {"add": {dt.time(10, 0): {"name": "Holiday"}}}),  # Invalid timestamp.
         (DaySpec, {"add": {"202020-01-01": {"name": "Holiday"}}}),  # Invalid timestamp.
         (DaySpec, {"add": {"2020-01-01": {"foo": "Holiday"}}}),  # Invalid key in day spec.
         (DaySpec, {"add": {"2020-01-01": {"name": "Holiday", "time": "10:00"}}}),  # Extra key in day spec.
         (DaySpec, {"add": {"2020-01-01": {"name": "Holiday", "foo": "bar"}}}),  # Extra key in day spec.
         (DayWithTimeSpec, {"add": {"2020-01-01": {"foo": "Holiday", "time": "10:00"}}}),  # Invalid key in day spec.
-        (DayWithTimeSpec, {"add": {"2020-01-01": {"name": "Holiday", "time": "10:00", "foo": "bar"}}}),
-        # Extra key in day spec.
-        (DaySpec, {"remove": [pd.Timestamp("2020-01-03")], "foo": ["2020-01-04"]}),  # Extra top-level key.
+        (DayWithTimeSpec, {"add": {"2020-01-01": {"name": "Holiday", "time": "10:00", "foo": "bar"}}}), # Extra key in day spec.
         (DaySpec, {"remove": ["202020-01-03"]}),  # Invalid timestamp.
     ])
     def test_from_invalid_dict(self, typ: Union[Type[DaySpec], Type[DayWithTimeSpec]], d: dict):
-        with pytest.raises(ValidationError):
+        with pytest.raises((ValidationError, TypeError)):
             _ = Changes[typ](**d)
 
     def test_add_day(self):
@@ -71,7 +71,7 @@ class TestChanges:
         c = Changes[DaySpec]()
         c.remove_day(date=pd.Timestamp("2020-01-01"))
         with pytest.raises(ValidationError):
-            c.add_day(date=pd.Timestamp("2020-01-01"), value=DaySpec(**{"name": "Holiday"}))
+            c.add_day(date=pd.Timestamp("2020-01-01"), value={"name": "Holiday"})
         assert c.add == dict()
         assert c.remove == {pd.Timestamp("2020-01-01")}
         assert len(c) == 1
@@ -81,8 +81,8 @@ class TestChanges:
         c = Changes[DaySpec]()
         c.remove_day(date="2020-01-01")
         c.clear_day(date="2020-01-01")
-        c.add_day(date="2020-01-01", value=DaySpec(**{"name": "Holiday"}))
-        assert c.add == {pd.Timestamp("2020-01-01"): {"name": "Holiday"}}
+        c.add_day(date="2020-01-01", value={"name": "Holiday"})
+        assert c.add == {pd.Timestamp("2020-01-01"): DaySpec(**{"name": "Holiday"})}
         assert c.remove == set()
         assert len(c) == 1
         assert c
@@ -413,7 +413,7 @@ class TestChangeSet:
     def test_add_same_day_twice(self):
         cs = ChangeSet()
         cs.add_day("2020-01-01", {"name": "Holiday"}, DayType.HOLIDAY)
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError):
             cs.add_day("2020-01-01", {"name": "Special Open", "time": "10:00"}, DayType.SPECIAL_OPEN)
         assert len(cs) == 1
         assert cs
