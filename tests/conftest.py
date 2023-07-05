@@ -43,4 +43,4 @@ def pytest_pyfunc_call(pyfuncitem):
         original_func = pyfuncitem.obj
         pyfuncitem.obj = run_test_in_separate_process(original_func)
 
-    outcome = yield
+    yield
