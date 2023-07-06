@@ -16,20 +16,41 @@ class DaySpec(BaseModel, extra='forbid'):
     name: str  # The name of the special day.
 
 
-def _validate_time(value):
+def _to_time(value: Union[dt.time, str]):
+    """
+    Convert value to time.
+
+    Parameters
+    ----------
+    value : Union[dt.time, str]
+        The value to convert.
+
+    Returns
+    -------
+    dt.time
+        The converted value.
+
+    Raises
+    ------
+    ValueError
+        If the value cannot be converted to dt.time.
+    """
     if not isinstance(value, dt.time):
-        try:
-            value = dt.datetime.strptime(value, '%H:%M').time()
-        except ValueError:
+        for f in ('%H:%M', '%H:%M:%S'):
             try:
-                value = dt.datetime.strptime(value, '%H:%M:%S').time()
+                value = dt.datetime.strptime(value, f).time()
+                break
             except ValueError:
-                raise ValueError(f'Failed to convert {value} to {dt.time}.')
+                pass
+
+        if not isinstance(value, dt.time):
+            raise ValueError(f'Failed to convert {value} to {dt.time}.')
 
     return value
 
 
-Time = Annotated[dt.time, BeforeValidator(_validate_time)]
+# A type alias for dt.time that allows initialisation from suitably formatted string values.
+TimeLike = Annotated[dt.time, BeforeValidator(_to_time)]
 
 
 class DayWithTimeSpec(BaseModel, extra='forbid'):
@@ -37,13 +58,31 @@ class DayWithTimeSpec(BaseModel, extra='forbid'):
     A model for a special day specification that includes a time, for example, special opens.
     """
     name: str  # The name of the special day.
-    time: Time  # The open/close time of the special day.
+    time: TimeLike  # The open/close time of the special day.
 
 
-DaySpecT = TypeVar('T')
+DaySpecT = TypeVar('DaySpecT')
 
 
-def _validate_timestamp(value: Any) -> pd.Timestamp:
+def _to_timestamp(value: Union[pd.Timestamp, str]) -> pd.Timestamp:
+    """
+    Convert value to Pandas timestamp.
+
+    Parameters
+    ----------
+    value : Union[pd.Timestamp, str]
+        The value to convert.
+
+    Returns
+    -------
+    pd.Timestamp
+        The converted value.
+
+    Raises
+    ------
+    ValueError
+        If the value cannot be converted to pd.Timestamp.
+    """
     # Check if value is a valid timestamp.
     if not isinstance(value, pd.Timestamp):
         try:
@@ -55,7 +94,8 @@ def _validate_timestamp(value: Any) -> pd.Timestamp:
     return value
 
 
-Timestamp = Annotated[pd.Timestamp, BeforeValidator(_validate_timestamp)]
+# A type alias for pd.Timestamp that allows initialisation from suitably formatted string values.
+TimestampLike = Annotated[pd.Timestamp, BeforeValidator(_to_timestamp)]
 
 
 class Changes(BaseModel, Generic[DaySpecT], extra='forbid', arbitrary_types_allowed=True, validate_assignment=True):
@@ -67,20 +107,22 @@ class Changes(BaseModel, Generic[DaySpecT], extra='forbid', arbitrary_types_allo
     just the name of the holiday. For special open/close days, T would be a type containing the name of the respective
     special day and the associated open/close time.
     """
-    add: Dict[Timestamp, DaySpecT] = Field(default=dict())  # The dictionary of dates to add.
-    remove: Set[Timestamp] = Field(default=set())  # The set of dates to remove.
+    add: Dict[TimestampLike, DaySpecT] = Field(default=dict())  # The dictionary of dates to add.
+    remove: Set[TimestampLike] = Field(default=set())  # The set of dates to remove.
 
+    # noinspection PyMethodParameters
     @model_validator(mode='after')
-    def _validate_consistency(cls, info: ValidationInfo) -> Any:
+    def _validate_consistency(cls, info: Union[dict, 'Changes']) -> Any:
         # Check if there are any dates that are both added and removed.
-        duplicates = info.add.keys() & info.remove
+        duplicates = info['add'].keys() & info['remove'] if isinstance(info, dict) else info.add.keys() & info.remove
 
         if duplicates:
-            raise ValueError(f'Inconsistent changes: Dates {", ".join([d.date().isoformat() for d in duplicates])} are both added and removed.')
+            raise ValueError(f'Inconsistent changes: Dates {", ".join([d.date().isoformat() for d in duplicates])} are '
+                             f'both added and removed.')
 
         return info
 
-    def add_day(self, date: Timestamp, value: Union[DaySpecT, dict]) -> Self:
+    def add_day(self, date: TimestampLike, value: Union[DaySpecT, dict]) -> Self:
         """
         Add a date to the set of dates to add.
 
@@ -108,7 +150,7 @@ class Changes(BaseModel, Generic[DaySpecT], extra='forbid', arbitrary_types_allo
             If value is not of the expected type or adding date would make the changes inconsistent.
         """
         # Validate date.
-        date = Timestamp(date)
+        date = TimestampLike(date)
 
         # Save previous value for key. Note that an existing value cannot be None, so we can use it to indicate absence.
         previous = self.add.get(date, None)
@@ -132,7 +174,7 @@ class Changes(BaseModel, Generic[DaySpecT], extra='forbid', arbitrary_types_allo
 
         return self
 
-    def remove_day(self, date: Timestamp) -> Self:
+    def remove_day(self, date: TimestampLike) -> Self:
         """
         Add a date to the set of dates to remove.
 
@@ -158,7 +200,7 @@ class Changes(BaseModel, Generic[DaySpecT], extra='forbid', arbitrary_types_allo
             If removing date would make the changes inconsistent.
         """
         # Validate date.
-        date = Timestamp(date)
+        date = TimestampLike(date)
 
         # Add the holiday to the set of holidays to remove.
         self.remove.add(date)
@@ -176,7 +218,7 @@ class Changes(BaseModel, Generic[DaySpecT], extra='forbid', arbitrary_types_allo
 
         return self
 
-    def clear_day(self, date: Timestamp) -> Self:
+    def clear_day(self, date: TimestampLike) -> Self:
         """
         Reset a date so that it is neither in the set of dates to add nor the set of dates to remove.
 
@@ -191,7 +233,7 @@ class Changes(BaseModel, Generic[DaySpecT], extra='forbid', arbitrary_types_allo
             Self
         """
         # Validate date.
-        date = Timestamp(date)
+        date = TimestampLike(date)
 
         # Remove the holiday from the set of holidays to add.
 
@@ -255,7 +297,23 @@ class DayType(str, Enum):
     QUARTERLY_EXPIRY = 'quarterly_expiry'
 
 
-class ChangeSet(BaseModel, extra='forbid'):
+def _to_day_type(value: Union[DayType, str]) -> DayType:
+    if not isinstance(value, DayType):
+        try:
+            # Lookup via lower-case value.
+            value = DayType(value.lower())
+        except ValueError as e:
+            # Failed to convert value to DayType.
+            raise ValueError(f'Failed to convert {value} to {DayType}.') from e
+
+    return value
+
+
+# A type alias for DayType that allows initialisation from suitably formatted string values.
+DayTypeLike = Annotated[DayType, BeforeValidator(DayType.HOLIDAY)]
+
+
+class ChangeSet(BaseModel, extra='forbid', validate_assignment=True):
     """
     Represents a modification to an existing exchange calendar.
 
@@ -305,6 +363,7 @@ class ChangeSet(BaseModel, extra='forbid'):
     monthly_expiry: Changes[DaySpec] = Changes[DaySpec]()
     quarterly_expiry: Changes[DaySpec] = Changes[DaySpec]()
 
+    # noinspection PyMethodParameters
     @model_validator(mode='after')
     def _validate_consistency(cls, info: ValidationInfo) -> ValidationInfo:
         # Maps each date to add to the corresponding day type(s) it appears in.
@@ -321,21 +380,13 @@ class ChangeSet(BaseModel, extra='forbid'):
 
         # Check if there are any dates that appear in multiple day types.
         if len(date2day_types) > 0:
-            raise ValueError(f'Inconsistent changes: Dates {", ".join([d.date().isoformat() for d in date2day_types.keys()])} are each added for more than one day type.')
+            raise ValueError(f'Inconsistent changes: Dates '
+                             f'{", ".join([d.date().isoformat() for d in date2day_types.keys()])} are each added for '
+                             f'more than one day type.')
 
         return info
 
-    def _validate_day_type(self, day_type: Optional[Union[str, DayType]]) -> Union[str, None]:
-        # Convert day type to string if necessary.
-        day_type = day_type.value if isinstance(day_type, DayType) else day_type
-
-        # Validate day type.
-        if day_type is not None and day_type not in self.__fields__.keys():
-            raise ValueError(f'Invalid day type {day_type}. Must be one of {self.__fields__.keys()}.')
-
-        return day_type
-
-    def add_day(self, date: Any, value: Union[DaySpec, DayWithTimeSpec, dict], day_type: Union[str, DayType]) -> Self:
+    def add_day(self, date: Any, value: Union[DaySpec, DayWithTimeSpec, dict], day_type: DayTypeLike) -> Self:
         """
         Add a day to the change set.
 
@@ -352,11 +403,12 @@ class ChangeSet(BaseModel, extra='forbid'):
         -------
         ExchangeCalendarChangeSet : self
         """
-        day_type = self._validate_day_type(day_type)
+        # Convert to string representation.
+        day_type = DayTypeLike(day_type).value
 
         try:
             # Add day to set of changes for day type.
-            self.__dict__[day_type].add_day(date, value)
+            getattr(self, day_type).add_day(date, value)
         except Exception as e:
             # Failed to add the day to the set of changes, so the set of changes should be unmodified as a result.
             # Just let the exception bubble up.
@@ -366,21 +418,21 @@ class ChangeSet(BaseModel, extra='forbid'):
 
             # Trigger validation of the entire changeset.
             try:
-                self._validate_consistency(self.__dict__)
+                setattr(self, day_type, getattr(self, day_type))
             except Exception as e:
                 # If the changeset is no longer consistent, then this can only be because the day was already a day to
                 # add for another day type before and this call added it to the given day type as well, leading to an
                 # invalid second add entry.
 
                 # Restore the state before the call by clearing the day from the given day type.
-                self.__dict__[day_type].clear_day(date)
+                getattr(self, day_type).clear_day(date)
 
                 # Let exception bubble up.
                 raise e
 
         return self
 
-    def remove_day(self, date: Any, day_type: Optional[Union[str, DayType]] = None) -> Self:
+    def remove_day(self, date: Any, day_type: Optional[DayTypeLike] = None) -> Self:
         """
         Remove a day from the change set.
 
@@ -400,17 +452,15 @@ class ChangeSet(BaseModel, extra='forbid'):
         ValueError
             If removing the given date would make the changeset inconsistent.
         """
-        day_type = self._validate_day_type(day_type)
-
-        # Determine which day types to clear.
-        day_types = (day_type,) if day_type is not None else tuple(self.__fields__.keys())
+        # Determine which day types to remove day from.
+        day_types = (DayTypeLike(day_type).value,) if day_type is not None else tuple(self.model_fields.keys())
 
         for k in day_types:
-            self.__dict__[k].remove_day(date)
+            getattr(self, k).remove_day(date)
 
         return self
 
-    def clear_day(self, date: Any, day_type: Optional[Union[str, DayType]] = None) -> Self:
+    def clear_day(self, date: Any, day_type: Optional[DayTypeLike] = None) -> Self:
         """
         Clear a day from the change set.
 
@@ -425,14 +475,12 @@ class ChangeSet(BaseModel, extra='forbid'):
         -------
         ExchangeCalendarChangeSet : self
         """
-        day_type = self._validate_day_type(day_type)
-
         # Determine which day types to clear.
-        day_types = (day_type,) if day_type is not None else tuple(self.__fields__.keys())
+        day_types = (DayTypeLike(day_type).value,) if day_type is not None else tuple(self.model_fields.keys())
 
         for k in day_types:
             # Clear for the given day type.
-            self.__dict__[k].clear_day(date)
+            getattr(self, k).clear_day(date)
 
         return self
 
@@ -445,19 +493,19 @@ class ChangeSet(BaseModel, extra='forbid'):
         ExchangeCalendarChangeSet : self
         """
         # Clear all changes for all day types.
-        for k in self.__fields__.keys():
-            self.__dict__[k].clear()
+        for k in self.model_fields.keys():
+            getattr(self, k).clear()
 
         return self
 
     def __len__(self):
-        return sum(len(self.__dict__[k]) for k in self.__fields__.keys())
+        return sum(len(getattr(self, k)) for k in self.model_fields.keys())
 
     def __eq__(self, other):
         if not isinstance(other, ChangeSet):
             return False
 
-        return all(self.__dict__[k] == other.__dict__[k] for k in self.__fields__.keys())
+        return all(getattr(self, k) == getattr(other, k) for k in self.model_fields.keys())
 
     def normalize(self, inplace: bool = False) -> Self:
         """
@@ -486,10 +534,10 @@ class ChangeSet(BaseModel, extra='forbid'):
 
         for day_type in DayType:
             # Get the dates to add for the day type.
-            dates_to_add = cs.__dict__[day_type].add.keys()
+            dates_to_add = getattr(cs, day_type).add.keys()
 
             # Loop over all day types.
-            for day_type0 in DayType:
+            for day_type0 in DayType.__members__.values():
                 if day_type0 != day_type:
                     # Add the dates to add for day_type to the dates to remove for day_type0.
                     for date in dates_to_add:
