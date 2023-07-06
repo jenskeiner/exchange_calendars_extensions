@@ -11,6 +11,13 @@ from exchange_calendars_extensions.holiday_calendar import get_holiday_calendar_
     get_special_opens_calendar, get_weekend_days_calendar, get_monthly_expiry_rules, get_quadruple_witching_rules, \
     get_last_day_of_month_rules
 
+SPECIAL_OPEN = "special open"
+SPECIAL_CLOSE = "special close"
+QUARTERLY_EXPIRY = "quarterly expiry"
+MONTHLY_EXPIRY = "monthly expiry"
+LAST_DAY_OF_MONTH = "last day of month"
+WEEKEND_DAY = "weekend day"
+
 
 class TestHolidayCalendars:
 
@@ -157,61 +164,61 @@ class TestHolidayCalendars:
         special_closes_calendar = get_special_closes_calendar(calendar)
         special_closes = special_closes_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_special_closes = pd.Series({
-            pd.Timestamp("2020-01-06"): "special close",
+            pd.Timestamp("2020-01-06"): SPECIAL_CLOSE,
             pd.Timestamp("2020-01-08"): "ad-hoc special close",
-            pd.Timestamp("2020-01-13"): "special close",
-            pd.Timestamp("2020-01-20"): "special close",
-            pd.Timestamp("2020-01-27"): "special close",
-            pd.Timestamp("2020-02-03"): "special close",
-            pd.Timestamp("2020-02-10"): "special close",
-            pd.Timestamp("2020-02-17"): "special close",
-            pd.Timestamp("2020-02-24"): "special close",
-            pd.Timestamp("2020-03-02"): "special close",
-            pd.Timestamp("2020-03-09"): "special close",
-            pd.Timestamp("2020-03-16"): "special close",
-            pd.Timestamp("2020-03-23"): "special close",
-            pd.Timestamp("2020-03-30"): "special close",
-            pd.Timestamp("2020-04-06"): "special close",
-            pd.Timestamp("2020-04-13"): "special close",
-            pd.Timestamp("2020-04-20"): "special close",
-            pd.Timestamp("2020-04-27"): "special close",
-            pd.Timestamp("2020-05-04"): "special close",
-            pd.Timestamp("2020-05-11"): "special close",
-            pd.Timestamp("2020-05-18"): "special close",
-            pd.Timestamp("2020-05-25"): "special close",
-            pd.Timestamp("2020-06-01"): "special close",
-            pd.Timestamp("2020-06-08"): "special close",
-            pd.Timestamp("2020-06-15"): "special close",
-            pd.Timestamp("2020-06-22"): "special close",
-            pd.Timestamp("2020-06-29"): "special close",
-            pd.Timestamp("2020-07-06"): "special close",
-            pd.Timestamp("2020-07-13"): "special close",
-            pd.Timestamp("2020-07-20"): "special close",
-            pd.Timestamp("2020-07-27"): "special close",
-            pd.Timestamp("2020-08-03"): "special close",
-            pd.Timestamp("2020-08-10"): "special close",
+            pd.Timestamp("2020-01-13"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-01-20"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-01-27"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-02-03"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-02-10"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-02-17"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-02-24"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-03-02"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-03-09"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-03-16"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-03-23"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-03-30"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-04-06"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-04-13"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-04-20"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-04-27"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-05-04"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-05-11"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-05-18"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-05-25"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-06-01"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-06-08"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-06-15"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-06-22"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-06-29"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-07-06"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-07-13"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-07-20"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-07-27"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-08-03"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-08-10"): SPECIAL_CLOSE,
             pd.Timestamp("2020-08-12"): "ad-hoc special close",
-            pd.Timestamp("2020-08-17"): "special close",
-            pd.Timestamp("2020-08-24"): "special close",
-            pd.Timestamp("2020-08-31"): "special close",
-            pd.Timestamp("2020-09-07"): "special close",
-            pd.Timestamp("2020-09-14"): "special close",
-            pd.Timestamp("2020-09-21"): "special close",
-            pd.Timestamp("2020-09-28"): "special close",
-            pd.Timestamp("2020-10-05"): "special close",
-            pd.Timestamp("2020-10-12"): "special close",
-            pd.Timestamp("2020-10-19"): "special close",
-            pd.Timestamp("2020-10-26"): "special close",
-            pd.Timestamp("2020-11-02"): "special close",
-            pd.Timestamp("2020-11-09"): "special close",
-            pd.Timestamp("2020-11-16"): "special close",
-            pd.Timestamp("2020-11-23"): "special close",
-            pd.Timestamp("2020-11-30"): "special close",
-            pd.Timestamp("2020-12-07"): "special close",
-            pd.Timestamp("2020-12-14"): "special close",
-            pd.Timestamp("2020-12-21"): "special close",
+            pd.Timestamp("2020-08-17"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-08-24"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-08-31"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-09-07"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-09-14"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-09-21"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-09-28"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-10-05"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-10-12"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-10-19"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-10-26"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-11-02"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-11-09"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-11-16"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-11-23"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-11-30"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-12-07"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-12-14"): SPECIAL_CLOSE,
+            pd.Timestamp("2020-12-21"): SPECIAL_CLOSE,
             pd.Timestamp("2020-12-24"): "Christmas Eve",
-            pd.Timestamp("2020-12-28"): "special close",
+            pd.Timestamp("2020-12-28"): SPECIAL_CLOSE,
             pd.Timestamp("2020-12-31"): "New Year's Eve",
         })
         assert special_closes.compare(expected_special_closes).empty
@@ -264,61 +271,61 @@ class TestHolidayCalendars:
         special_opens_calendar = get_special_opens_calendar(calendar)
         special_opens = special_opens_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_special_opens = pd.Series({
-            pd.Timestamp("2020-01-06"): "special open",
+            pd.Timestamp("2020-01-06"): SPECIAL_OPEN,
             pd.Timestamp("2020-01-08"): "ad-hoc special open",
-            pd.Timestamp("2020-01-13"): "special open",
-            pd.Timestamp("2020-01-20"): "special open",
-            pd.Timestamp("2020-01-27"): "special open",
-            pd.Timestamp("2020-02-03"): "special open",
-            pd.Timestamp("2020-02-10"): "special open",
-            pd.Timestamp("2020-02-17"): "special open",
-            pd.Timestamp("2020-02-24"): "special open",
-            pd.Timestamp("2020-03-02"): "special open",
-            pd.Timestamp("2020-03-09"): "special open",
-            pd.Timestamp("2020-03-16"): "special open",
-            pd.Timestamp("2020-03-23"): "special open",
-            pd.Timestamp("2020-03-30"): "special open",
-            pd.Timestamp("2020-04-06"): "special open",
-            pd.Timestamp("2020-04-13"): "special open",
-            pd.Timestamp("2020-04-20"): "special open",
-            pd.Timestamp("2020-04-27"): "special open",
-            pd.Timestamp("2020-05-04"): "special open",
-            pd.Timestamp("2020-05-11"): "special open",
-            pd.Timestamp("2020-05-18"): "special open",
-            pd.Timestamp("2020-05-25"): "special open",
-            pd.Timestamp("2020-06-01"): "special open",
-            pd.Timestamp("2020-06-08"): "special open",
-            pd.Timestamp("2020-06-15"): "special open",
-            pd.Timestamp("2020-06-22"): "special open",
-            pd.Timestamp("2020-06-29"): "special open",
-            pd.Timestamp("2020-07-06"): "special open",
-            pd.Timestamp("2020-07-13"): "special open",
-            pd.Timestamp("2020-07-20"): "special open",
-            pd.Timestamp("2020-07-27"): "special open",
-            pd.Timestamp("2020-08-03"): "special open",
-            pd.Timestamp("2020-08-10"): "special open",
+            pd.Timestamp("2020-01-13"): SPECIAL_OPEN,
+            pd.Timestamp("2020-01-20"): SPECIAL_OPEN,
+            pd.Timestamp("2020-01-27"): SPECIAL_OPEN,
+            pd.Timestamp("2020-02-03"): SPECIAL_OPEN,
+            pd.Timestamp("2020-02-10"): SPECIAL_OPEN,
+            pd.Timestamp("2020-02-17"): SPECIAL_OPEN,
+            pd.Timestamp("2020-02-24"): SPECIAL_OPEN,
+            pd.Timestamp("2020-03-02"): SPECIAL_OPEN,
+            pd.Timestamp("2020-03-09"): SPECIAL_OPEN,
+            pd.Timestamp("2020-03-16"): SPECIAL_OPEN,
+            pd.Timestamp("2020-03-23"): SPECIAL_OPEN,
+            pd.Timestamp("2020-03-30"): SPECIAL_OPEN,
+            pd.Timestamp("2020-04-06"): SPECIAL_OPEN,
+            pd.Timestamp("2020-04-13"): SPECIAL_OPEN,
+            pd.Timestamp("2020-04-20"): SPECIAL_OPEN,
+            pd.Timestamp("2020-04-27"): SPECIAL_OPEN,
+            pd.Timestamp("2020-05-04"): SPECIAL_OPEN,
+            pd.Timestamp("2020-05-11"): SPECIAL_OPEN,
+            pd.Timestamp("2020-05-18"): SPECIAL_OPEN,
+            pd.Timestamp("2020-05-25"): SPECIAL_OPEN,
+            pd.Timestamp("2020-06-01"): SPECIAL_OPEN,
+            pd.Timestamp("2020-06-08"): SPECIAL_OPEN,
+            pd.Timestamp("2020-06-15"): SPECIAL_OPEN,
+            pd.Timestamp("2020-06-22"): SPECIAL_OPEN,
+            pd.Timestamp("2020-06-29"): SPECIAL_OPEN,
+            pd.Timestamp("2020-07-06"): SPECIAL_OPEN,
+            pd.Timestamp("2020-07-13"): SPECIAL_OPEN,
+            pd.Timestamp("2020-07-20"): SPECIAL_OPEN,
+            pd.Timestamp("2020-07-27"): SPECIAL_OPEN,
+            pd.Timestamp("2020-08-03"): SPECIAL_OPEN,
+            pd.Timestamp("2020-08-10"): SPECIAL_OPEN,
             pd.Timestamp("2020-08-12"): "ad-hoc special open",
-            pd.Timestamp("2020-08-17"): "special open",
-            pd.Timestamp("2020-08-24"): "special open",
-            pd.Timestamp("2020-08-31"): "special open",
-            pd.Timestamp("2020-09-07"): "special open",
-            pd.Timestamp("2020-09-14"): "special open",
-            pd.Timestamp("2020-09-21"): "special open",
-            pd.Timestamp("2020-09-28"): "special open",
-            pd.Timestamp("2020-10-05"): "special open",
-            pd.Timestamp("2020-10-12"): "special open",
-            pd.Timestamp("2020-10-19"): "special open",
-            pd.Timestamp("2020-10-26"): "special open",
-            pd.Timestamp("2020-11-02"): "special open",
-            pd.Timestamp("2020-11-09"): "special open",
-            pd.Timestamp("2020-11-16"): "special open",
-            pd.Timestamp("2020-11-23"): "special open",
-            pd.Timestamp("2020-11-30"): "special open",
-            pd.Timestamp("2020-12-07"): "special open",
-            pd.Timestamp("2020-12-14"): "special open",
-            pd.Timestamp("2020-12-21"): "special open",
+            pd.Timestamp("2020-08-17"): SPECIAL_OPEN,
+            pd.Timestamp("2020-08-24"): SPECIAL_OPEN,
+            pd.Timestamp("2020-08-31"): SPECIAL_OPEN,
+            pd.Timestamp("2020-09-07"): SPECIAL_OPEN,
+            pd.Timestamp("2020-09-14"): SPECIAL_OPEN,
+            pd.Timestamp("2020-09-21"): SPECIAL_OPEN,
+            pd.Timestamp("2020-09-28"): SPECIAL_OPEN,
+            pd.Timestamp("2020-10-05"): SPECIAL_OPEN,
+            pd.Timestamp("2020-10-12"): SPECIAL_OPEN,
+            pd.Timestamp("2020-10-19"): SPECIAL_OPEN,
+            pd.Timestamp("2020-10-26"): SPECIAL_OPEN,
+            pd.Timestamp("2020-11-02"): SPECIAL_OPEN,
+            pd.Timestamp("2020-11-09"): SPECIAL_OPEN,
+            pd.Timestamp("2020-11-16"): SPECIAL_OPEN,
+            pd.Timestamp("2020-11-23"): SPECIAL_OPEN,
+            pd.Timestamp("2020-11-30"): SPECIAL_OPEN,
+            pd.Timestamp("2020-12-07"): SPECIAL_OPEN,
+            pd.Timestamp("2020-12-14"): SPECIAL_OPEN,
+            pd.Timestamp("2020-12-21"): SPECIAL_OPEN,
             pd.Timestamp("2020-12-24"): "Christmas Eve",
-            pd.Timestamp("2020-12-28"): "special open",
+            pd.Timestamp("2020-12-28"): SPECIAL_OPEN,
             pd.Timestamp("2020-12-31"): "New Year's Eve",
         })
         assert special_opens.compare(expected_special_opens).empty
@@ -336,15 +343,15 @@ class TestHolidayCalendars:
         weekend_days_calendar = get_weekend_days_calendar(calendar)
         weekend_days = weekend_days_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-01-31"), return_name=True)
         expected_weekend_days = pd.Series({
-            pd.Timestamp("2020-01-03"): "weekend day",
-            pd.Timestamp("2020-01-05"): "weekend day",
-            pd.Timestamp("2020-01-10"): "weekend day",
-            pd.Timestamp("2020-01-12"): "weekend day",
-            pd.Timestamp("2020-01-17"): "weekend day",
-            pd.Timestamp("2020-01-19"): "weekend day",
-            pd.Timestamp("2020-01-24"): "weekend day",
-            pd.Timestamp("2020-01-26"): "weekend day",
-            pd.Timestamp("2020-01-31"): "weekend day",
+            pd.Timestamp("2020-01-03"): WEEKEND_DAY,
+            pd.Timestamp("2020-01-05"): WEEKEND_DAY,
+            pd.Timestamp("2020-01-10"): WEEKEND_DAY,
+            pd.Timestamp("2020-01-12"): WEEKEND_DAY,
+            pd.Timestamp("2020-01-17"): WEEKEND_DAY,
+            pd.Timestamp("2020-01-19"): WEEKEND_DAY,
+            pd.Timestamp("2020-01-24"): WEEKEND_DAY,
+            pd.Timestamp("2020-01-26"): WEEKEND_DAY,
+            pd.Timestamp("2020-01-31"): WEEKEND_DAY,
         })
 
         assert weekend_days.compare(expected_weekend_days).empty
@@ -357,14 +364,14 @@ class TestHolidayCalendars:
         monthly_expiry_calendar = HolidayCalendar(rules=get_monthly_expiry_rules(day_of_week=4))
         monthly_expiry = monthly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_monthly_expiry = pd.Series({
-            pd.Timestamp("2020-01-17"): "monthly expiry",
-            pd.Timestamp("2020-02-21"): "monthly expiry",
-            pd.Timestamp("2020-04-17"): "monthly expiry",
-            pd.Timestamp("2020-05-15"): "monthly expiry",
-            pd.Timestamp("2020-07-17"): "monthly expiry",
-            pd.Timestamp("2020-08-21"): "monthly expiry",
-            pd.Timestamp("2020-10-16"): "monthly expiry",
-            pd.Timestamp("2020-11-20"): "monthly expiry",
+            pd.Timestamp("2020-01-17"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-02-21"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-04-17"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-05-15"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-07-17"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-08-21"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-10-16"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-11-20"): MONTHLY_EXPIRY,
         })
 
         assert monthly_expiry.compare(expected_monthly_expiry).empty
@@ -373,14 +380,14 @@ class TestHolidayCalendars:
         monthly_expiry_calendar = HolidayCalendar(rules=get_monthly_expiry_rules(day_of_week=4, observance=lambda x: x))
         monthly_expiry = monthly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_monthly_expiry = pd.Series({
-            pd.Timestamp("2020-01-17"): "monthly expiry",
-            pd.Timestamp("2020-02-21"): "monthly expiry",
-            pd.Timestamp("2020-04-17"): "monthly expiry",
-            pd.Timestamp("2020-05-15"): "monthly expiry",
-            pd.Timestamp("2020-07-17"): "monthly expiry",
-            pd.Timestamp("2020-08-21"): "monthly expiry",
-            pd.Timestamp("2020-10-16"): "monthly expiry",
-            pd.Timestamp("2020-11-20"): "monthly expiry",
+            pd.Timestamp("2020-01-17"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-02-21"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-04-17"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-05-15"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-07-17"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-08-21"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-10-16"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-11-20"): MONTHLY_EXPIRY,
         })
 
         assert monthly_expiry.compare(expected_monthly_expiry).empty
@@ -389,14 +396,14 @@ class TestHolidayCalendars:
         monthly_expiry_calendar = HolidayCalendar(rules=get_monthly_expiry_rules(day_of_week=4, observance=lambda x: x - pd.Timedelta(days=1)))
         monthly_expiry = monthly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_monthly_expiry = pd.Series({
-            pd.Timestamp("2020-01-16"): "monthly expiry",
-            pd.Timestamp("2020-02-20"): "monthly expiry",
-            pd.Timestamp("2020-04-16"): "monthly expiry",
-            pd.Timestamp("2020-05-14"): "monthly expiry",
-            pd.Timestamp("2020-07-16"): "monthly expiry",
-            pd.Timestamp("2020-08-20"): "monthly expiry",
-            pd.Timestamp("2020-10-15"): "monthly expiry",
-            pd.Timestamp("2020-11-19"): "monthly expiry",
+            pd.Timestamp("2020-01-16"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-02-20"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-04-16"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-05-14"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-07-16"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-08-20"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-10-15"): MONTHLY_EXPIRY,
+            pd.Timestamp("2020-11-19"): MONTHLY_EXPIRY,
         })
 
         assert monthly_expiry.compare(expected_monthly_expiry).empty
@@ -408,10 +415,10 @@ class TestHolidayCalendars:
         quarterly_expiry_calendar = HolidayCalendar(rules=get_quadruple_witching_rules(day_of_week=4))
         quarterly_expiry = quarterly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_quarterly_expiry = pd.Series({
-            pd.Timestamp("2020-03-20"): "quarterly expiry",
-            pd.Timestamp("2020-06-19"): "quarterly expiry",
-            pd.Timestamp("2020-09-18"): "quarterly expiry",
-            pd.Timestamp("2020-12-18"): "quarterly expiry",
+            pd.Timestamp("2020-03-20"): QUARTERLY_EXPIRY,
+            pd.Timestamp("2020-06-19"): QUARTERLY_EXPIRY,
+            pd.Timestamp("2020-09-18"): QUARTERLY_EXPIRY,
+            pd.Timestamp("2020-12-18"): QUARTERLY_EXPIRY,
         })
 
         assert quarterly_expiry.compare(expected_quarterly_expiry).empty
@@ -420,10 +427,10 @@ class TestHolidayCalendars:
         quarterly_expiry_calendar = HolidayCalendar(rules=get_quadruple_witching_rules(day_of_week=4, observance=lambda x: x))
         quarterly_expiry = quarterly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_quarterly_expiry = pd.Series({
-            pd.Timestamp("2020-03-20"): "quarterly expiry",
-            pd.Timestamp("2020-06-19"): "quarterly expiry",
-            pd.Timestamp("2020-09-18"): "quarterly expiry",
-            pd.Timestamp("2020-12-18"): "quarterly expiry",
+            pd.Timestamp("2020-03-20"): QUARTERLY_EXPIRY,
+            pd.Timestamp("2020-06-19"): QUARTERLY_EXPIRY,
+            pd.Timestamp("2020-09-18"): QUARTERLY_EXPIRY,
+            pd.Timestamp("2020-12-18"): QUARTERLY_EXPIRY,
         })
 
         assert quarterly_expiry.compare(expected_quarterly_expiry).empty
@@ -432,10 +439,10 @@ class TestHolidayCalendars:
         quarterly_expiry_calendar = HolidayCalendar(rules=get_quadruple_witching_rules(day_of_week=4, observance=lambda x: x - pd.Timedelta(days=1)))
         quarterly_expiry = quarterly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_quarterly_expiry = pd.Series({
-            pd.Timestamp("2020-03-19"): "quarterly expiry",
-            pd.Timestamp("2020-06-18"): "quarterly expiry",
-            pd.Timestamp("2020-09-17"): "quarterly expiry",
-            pd.Timestamp("2020-12-17"): "quarterly expiry",
+            pd.Timestamp("2020-03-19"): QUARTERLY_EXPIRY,
+            pd.Timestamp("2020-06-18"): QUARTERLY_EXPIRY,
+            pd.Timestamp("2020-09-17"): QUARTERLY_EXPIRY,
+            pd.Timestamp("2020-12-17"): QUARTERLY_EXPIRY,
         })
 
         assert quarterly_expiry.compare(expected_quarterly_expiry).empty
@@ -443,41 +450,41 @@ class TestHolidayCalendars:
     def test_get_last_day_of_month_calendar(self):
         # Test plain vanilla calendar that ignores any special days or close days, even weekends, that may fall onto the
         # same days.
-        last_day_of_month_calendar = HolidayCalendar(rules=get_last_day_of_month_rules(name="last day of month"))
+        last_day_of_month_calendar = HolidayCalendar(rules=get_last_day_of_month_rules(name=LAST_DAY_OF_MONTH))
         last_day_of_month = last_day_of_month_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_last_day_of_month = pd.Series({
-            pd.Timestamp("2020-01-31"): "last day of month",
-            pd.Timestamp("2020-02-29"): "last day of month",
-            pd.Timestamp("2020-03-31"): "last day of month",
-            pd.Timestamp("2020-04-30"): "last day of month",
-            pd.Timestamp("2020-05-31"): "last day of month",
-            pd.Timestamp("2020-06-30"): "last day of month",
-            pd.Timestamp("2020-07-31"): "last day of month",
-            pd.Timestamp("2020-08-31"): "last day of month",
-            pd.Timestamp("2020-09-30"): "last day of month",
-            pd.Timestamp("2020-10-31"): "last day of month",
-            pd.Timestamp("2020-11-30"): "last day of month",
-            pd.Timestamp("2020-12-31"): "last day of month",
+            pd.Timestamp("2020-01-31"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-02-29"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-03-31"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-04-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-05-31"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-06-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-07-31"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-08-31"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-09-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-10-31"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-11-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-12-31"): LAST_DAY_OF_MONTH,
         })
 
         assert last_day_of_month.compare(expected_last_day_of_month).empty
 
         # Test calendar with an observance that moves the holiday to the previous day.
-        last_day_of_month_calendar = HolidayCalendar(rules=get_last_day_of_month_rules(name="last day of month", observance=lambda x: x - pd.Timedelta(days=1)))
+        last_day_of_month_calendar = HolidayCalendar(rules=get_last_day_of_month_rules(name=LAST_DAY_OF_MONTH, observance=lambda x: x - pd.Timedelta(days=1)))
         last_day_of_month = last_day_of_month_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_last_day_of_month = pd.Series({
-            pd.Timestamp("2020-01-30"): "last day of month",
-            pd.Timestamp("2020-02-28"): "last day of month",
-            pd.Timestamp("2020-03-30"): "last day of month",
-            pd.Timestamp("2020-04-29"): "last day of month",
-            pd.Timestamp("2020-05-30"): "last day of month",
-            pd.Timestamp("2020-06-29"): "last day of month",
-            pd.Timestamp("2020-07-30"): "last day of month",
-            pd.Timestamp("2020-08-30"): "last day of month",
-            pd.Timestamp("2020-09-29"): "last day of month",
-            pd.Timestamp("2020-10-30"): "last day of month",
-            pd.Timestamp("2020-11-29"): "last day of month",
-            pd.Timestamp("2020-12-30"): "last day of month",
+            pd.Timestamp("2020-01-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-02-28"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-03-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-04-29"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-05-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-06-29"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-07-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-08-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-09-29"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-10-30"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-11-29"): LAST_DAY_OF_MONTH,
+            pd.Timestamp("2020-12-30"): LAST_DAY_OF_MONTH,
         })
 
         assert last_day_of_month.compare(expected_last_day_of_month).empty

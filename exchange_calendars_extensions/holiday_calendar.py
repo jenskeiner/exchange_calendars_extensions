@@ -757,7 +757,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
         changeset: ChangeSet = changeset_provider() if changeset_provider is not None else None
 
         # Set changeset to None if it is empty.
-        if changeset is not None and not len(changeset) > 0:
+        if changeset is not None and len(changeset) <= 0:
             changeset = None
 
         # Normalize changeset, maybe.
