@@ -3,6 +3,8 @@ from pandas import DatetimeIndex, Series
 
 from exchange_calendars_extensions.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday
 
+DATETIME_64_NS = 'datetime64[ns]'
+
 
 class TestHolidays:
 
@@ -13,25 +15,25 @@ class TestHolidays:
         assert holiday.name == "Holiday"
 
         # No holidays in 2018 because it's before the start date.
-        assert holiday.dates(start_date=pd.Timestamp("2018-01-01"), end_date=pd.Timestamp("2018-12-31"), return_name=False).equals(DatetimeIndex([], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2018-01-01"), end_date=pd.Timestamp("2018-12-31"), return_name=False).equals(DatetimeIndex([], dtype=DATETIME_64_NS, freq=None))
 
         # No holidays since the end date is before the first holiday.
-        assert holiday.dates(start_date=pd.Timestamp("2019-01-01"), end_date=pd.Timestamp("2019-01-20"), return_name=False).equals(DatetimeIndex([], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2019-01-01"), end_date=pd.Timestamp("2019-01-20"), return_name=False).equals(DatetimeIndex([], dtype=DATETIME_64_NS, freq=None))
 
         # A single holiday in 2019.
-        assert holiday.dates(start_date=pd.Timestamp("2019-01-01"), end_date=pd.Timestamp("2019-12-31"), return_name=False).equals(DatetimeIndex([pd.Timestamp("2019-01-21")], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2019-01-01"), end_date=pd.Timestamp("2019-12-31"), return_name=False).equals(DatetimeIndex([pd.Timestamp("2019-01-21")], dtype=DATETIME_64_NS, freq=None))
 
         # A single holiday in 2020.
-        assert holiday.dates(start_date=pd.Timestamp("2020-01-01"), end_date=pd.Timestamp("2020-12-31"), return_name=False).equals(DatetimeIndex([pd.Timestamp("2020-01-20")], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2020-01-01"), end_date=pd.Timestamp("2020-12-31"), return_name=False).equals(DatetimeIndex([pd.Timestamp("2020-01-20")], dtype=DATETIME_64_NS, freq=None))
 
         # A single holiday in 2021.
-        assert holiday.dates(start_date=pd.Timestamp("2021-01-01"), end_date=pd.Timestamp("2021-12-31"), return_name=False).equals(DatetimeIndex([pd.Timestamp("2021-01-18")], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2021-01-01"), end_date=pd.Timestamp("2021-12-31"), return_name=False).equals(DatetimeIndex([pd.Timestamp("2021-01-18")], dtype=DATETIME_64_NS, freq=None))
 
         # No holidays since the start date is after the last holiday.
-        assert holiday.dates(start_date=pd.Timestamp("2021-01-19"), end_date=pd.Timestamp("2021-12-31"), return_name=False).equals(DatetimeIndex([], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2021-01-19"), end_date=pd.Timestamp("2021-12-31"), return_name=False).equals(DatetimeIndex([], dtype=DATETIME_64_NS, freq=None))
 
         # No holidays in 2022 because it's after the end date.
-        assert holiday.dates(start_date=pd.Timestamp("2022-01-01"), end_date=pd.Timestamp("2022-12-31"), return_name=False).equals(DatetimeIndex([], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2022-01-01"), end_date=pd.Timestamp("2022-12-31"), return_name=False).equals(DatetimeIndex([], dtype=DATETIME_64_NS, freq=None))
 
         # Verify that the holiday name is returned.
         assert holiday.dates(start_date=pd.Timestamp("2019-01-01"), end_date=pd.Timestamp("2019-12-31"), return_name=True).equals(Series(['Holiday'], index=[pd.Timestamp('2019-01-21')]))
@@ -43,13 +45,13 @@ class TestHolidays:
         assert holiday.name == "Holiday"
 
         # No holidays in 2018 because it's before the start date.
-        assert holiday.dates(start_date=pd.Timestamp("2018-01-01"), end_date=pd.Timestamp("2018-12-31"), return_name=False).equals(DatetimeIndex([], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2018-01-01"), end_date=pd.Timestamp("2018-12-31"), return_name=False).equals(DatetimeIndex([], dtype=DATETIME_64_NS, freq=None))
 
         # No holidays since the end date is before the first holiday.
-        assert holiday.dates(start_date=pd.Timestamp("2019-01-01"), end_date=pd.Timestamp("2019-01-06"), return_name=False).equals(DatetimeIndex([], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2019-01-01"), end_date=pd.Timestamp("2019-01-06"), return_name=False).equals(DatetimeIndex([], dtype=DATETIME_64_NS, freq=None))
 
         # No holidays since the provided range doesn't include the day of week.
-        assert holiday.dates(start_date=pd.Timestamp("2019-01-03"), end_date=pd.Timestamp("2019-01-05"), return_name=False).equals(DatetimeIndex([], dtype='datetime64[ns]', freq=None))
+        assert holiday.dates(start_date=pd.Timestamp("2019-01-03"), end_date=pd.Timestamp("2019-01-05"), return_name=False).equals(DatetimeIndex([], dtype=DATETIME_64_NS, freq=None))
 
         # Verify expected days of week in 2019.
         assert holiday.dates(start_date=pd.Timestamp("2019-01-01"), end_date=pd.Timestamp("2019-12-31"), return_name=False).equals(DatetimeIndex([

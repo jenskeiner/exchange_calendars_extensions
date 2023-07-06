@@ -406,29 +406,25 @@ class ChangeSet(BaseModel, extra='forbid', validate_assignment=True):
         # Convert to string representation.
         day_type = DayTypeLike(day_type).value
 
+        # Add day to set of changes for day type. If this fails, the set of changes should be unmodified as a result, so
+        # that the changeset remains consistent. Just let the exception bubble up.
+        getattr(self, day_type).add_day(date, value)
+
+        # If we get here, then the day has been added to the set of changes successfully.
+
+        # Trigger validation of the entire changeset.
         try:
-            # Add day to set of changes for day type.
-            getattr(self, day_type).add_day(date, value)
+            setattr(self, day_type, getattr(self, day_type))
         except Exception as e:
-            # Failed to add the day to the set of changes, so the set of changes should be unmodified as a result.
-            # Just let the exception bubble up.
+            # If the changeset is no longer consistent, then this can only be because the day was already a day to
+            # add for another day type before and this call added it to the given day type as well, leading to an
+            # invalid second add entry.
+
+            # Restore the state before the call by clearing the day from the given day type.
+            getattr(self, day_type).clear_day(date)
+
+            # Let exception bubble up.
             raise e
-        else:
-            # If we get here, then the day has been added to the set of changes successfully.
-
-            # Trigger validation of the entire changeset.
-            try:
-                setattr(self, day_type, getattr(self, day_type))
-            except Exception as e:
-                # If the changeset is no longer consistent, then this can only be because the day was already a day to
-                # add for another day type before and this call added it to the given day type as well, leading to an
-                # invalid second add entry.
-
-                # Restore the state before the call by clearing the day from the given day type.
-                getattr(self, day_type).clear_day(date)
-
-                # Let exception bubble up.
-                raise e
 
         return self
 
