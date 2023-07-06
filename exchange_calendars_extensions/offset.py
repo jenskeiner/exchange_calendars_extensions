@@ -1,5 +1,6 @@
+from abc import ABC, abstractmethod
 from datetime import datetime, date
-from typing import Type, Callable
+from typing import Type
 
 import pandas as pd
 from pandas._libs.tslibs import localize_pydatetime
@@ -9,7 +10,7 @@ from exchange_calendars_extensions.util import get_month_name, get_day_of_week_n
     last_day_in_month
 
 
-class AbstractHolidayOffset(Easter):
+class AbstractHolidayOffset(Easter, ABC):
 
     @staticmethod
     def _is_normalized(dt):
@@ -20,8 +21,8 @@ class AbstractHolidayOffset(Easter):
             return dt.nanosecond == 0
         return True
 
-    @property
-    def holiday(self, year: int):
+    @abstractmethod
+    def holiday(self, year: int) -> date:
         """
         Return the Gregorian date for the holiday in a given Gregorian calendar
         year.
@@ -83,12 +84,11 @@ def get_third_day_of_week_in_month_offset_class(day_of_week: int, month: int) ->
         A new class that represents the offset.
     """
 
-    @property
-    def holiday(self) -> Callable[[int], pd.Timestamp]:
+    def holiday(self, year) -> date:
         """
         Return a function that returns the third instance of the given day of the week in the given month and year.
         """
-        return lambda year: third_day_of_week_in_month(day_of_week, month, year)
+        return third_day_of_week_in_month(day_of_week, month, year)
 
     # Get name of day of week.
     day_of_week_name = get_day_of_week_name(day_of_week)
@@ -136,12 +136,11 @@ def get_last_day_of_month_offset_class(month: int) -> Type[AbstractHolidayOffset
     Type[AbstractHolidayOffset]
         A new class that represents the offset.
     """
-    @property
-    def holiday(self) -> Callable[[int], pd.Timestamp]:
+    def holiday(self, year) -> date:
         """
         Return a function that returns the last day of the month for a given year.
         """
-        return lambda year: last_day_in_month(month, year)
+        return last_day_in_month(month, year)
 
     # Get name of month.
     month_name = get_month_name(month)
