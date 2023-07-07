@@ -1,0 +1,51 @@
+name: Publish RC Python distributions to TestPyPI
+
+on:
+  push:
+    branches:
+      - 'release/**'
+      - 'hotfix/**'
+      - 'support/**'
+
+env:
+  PACKAGE_NAME: exchange_calendars_extensions
+
+jobs:
+  build-and-publish:
+    name: Build and publish release candidate Python distribution to TestPyPI.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install poetry.
+      run: pipx install poetry
+    - name: Set up Python 3.10.
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+        cache: 'poetry'
+    - name: Determine RC version number.
+      run: |
+        export RC_VERSION=$(echo ${{ github.ref_name }} | sed -e 's/^\(release\|hotfix\|support\)\///')rc${{ github.run_number }}
+        echo "RC version is $RC_VERSION."
+        echo "RC_VERSION=$RC_VERSION" >> $GITHUB_ENV
+    - name: Set poetry package version from tag.
+      run: poetry version ${{ env.RC_VERSION }}
+    - name: Generate requirements.txt.
+      run: poetry export -f requirements.txt --without-hashes > requirements.txt
+    - name: Build package with poetry.
+      run: poetry build
+    - name: Publish package to Test PyPI.
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.TEST_PYPI_PASSWORD }}
+        repository-url: https://test.pypi.org/legacy/
+        skip-existing: true
+    - name: Install from testpypi and import.
+      run: |
+        i=0
+        while (($i<120)) && [[ ! $(curl --max-time 120 -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ env.RC_VERSION }}($|[[:space:]]) ]];\
+          do echo waiting for package to appear in test index, sleeping 5s; sleep 5s; let i++; done
+        pip install --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.RC_VERSION }} --no-deps
+        pip install -r requirements.txt
+        python -c 'import ${{ env.PACKAGE_NAME }};print(${{ env.PACKAGE_NAME }}.__version__)'

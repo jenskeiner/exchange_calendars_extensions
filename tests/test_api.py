@@ -1,6 +1,6 @@
 import datetime
 from datetime import time
-from typing import Optional, List, Tuple
+from typing import Optional, Tuple, Iterable, Union
 
 import pandas as pd
 import pytest
@@ -9,6 +9,21 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from pandas.tseries.holiday import next_monday
 from pytz import timezone
 
+HOLIDAY_0 = 'Holiday 0'
+SPECIAL_OPEN_0 = 'Special Open 0'
+SPECIAL_CLOSE_0 = 'Special Close 0'
+AD_HOC_HOLIDAY = 'ad-hoc holiday'
+AD_HOC_SPECIAL_OPEN = 'ad-hoc special open'
+AD_HOC_SPECIAL_CLOSE = 'ad-hoc special close'
+WEEKEND_DAY = 'weekend day'
+QUARTERLY_EXPIRY = 'quarterly expiry'
+MONTHLY_EXPIRY = 'monthly expiry'
+LAST_TRADING_DAY_OF_MONTH = 'last trading day of month'
+LAST_REGULAR_TRADING_DAY_OF_MONTH = 'last regular trading day of month'
+ADDED_HOLIDAY = 'Added holiday'
+ADDED_SPECIAL_OPEN = 'Added Special Open'
+ADDED_SPECIAL_CLOSE = 'Added Special Close'
+INSERTED_HOLIDAY = 'Inserted Holiday'
 
 def apply_extensions():
     """ Apply the extensions to the exchange_calendars module. """
@@ -16,16 +31,34 @@ def apply_extensions():
     ece.apply_extensions()
 
 
-def add_test_calendar_and_apply_extensions(holidays: Optional[List[pd.Timestamp]] = [pd.Timestamp("2023-01-01")],
-                                           adhoc_holidays: Optional[List[pd.Timestamp]] = [pd.Timestamp("2023-02-01")],
+def add_test_calendar_and_apply_extensions(holidays: Optional[Iterable[pd.Timestamp]] = (pd.Timestamp("2023-01-01"),),
+                                           adhoc_holidays: Optional[Iterable[pd.Timestamp]] = (
+                                           pd.Timestamp("2023-02-01"),),
                                            regular_special_close: Optional[time] = time(14, 00),
-                                           special_closes: Optional[List[pd.Timestamp]] = [(time(14, 00), [pd.Timestamp("2023-03-01")])],
-                                           adhoc_special_closes: Optional[List[Tuple[datetime.time, pd.Timestamp]]] = [(time(14, 00), pd.Timestamp("2023-04-03"))],
+                                           special_closes: Optional[
+                                               Iterable[Tuple[datetime.time, Iterable[pd.Timestamp]]]] = (
+                                                   (time(14, 00), (pd.Timestamp("2023-03-01"),)),),
+                                           adhoc_special_closes: Optional[Iterable[
+                                               Tuple[datetime.time, Union[pd.Timestamp, Iterable[pd.Timestamp]]]]] = (
+                                                   (time(14, 00), pd.Timestamp("2023-04-03")),),
                                            regular_special_open: Optional[time] = time(11, 00),
-                                           special_opens: Optional[List[pd.Timestamp]] = [(time(11, 00), [pd.Timestamp("2023-05-01")])],
-                                           adhoc_special_opens: Optional[List[Tuple[datetime.time, pd.Timestamp]]] = [(time(11, 00), pd.Timestamp("2023-06-01"))],
+                                           special_opens: Optional[
+                                               Iterable[Tuple[datetime.time, Iterable[pd.Timestamp]]]] = (
+                                                   (time(11, 00), (pd.Timestamp("2023-05-01"),)),),
+                                           adhoc_special_opens: Optional[Iterable[
+                                               Tuple[datetime.time, Union[pd.Timestamp, Iterable[pd.Timestamp]]]]] = (
+                                                   (time(11, 00), pd.Timestamp("2023-06-01")),),
                                            weekmask: Optional[str] = "1111100",
                                            day_of_week_expiry: Optional[int] = 4):
+    def ensure_list(obj):
+        """ Check if an object is iterable."""
+        try:
+            iter(obj)
+        except Exception:
+            return [obj]
+        else:
+            return list(obj)
+
     import exchange_calendars as ec
 
     # Define a test calendar class, subclassing the ExchangeCalendar class. Within the class body, define the
@@ -64,7 +97,7 @@ def add_test_calendar_and_apply_extensions(holidays: Optional[List[pd.Timestamp]
 
         @property
         def special_closes_adhoc(self):
-            return list(map(lambda x: (x[0], pd.DatetimeIndex([x[1]] if not isinstance(x[1], list) else x[1])),
+            return list(map(lambda x: (x[0], pd.DatetimeIndex(ensure_list(x[1]))),
                             adhoc_special_closes)) if adhoc_special_closes else []
 
         @property
@@ -75,7 +108,7 @@ def add_test_calendar_and_apply_extensions(holidays: Optional[List[pd.Timestamp]
 
         @property
         def special_opens_adhoc(self):
-            return list(map(lambda x: (x[0], pd.DatetimeIndex([x[1]] if not isinstance(x[1], list) else x[1])),
+            return list(map(lambda x: (x[0], pd.DatetimeIndex(ensure_list(x[1]))),
                             adhoc_special_opens)) if adhoc_special_opens else []
 
         # Weekmask.
@@ -167,189 +200,190 @@ def test_extended_calendar_test():
     c = ec.get_calendar("TEST")
 
     assert isinstance(c, ece.ExtendedExchangeCalendar)
-    
+
     start = pd.Timestamp("2022-01-01")
     end = pd.Timestamp("2024-12-31")
-    
+
     # Verify regular holidays for 2022, 2023, and 2024.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0", 
-        pd.Timestamp("2023-01-01"): "Holiday 0", 
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
-    
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
+
     # Verify adhoc holidays.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
-    
+
     # Verify special closes for 2022, 2023, and 2024.
     assert len(c.special_closes) == 1
     assert len(c.special_closes[0]) == 2
     assert c.special_closes[0][0] == datetime.time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-03-01'): 'Special Close 0',
-        pd.Timestamp('2023-03-01'): 'Special Close 0',
-        pd.Timestamp('2024-03-01'): 'Special Close 0'})).empty
-    
+        pd.Timestamp('2022-03-01'): SPECIAL_CLOSE_0,
+        pd.Timestamp('2023-03-01'): SPECIAL_CLOSE_0,
+        pd.Timestamp('2024-03-01'): SPECIAL_CLOSE_0})).empty
+
     # Verify adhoc special closes.
     assert c.special_closes_adhoc == [(datetime.time(14, 0), pd.DatetimeIndex([pd.Timestamp("2023-04-03")]))]
-    
+
     # Verify special opens for 2022, 2023, and 2024.
     assert len(c.special_opens) == 1
     assert len(c.special_opens[0]) == 2
     assert c.special_opens[0][0] == datetime.time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-05-02'): 'Special Open 0',
-        pd.Timestamp('2023-05-01'): 'Special Open 0',
-        pd.Timestamp('2024-05-01'): 'Special Open 0'})).empty
-    
+        pd.Timestamp('2022-05-02'): SPECIAL_OPEN_0,
+        pd.Timestamp('2023-05-01'): SPECIAL_OPEN_0,
+        pd.Timestamp('2024-05-01'): SPECIAL_OPEN_0})).empty
+
     # Verify adhoc special opens.
     assert c.special_opens_adhoc == [(datetime.time(11, 0), pd.DatetimeIndex([pd.Timestamp("2023-06-01")]))]
-    
+
     # Verify additional holiday calendars.
-    
+
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0", 
-        pd.Timestamp("2023-01-01"): "Holiday 0", 
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
-    
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
+
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-03-01'): 'Special Close 0',
-        pd.Timestamp('2023-03-01'): 'Special Close 0',
-        pd.Timestamp('2023-04-03'): "ad-hoc special close",
-        pd.Timestamp('2024-03-01'): 'Special Close 0'})).empty
-    
+        pd.Timestamp('2022-03-01'): SPECIAL_CLOSE_0,
+        pd.Timestamp('2023-03-01'): SPECIAL_CLOSE_0,
+        pd.Timestamp('2023-04-03'): AD_HOC_SPECIAL_CLOSE,
+        pd.Timestamp('2024-03-01'): SPECIAL_CLOSE_0})).empty
+
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-05-02'): 'Special Open 0',
-        pd.Timestamp('2023-05-01'): 'Special Open 0',
-        pd.Timestamp('2023-06-01'): "ad-hoc special open",
-        pd.Timestamp('2024-05-01'): 'Special Open 0'})).empty
-    
-    assert c.weekend_days.holidays(start=pd.Timestamp('2023-01-01'), end=pd.Timestamp('2023-01-31'), return_name=True).compare(pd.Series({
-        pd.Timestamp('2023-01-01'): 'weekend day',
-        pd.Timestamp('2023-01-07'): 'weekend day',
-        pd.Timestamp('2023-01-08'): 'weekend day',
-        pd.Timestamp('2023-01-14'): 'weekend day',
-        pd.Timestamp('2023-01-15'): 'weekend day',
-        pd.Timestamp('2023-01-21'): 'weekend day',
-        pd.Timestamp('2023-01-22'): 'weekend day',
-        pd.Timestamp('2023-01-28'): 'weekend day',
-        pd.Timestamp('2023-01-29'): 'weekend day'})).empty
-    
+        pd.Timestamp('2022-05-02'): SPECIAL_OPEN_0,
+        pd.Timestamp('2023-05-01'): SPECIAL_OPEN_0,
+        pd.Timestamp('2023-06-01'): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp('2024-05-01'): SPECIAL_OPEN_0})).empty
+
+    assert c.weekend_days.holidays(start=pd.Timestamp('2023-01-01'), end=pd.Timestamp('2023-01-31'),
+                                   return_name=True).compare(pd.Series({
+        pd.Timestamp('2023-01-01'): WEEKEND_DAY,
+        pd.Timestamp('2023-01-07'): WEEKEND_DAY,
+        pd.Timestamp('2023-01-08'): WEEKEND_DAY,
+        pd.Timestamp('2023-01-14'): WEEKEND_DAY,
+        pd.Timestamp('2023-01-15'): WEEKEND_DAY,
+        pd.Timestamp('2023-01-21'): WEEKEND_DAY,
+        pd.Timestamp('2023-01-22'): WEEKEND_DAY,
+        pd.Timestamp('2023-01-28'): WEEKEND_DAY,
+        pd.Timestamp('2023-01-29'): WEEKEND_DAY})).empty
+
     assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-03-18'): 'quarterly expiry',
-        pd.Timestamp('2022-06-17'): 'quarterly expiry',
-        pd.Timestamp('2022-09-16'): 'quarterly expiry',
-        pd.Timestamp('2022-12-16'): 'quarterly expiry',
-        pd.Timestamp('2023-03-17'): 'quarterly expiry',
-        pd.Timestamp('2023-06-16'): 'quarterly expiry',
-        pd.Timestamp('2023-09-15'): 'quarterly expiry',
-        pd.Timestamp('2023-12-15'): 'quarterly expiry',
-        pd.Timestamp('2024-03-15'): 'quarterly expiry',
-        pd.Timestamp('2024-06-21'): 'quarterly expiry',
-        pd.Timestamp('2024-09-20'): 'quarterly expiry',
-        pd.Timestamp('2024-12-20'): 'quarterly expiry'})).empty
+        pd.Timestamp('2022-03-18'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-06-17'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-09-16'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-12-16'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2023-03-17'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2023-06-16'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2023-09-15'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2023-12-15'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2024-03-15'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2024-06-21'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2024-09-20'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2024-12-20'): QUARTERLY_EXPIRY})).empty
 
     assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-01-21'): 'monthly expiry',
-        pd.Timestamp('2022-02-18'): 'monthly expiry',
-        pd.Timestamp('2022-04-15'): 'monthly expiry',
-        pd.Timestamp('2022-05-20'): 'monthly expiry',
-        pd.Timestamp('2022-07-15'): 'monthly expiry',
-        pd.Timestamp('2022-08-19'): 'monthly expiry',
-        pd.Timestamp('2022-10-21'): 'monthly expiry',
-        pd.Timestamp('2022-11-18'): 'monthly expiry',
-        pd.Timestamp('2023-01-20'): 'monthly expiry',
-        pd.Timestamp('2023-02-17'): 'monthly expiry',
-        pd.Timestamp('2023-04-21'): 'monthly expiry',
-        pd.Timestamp('2023-05-19'): 'monthly expiry',
-        pd.Timestamp('2023-07-21'): 'monthly expiry',
-        pd.Timestamp('2023-08-18'): 'monthly expiry',
-        pd.Timestamp('2023-10-20'): 'monthly expiry',
-        pd.Timestamp('2023-11-17'): 'monthly expiry',
-        pd.Timestamp('2024-01-19'): 'monthly expiry',
-        pd.Timestamp('2024-02-16'): 'monthly expiry',
-        pd.Timestamp('2024-04-19'): 'monthly expiry',
-        pd.Timestamp('2024-05-17'): 'monthly expiry',
-        pd.Timestamp('2024-07-19'): 'monthly expiry',
-        pd.Timestamp('2024-08-16'): 'monthly expiry',
-        pd.Timestamp('2024-10-18'): 'monthly expiry',
-        pd.Timestamp('2024-11-15'): 'monthly expiry'})).empty
-    
+        pd.Timestamp('2022-01-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-02-18'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-04-15'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-05-20'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-07-15'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-08-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-10-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-11-18'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-01-20'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-02-17'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-04-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-05-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-07-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-08-18'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-10-20'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-11-17'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-01-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-02-16'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-04-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-05-17'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-07-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-08-16'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-10-18'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-11-15'): MONTHLY_EXPIRY})).empty
+
     assert c.last_trading_days_of_months.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-01-31'): 'last trading day of month',
-        pd.Timestamp('2022-02-28'): 'last trading day of month',
-        pd.Timestamp('2022-03-31'): 'last trading day of month',
-        pd.Timestamp('2022-04-29'): 'last trading day of month',
-        pd.Timestamp('2022-05-31'): 'last trading day of month',
-        pd.Timestamp('2022-06-30'): 'last trading day of month',
-        pd.Timestamp('2022-07-29'): 'last trading day of month',
-        pd.Timestamp('2022-08-31'): 'last trading day of month',
-        pd.Timestamp('2022-09-30'): 'last trading day of month',
-        pd.Timestamp('2022-10-31'): 'last trading day of month',
-        pd.Timestamp('2022-11-30'): 'last trading day of month',
-        pd.Timestamp('2022-12-30'): 'last trading day of month',
-        pd.Timestamp('2023-01-31'): 'last trading day of month',
-        pd.Timestamp('2023-02-28'): 'last trading day of month',
-        pd.Timestamp('2023-03-31'): 'last trading day of month',
-        pd.Timestamp('2023-04-28'): 'last trading day of month',
-        pd.Timestamp('2023-05-31'): 'last trading day of month',
-        pd.Timestamp('2023-06-30'): 'last trading day of month',
-        pd.Timestamp('2023-07-31'): 'last trading day of month',
-        pd.Timestamp('2023-08-31'): 'last trading day of month',
-        pd.Timestamp('2023-09-29'): 'last trading day of month',
-        pd.Timestamp('2023-10-31'): 'last trading day of month',
-        pd.Timestamp('2023-11-30'): 'last trading day of month',
-        pd.Timestamp('2023-12-29'): 'last trading day of month',
-        pd.Timestamp('2024-01-31'): 'last trading day of month',
-        pd.Timestamp('2024-02-29'): 'last trading day of month',
-        pd.Timestamp('2024-03-29'): 'last trading day of month',
-        pd.Timestamp('2024-04-30'): 'last trading day of month',
-        pd.Timestamp('2024-05-31'): 'last trading day of month',
-        pd.Timestamp('2024-06-28'): 'last trading day of month',
-        pd.Timestamp('2024-07-31'): 'last trading day of month',
-        pd.Timestamp('2024-08-30'): 'last trading day of month',
-        pd.Timestamp('2024-09-30'): 'last trading day of month',
-        pd.Timestamp('2024-10-31'): 'last trading day of month',
-        pd.Timestamp('2024-11-29'): 'last trading day of month',
-        pd.Timestamp('2024-12-31'): 'last trading day of month'})).empty
+        pd.Timestamp('2022-01-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-02-28'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-03-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-04-29'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-05-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-06-30'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-07-29'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-08-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-09-30'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-10-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-11-30'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-12-30'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-01-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-02-28'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-03-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-04-28'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-05-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-06-30'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-07-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-08-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-09-29'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-10-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-11-30'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-12-29'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-01-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-02-29'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-03-29'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-04-30'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-05-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-06-28'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-07-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-08-30'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-09-30'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-10-31'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-11-29'): LAST_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-12-31'): LAST_TRADING_DAY_OF_MONTH})).empty
 
     assert c.last_regular_trading_days_of_months.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-01-31'): 'last regular trading day of month',
-        pd.Timestamp('2022-02-28'): 'last regular trading day of month',
-        pd.Timestamp('2022-03-31'): 'last regular trading day of month',
-        pd.Timestamp('2022-04-29'): 'last regular trading day of month',
-        pd.Timestamp('2022-05-31'): 'last regular trading day of month',
-        pd.Timestamp('2022-06-30'): 'last regular trading day of month',
-        pd.Timestamp('2022-07-29'): 'last regular trading day of month',
-        pd.Timestamp('2022-08-31'): 'last regular trading day of month',
-        pd.Timestamp('2022-09-30'): 'last regular trading day of month',
-        pd.Timestamp('2022-10-31'): 'last regular trading day of month',
-        pd.Timestamp('2022-11-30'): 'last regular trading day of month',
-        pd.Timestamp('2022-12-30'): 'last regular trading day of month',
-        pd.Timestamp('2023-01-31'): 'last regular trading day of month',
-        pd.Timestamp('2023-02-28'): 'last regular trading day of month',
-        pd.Timestamp('2023-03-31'): 'last regular trading day of month',
-        pd.Timestamp('2023-04-28'): 'last regular trading day of month',
-        pd.Timestamp('2023-05-31'): 'last regular trading day of month',
-        pd.Timestamp('2023-06-30'): 'last regular trading day of month',
-        pd.Timestamp('2023-07-31'): 'last regular trading day of month',
-        pd.Timestamp('2023-08-31'): 'last regular trading day of month',
-        pd.Timestamp('2023-09-29'): 'last regular trading day of month',
-        pd.Timestamp('2023-10-31'): 'last regular trading day of month',
-        pd.Timestamp('2023-11-30'): 'last regular trading day of month',
-        pd.Timestamp('2023-12-29'): 'last regular trading day of month',
-        pd.Timestamp('2024-01-31'): 'last regular trading day of month',
-        pd.Timestamp('2024-02-29'): 'last regular trading day of month',
-        pd.Timestamp('2024-03-29'): 'last regular trading day of month',
-        pd.Timestamp('2024-04-30'): 'last regular trading day of month',
-        pd.Timestamp('2024-05-31'): 'last regular trading day of month',
-        pd.Timestamp('2024-06-28'): 'last regular trading day of month',
-        pd.Timestamp('2024-07-31'): 'last regular trading day of month',
-        pd.Timestamp('2024-08-30'): 'last regular trading day of month',
-        pd.Timestamp('2024-09-30'): 'last regular trading day of month',
-        pd.Timestamp('2024-10-31'): 'last regular trading day of month',
-        pd.Timestamp('2024-11-29'): 'last regular trading day of month',
-        pd.Timestamp('2024-12-31'): 'last regular trading day of month'})).empty
+        pd.Timestamp('2022-01-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-02-28'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-03-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-04-29'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-05-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-06-30'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-07-29'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-08-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-09-30'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-10-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-11-30'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2022-12-30'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-01-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-02-28'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-03-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-04-28'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-05-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-06-30'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-07-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-08-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-09-29'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-10-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-11-30'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2023-12-29'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-01-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-02-29'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-03-29'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-04-30'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-05-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-06-28'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-07-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-08-30'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-09-30'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-10-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-11-29'): LAST_REGULAR_TRADING_DAY_OF_MONTH,
+        pd.Timestamp('2024-12-31'): LAST_REGULAR_TRADING_DAY_OF_MONTH})).empty
 
 
 @pytest.mark.isolated
@@ -358,7 +392,7 @@ def test_add_new_holiday():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -367,21 +401,21 @@ def test_add_new_holiday():
 
     # Added holiday should show as regular holiday.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-07-03"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-07-03"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Added holiday should not be in ad-hoc holidays, i.e. this should be unmodified.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Added holiday should be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2023-07-03"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2023-07-03"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -390,7 +424,7 @@ def test_overwrite_existing_regular_holiday():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -399,19 +433,19 @@ def test_overwrite_existing_regular_holiday():
 
     # Added holiday should overwrite existing regular holiday.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Added holiday should not be in ad-hoc holidays, i.e. this should be unmodified.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Added holiday should be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Added Holiday",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): ADDED_HOLIDAY,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -420,7 +454,7 @@ def test_overwrite_existing_adhoc_holiday():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -429,20 +463,20 @@ def test_overwrite_existing_adhoc_holiday():
 
     # Added holiday should be a regular holiday.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Overwritten ad-hoc holiday should be removed from list.
     assert c.adhoc_holidays == []
 
     # Added holiday should be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -460,17 +494,17 @@ def test_remove_existing_regular_holiday():
 
     # Removed day should no longer be in regular holidays.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Removed holiday should not affect ad-hoc holidays.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Removed day should not be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -488,18 +522,18 @@ def test_remove_existing_adhoc_holiday():
 
     # Regular holidays should be untouched.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Removed holiday should no longer be in ad-hoc holidays.
     assert c.adhoc_holidays == []
 
     # Removed day should not be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -517,19 +551,19 @@ def test_remove_non_existent_holiday():
 
     # Regular holidays should be untouched.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Ad-hoc holidays should be untouched.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Calendar holidays_all should be untouched.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -539,7 +573,7 @@ def test_add_and_remove_new_holiday():
     import exchange_calendars_extensions as ece
 
     # Add and then remove the same day. This should be a no-op.
-    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
     ece.remove_holiday("TEST", pd.Timestamp("2023-07-03"))
 
     c = ec.get_calendar("TEST")
@@ -549,19 +583,19 @@ def test_add_and_remove_new_holiday():
 
     # Regular holidays should be unchanged.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Ad-hoc holidays should be unchanged.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Calendar holidays_all should be unchanged.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -570,8 +604,8 @@ def test_add_and_remove_new_holiday_strict():
     import exchange_calendars_extensions as ece
 
     # Add and then remove the same day. This should be a no-op.
-    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), "Added Holiday", strict=True)
-    
+    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY, strict=True)
+
     with pytest.raises(ValueError):
         ece.remove_holiday("TEST", pd.Timestamp("2023-07-03"), strict=True)
 
@@ -583,7 +617,7 @@ def test_add_and_remove_existing_holiday():
     import exchange_calendars_extensions as ece
 
     # Add and then remove the same existing holiday. The day should be removed.
-    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY)
     ece.remove_holiday("TEST", pd.Timestamp("2023-01-01"))
 
     c = ec.get_calendar("TEST")
@@ -593,17 +627,17 @@ def test_add_and_remove_existing_holiday():
 
     # Day should be removed from regular holidays.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Ad-hoc holidays should be unchanged.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Day should be removed from holidays_all.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -612,8 +646,8 @@ def test_add_and_remove_existing_holiday_strict():
     import exchange_calendars_extensions as ece
 
     # Add and then remove the same existing holiday. The day should be removed.
-    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday", strict=True)
-    
+    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY, strict=True)
+
     with pytest.raises(ValueError):
         ece.remove_holiday("TEST", pd.Timestamp("2023-01-01"), strict=True)
 
@@ -627,7 +661,7 @@ def test_remove_and_add_new_holiday():
     # Remove and then add the same new holiday. The removal of a non-existent holiday should be ignored, so the day
     # should be added eventually.
     ece.remove_holiday("TEST", pd.Timestamp("2023-07-03"))
-    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -636,21 +670,21 @@ def test_remove_and_add_new_holiday():
 
     # Added holiday should show as regular holiday.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-07-03"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-07-03"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Added holiday should not be in ad-hoc holidays, i.e. this should be unmodified.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Added holiday should be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2023-07-03"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2023-07-03"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -661,9 +695,9 @@ def test_remove_and_add_new_holiday_strict():
     # Remove and then add the same new holiday. The removal of a non-existent holiday should be ignored, so the day
     # should be added eventually.
     ece.remove_holiday("TEST", pd.Timestamp("2023-07-03"), strict=True)
-    
+
     with pytest.raises(ValueError):
-        ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), "Added Holiday", strict=True)
+        ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY, strict=True)
 
 
 @pytest.mark.isolated
@@ -675,7 +709,7 @@ def test_remove_and_add_existing_regular_holiday():
     # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
     # the existing regular holiday.
     ece.remove_holiday("TEST", pd.Timestamp("2023-01-01"))
-    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -684,19 +718,19 @@ def test_remove_and_add_existing_regular_holiday():
 
     # Regular holiday should be overwritten.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Added holiday should not be in ad-hoc holidays, i.e. this should be unmodified.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Added holiday should be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Added Holiday",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): ADDED_HOLIDAY,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -707,9 +741,9 @@ def test_remove_and_add_existing_regular_holiday_strict():
     # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
     # the existing regular holiday.
     ece.remove_holiday("TEST", pd.Timestamp("2023-01-01"), strict=True)
-    
+
     with pytest.raises(ValueError):
-        ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), "Added Holiday", strict=True)
+        ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY, strict=True)
 
 
 @pytest.mark.isolated
@@ -721,7 +755,7 @@ def test_remove_and_add_existing_adhoc_holiday():
     # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
     # the existing regular holiday.
     ece.remove_holiday("TEST", pd.Timestamp("2023-02-01"))
-    ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -730,20 +764,20 @@ def test_remove_and_add_existing_adhoc_holiday():
 
     # Regular holiday should contain the added holiday.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Ad-hoc holidays should be empty.
     assert c.adhoc_holidays == []
 
     # Added holiday should be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -754,9 +788,9 @@ def test_remove_and_add_existing_adhoc_holiday_strict():
     # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
     # the existing regular holiday.
     ece.remove_holiday("TEST", pd.Timestamp("2023-02-01"), strict=True)
-    
+
     with pytest.raises(ValueError):
-        ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), "Added Holiday", strict=True)
+        ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), ADDED_HOLIDAY, strict=True)
 
 
 @pytest.mark.isolated
@@ -766,7 +800,7 @@ def test_add_and_remove_new_holiday_multiple_times():
     import exchange_calendars_extensions as ece
 
     # Add and then remove the same day. This should be a no-op.
-    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
     ece.remove_holiday("TEST", pd.Timestamp("2023-07-03"))
 
     c = ec.get_calendar("TEST")
@@ -776,24 +810,24 @@ def test_add_and_remove_new_holiday_multiple_times():
 
     # Regular holidays should be unchanged.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Ad-hoc holidays should be unchanged.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Calendar holidays_all should be unchanged.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Now, remove and then add the same day. The removal of a non-existent holiday should be ignored, so the day should
     # be added eventually.
     ece.remove_holiday("TEST", pd.Timestamp("2023-07-03"))
-    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), "Added Holiday")
+    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
 
     # This should return a fresh instance, reflecting above changes.
     c = ec.get_calendar("TEST")
@@ -803,21 +837,21 @@ def test_add_and_remove_new_holiday_multiple_times():
 
     # Added holiday should show as regular holiday.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-07-03"): "Added Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-07-03"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Added holiday should not be in ad-hoc holidays, i.e. this should be unmodified.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Added holiday should be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-         pd.Timestamp("2022-01-01"): "Holiday 0",
-         pd.Timestamp("2023-01-01"): "Holiday 0",
-         pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-         pd.Timestamp("2023-07-03"): "Added Holiday",
-         pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2023-07-03"): ADDED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
 
 @pytest.mark.isolated
@@ -826,7 +860,7 @@ def test_add_new_special_open_with_new_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-07-03"), time(12, 0), "Added Special Open")
+    ece.add_special_open("TEST", pd.Timestamp("2023-07-03"), time(12, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -839,25 +873,25 @@ def test_add_new_special_open_with_new_time():
     # Special opens for regular special open time should be unchanged.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     # There should be a new calendar for the added special open time.
     assert c.special_opens[1][0] == time(12, 0)
     assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2023-07-03"): "Added Special Open"})).empty
+        pd.Timestamp("2023-07-03"): ADDED_SPECIAL_OPEN})).empty
 
     # Added special open should not be in ad-hoc special opens, i.e. this should be unmodified.
     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "ad-hoc special open",
-        pd.Timestamp("2023-07-03"): "Added Special Open",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp("2023-07-03"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
@@ -866,7 +900,7 @@ def test_add_new_special_open_with_existing_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-07-03"), time(11, 0), "Added Special Open")
+    ece.add_special_open("TEST", pd.Timestamp("2023-07-03"), time(11, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -879,21 +913,21 @@ def test_add_new_special_open_with_existing_time():
     # Special opens for regular special open time should be unchanged.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2023-07-03"): "Added Special Open",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-07-03"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     # Added special open should not be in ad-hoc special opens, i.e. this should be unmodified.
     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "ad-hoc special open",
-        pd.Timestamp("2023-07-03"): "Added Special Open",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp("2023-07-03"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
@@ -902,7 +936,7 @@ def test_overwrite_existing_regular_special_open_with_new_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-05-01"), time(12, 0), "Added Special Open")
+    ece.add_special_open("TEST", pd.Timestamp("2023-05-01"), time(12, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -915,28 +949,29 @@ def test_overwrite_existing_regular_special_open_with_new_time():
     # Special opens for regular special open time should exclude the overwritten day.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     # There should be a new calendar for the added special open time.
     assert c.special_opens[1][0] == time(12, 0)
     assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2023-05-01"): "Added Special Open"})).empty
+        pd.Timestamp("2023-05-01"): ADDED_SPECIAL_OPEN})).empty
 
     # Added special open should not be in ad-hoc special opens, i.e. this should be unmodified.
     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Added Special Open",
-        pd.Timestamp("2023-06-01"): "ad-hoc special open",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2023-06-01"): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
 def test_overwrite_existing_regular_special_open_with_existing_time():
-    add_test_calendar_and_apply_extensions(special_opens=[(time(11, 00), [pd.Timestamp("2023-05-01")]), (time(12, 00), [pd.Timestamp("2023-05-04")])])
+    add_test_calendar_and_apply_extensions(
+        special_opens=[(time(11, 00), [pd.Timestamp("2023-05-01")]), (time(12, 00), [pd.Timestamp("2023-05-04")])])
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
@@ -951,30 +986,30 @@ def test_overwrite_existing_regular_special_open_with_existing_time():
     # Special opens for regular special open time should exclude the overwritten day.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     assert c.special_opens[1][0] == time(12, 0)
     assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-04"): "Special Open 0",
-        pd.Timestamp("2023-05-04"): "Special Open 0",
-        pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-06"): SPECIAL_OPEN_0})).empty
 
     # Added special open should not be in ad-hoc special opens, i.e. this should be unmodified.
     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2022-05-04"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2023-05-04"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "ad-hoc special open",
-        pd.Timestamp("2024-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2022-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-06"): SPECIAL_OPEN_0})).empty
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-05-01"), time(12, 0), "Added Special Open")
+    ece.add_special_open("TEST", pd.Timestamp("2023-05-01"), time(12, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -984,28 +1019,28 @@ def test_overwrite_existing_regular_special_open_with_existing_time():
     # Special opens for regular special open time should exclude the overwritten day.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     assert c.special_opens[1][0] == time(12, 0)
     assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-04"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Added Special Open",
-        pd.Timestamp("2023-05-04"): "Special Open 0",
-        pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2023-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-06"): SPECIAL_OPEN_0})).empty
 
     # Added special open should not be in ad-hoc special opens, i.e. this should be unmodified.
     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2022-05-04"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Added Special Open",
-        pd.Timestamp("2023-05-04"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "ad-hoc special open",
-        pd.Timestamp("2024-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2022-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2023-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-06"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
@@ -1014,7 +1049,7 @@ def test_overwrite_existing_ad_hoc_special_open_with_new_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(12, 0), "Added Special Open")
+    ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(12, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -1027,23 +1062,23 @@ def test_overwrite_existing_ad_hoc_special_open_with_new_time():
     # Special opens for regular special open time should exclude the overwritten day.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     assert c.special_opens[1][0] == time(12, 0)
     assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2023-06-01"): "Added Special Open"})).empty
+        pd.Timestamp("2023-06-01"): ADDED_SPECIAL_OPEN})).empty
 
     # Ad-hoc special opens should now be empty.
     assert c.special_opens_adhoc == []
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "Added Special Open",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
@@ -1052,7 +1087,7 @@ def test_overwrite_existing_ad_hoc_special_open_with_existing_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(11, 0), "Added Special Open")
+    ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(11, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -1065,25 +1100,26 @@ def test_overwrite_existing_ad_hoc_special_open_with_existing_time():
     # Special opens for regular special open time should exclude the overwritten day.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "Added Special Open",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     # Ad-hoc special opens should now be empty.
     assert c.special_opens_adhoc == []
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "Added Special Open",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
 def test_remove_existing_regular_special_open():
-    add_test_calendar_and_apply_extensions(special_opens=[(time(11, 00), [pd.Timestamp("2023-05-01")]), (time(12, 00), [pd.Timestamp("2023-05-04")])])
+    add_test_calendar_and_apply_extensions(
+        special_opens=[(time(11, 00), [pd.Timestamp("2023-05-01")]), (time(12, 00), [pd.Timestamp("2023-05-04")])])
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
@@ -1100,26 +1136,26 @@ def test_remove_existing_regular_special_open():
     # Special opens for regular special open time should exclude the overwritten day.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     assert c.special_opens[1][0] == time(12, 0)
     assert c.special_opens[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-04"): "Special Open 0",
-        pd.Timestamp("2023-05-04"): "Special Open 0",
-        pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-06"): SPECIAL_OPEN_0})).empty
 
     # Ad-hoc special opens should now be empty.
     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2022-05-04"): "Special Open 0",
-        pd.Timestamp("2023-05-04"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "ad-hoc special open",
-        pd.Timestamp("2024-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-06"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2022-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-04"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-06"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
@@ -1141,18 +1177,18 @@ def test_remove_existing_ad_hoc_special_open():
     # Special opens for regular special open time should exclude the overwritten day.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     # Ad-hoc special opens should now be empty.
     assert c.special_opens_adhoc == []
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
@@ -1174,19 +1210,19 @@ def test_remove_non_existent_special_open():
     # Special opens for regular special open time should exclude the overwritten day.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     # Ad-hoc special opens should now be empty.
     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "ad-hoc special open",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
@@ -1195,7 +1231,7 @@ def test_add_new_special_close_with_new_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(15, 0), "Added Special Close")
+    ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(15, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1208,25 +1244,25 @@ def test_add_new_special_close_with_new_time():
     # Special closes for regular special close time should be unchanged.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     # There should be a new calendar for the added special close time.
     assert c.special_closes[1][0] == time(15, 0)
     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2023-07-03"): "Added Special Close"})).empty
+        pd.Timestamp("2023-07-03"): ADDED_SPECIAL_CLOSE})).empty
 
     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2023-04-03"): "ad-hoc special close",
-        pd.Timestamp("2023-07-03"): "Added Special Close",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-04-03"): AD_HOC_SPECIAL_CLOSE,
+        pd.Timestamp("2023-07-03"): ADDED_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
 
 @pytest.mark.isolated
@@ -1235,7 +1271,7 @@ def test_add_new_special_close_with_existing_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(14, 0), "Added Special Close")
+    ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(14, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1248,21 +1284,21 @@ def test_add_new_special_close_with_existing_time():
     # Special Closes for regular special close time should be unchanged.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2023-07-03"): "Added Special Close",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-07-03"): ADDED_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
     assert c.special_closes_adhoc == [(time(14, 0), pd.Timestamp("2023-04-03"))]
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2023-04-03"): "ad-hoc special close",
-        pd.Timestamp("2023-07-03"): "Added Special Close",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-04-03"): AD_HOC_SPECIAL_CLOSE,
+        pd.Timestamp("2023-07-03"): ADDED_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
 
 @pytest.mark.isolated
@@ -1271,7 +1307,7 @@ def test_overwrite_existing_regular_special_close_with_new_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), "Added Special Close")
+    ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1284,28 +1320,29 @@ def test_overwrite_existing_regular_special_close_with_new_time():
     # Special Closes for regular special close time should exclude the overwritten day.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     # There should be a new calendar for the added special close time.
     assert c.special_closes[1][0] == time(15, 0)
     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2023-03-01"): "Added Special Close"})).empty
+        pd.Timestamp("2023-03-01"): ADDED_SPECIAL_CLOSE})).empty
 
     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Added Special Close",
-        pd.Timestamp("2023-04-03"): "ad-hoc special close",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): ADDED_SPECIAL_CLOSE,
+        pd.Timestamp("2023-04-03"): AD_HOC_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
 
 @pytest.mark.isolated
 def test_overwrite_existing_regular_special_close_with_existing_time():
-    add_test_calendar_and_apply_extensions(special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
+    add_test_calendar_and_apply_extensions(
+        special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
@@ -1320,30 +1357,30 @@ def test_overwrite_existing_regular_special_close_with_existing_time():
     # Special Closes for regular special close time should exclude the overwritten day.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     assert c.special_closes[1][0] == time(15, 0)
     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-04"): "Special Close 0",
-        pd.Timestamp("2023-03-06"): "Special Close 0",
-        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-04"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-06"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-04"): SPECIAL_CLOSE_0})).empty
 
     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2022-03-04"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-06"): "Special Close 0",
-        pd.Timestamp("2023-04-03"): "ad-hoc special close",
-        pd.Timestamp("2024-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2022-03-04"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-06"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-04-03"): AD_HOC_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-04"): SPECIAL_CLOSE_0})).empty
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), "Added Special Close")
+    ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1353,28 +1390,28 @@ def test_overwrite_existing_regular_special_close_with_existing_time():
     # Special Closes for regular special close time should exclude the overwritten day.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     assert c.special_closes[1][0] == time(15, 0)
     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-04"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Added Special Close",
-        pd.Timestamp("2023-03-06"): "Special Close 0",
-        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-04"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): ADDED_SPECIAL_CLOSE,
+        pd.Timestamp("2023-03-06"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-04"): SPECIAL_CLOSE_0})).empty
 
     # Added special close should not be in ad-hoc special closes, i.e. this should be unmodified.
     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2022-03-04"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Added Special Close",
-        pd.Timestamp("2023-03-06"): "Special Close 0",
-        pd.Timestamp("2023-04-03"): "ad-hoc special close",
-        pd.Timestamp("2024-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2022-03-04"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): ADDED_SPECIAL_CLOSE,
+        pd.Timestamp("2023-03-06"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-04-03"): AD_HOC_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-04"): SPECIAL_CLOSE_0})).empty
 
 
 @pytest.mark.isolated
@@ -1383,7 +1420,7 @@ def test_overwrite_existing_ad_hoc_special_close_with_new_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(15, 0), "Added Special Close")
+    ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(15, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1396,23 +1433,23 @@ def test_overwrite_existing_ad_hoc_special_close_with_new_time():
     # Special Closes for regular special close time should exclude the overwritten day.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     assert c.special_closes[1][0] == time(15, 0)
     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2023-04-03"): "Added Special Close"})).empty
+        pd.Timestamp("2023-04-03"): ADDED_SPECIAL_CLOSE})).empty
 
     # Ad-hoc special closes should now be empty.
     assert c.special_closes_adhoc == []
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2023-04-03"): "Added Special Close",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-04-03"): ADDED_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
 
 @pytest.mark.isolated
@@ -1421,7 +1458,7 @@ def test_overwrite_existing_ad_hoc_special_close_with_existing_time():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(14, 0), "Added Special Close")
+    ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(14, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1434,25 +1471,26 @@ def test_overwrite_existing_ad_hoc_special_close_with_existing_time():
     # Special Closes for regular special close time should exclude the overwritten day.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2023-04-03"): "Added Special Close",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-04-03"): ADDED_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     # Ad-hoc special closes should now be empty.
     assert c.special_closes_adhoc == []
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2023-04-03"): "Added Special Close",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-04-03"): ADDED_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
 
 @pytest.mark.isolated
 def test_remove_existing_regular_special_close():
-    add_test_calendar_and_apply_extensions(special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
+    add_test_calendar_and_apply_extensions(
+        special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
@@ -1469,26 +1507,26 @@ def test_remove_existing_regular_special_close():
     # Special Closes for regular special close time should exclude the overwritten day.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     assert c.special_closes[1][0] == time(15, 0)
     assert c.special_closes[1][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-04"): "Special Close 0",
-        pd.Timestamp("2023-03-06"): "Special Close 0",
-        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-04"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-06"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-04"): SPECIAL_CLOSE_0})).empty
 
     # Ad-hoc special closes should now be empty.
     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2022-03-04"): "Special Close 0",
-        pd.Timestamp("2023-03-06"): "Special Close 0",
-        pd.Timestamp("2023-04-03"): "ad-hoc special close",
-        pd.Timestamp("2024-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-04"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2022-03-04"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-06"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-04-03"): AD_HOC_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-04"): SPECIAL_CLOSE_0})).empty
 
 
 @pytest.mark.isolated
@@ -1510,18 +1548,18 @@ def test_remove_existing_ad_hoc_special_close():
     # Special Closes for regular special close time should exclude the overwritten day.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     # Ad-hoc special closes should now be empty.
     assert c.special_closes_adhoc == []
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
 
 @pytest.mark.isolated
@@ -1543,19 +1581,19 @@ def test_remove_non_existent_special_close():
     # Special Closes for regular special close time should exclude the overwritten day.
     assert c.special_closes[0][0] == time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
     # Ad-hoc special closes should now be empty.
     assert c.special_closes_adhoc == [(time(14, 00), pd.Timestamp("2023-04-03"))]
 
     # Added special close should be in consolidated calendar.
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-01"): "Special Close 0",
-        pd.Timestamp("2023-03-01"): "Special Close 0",
-        pd.Timestamp("2023-04-03"): "ad-hoc special close",
-        pd.Timestamp("2024-03-01"): "Special Close 0"})).empty
+        pd.Timestamp("2022-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-03-01"): SPECIAL_CLOSE_0,
+        pd.Timestamp("2023-04-03"): AD_HOC_SPECIAL_CLOSE,
+        pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0})).empty
 
 
 @pytest.mark.isolated
@@ -1574,19 +1612,19 @@ def test_add_quarterly_expiry():
 
     # Quarterly expiry dates should be empty.
     assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-18"): "quarterly expiry",
-        pd.Timestamp("2022-06-17"): "quarterly expiry",
-        pd.Timestamp("2022-09-16"): "quarterly expiry",
-        pd.Timestamp("2022-12-16"): "quarterly expiry",
-        pd.Timestamp("2023-03-17"): "quarterly expiry",
+        pd.Timestamp("2022-03-18"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2022-06-17"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2022-09-16"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2022-12-16"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2023-03-17"): QUARTERLY_EXPIRY,
         pd.Timestamp("2023-06-15"): "Added Quarterly Expiry",
-        pd.Timestamp("2023-06-16"): "quarterly expiry",
-        pd.Timestamp("2023-09-15"): "quarterly expiry",
-        pd.Timestamp("2023-12-15"): "quarterly expiry",
-        pd.Timestamp("2024-03-15"): "quarterly expiry",
-        pd.Timestamp("2024-06-21"): "quarterly expiry",
-        pd.Timestamp("2024-09-20"): "quarterly expiry",
-        pd.Timestamp("2024-12-20"): "quarterly expiry"})).empty
+        pd.Timestamp("2023-06-16"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2023-09-15"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2023-12-15"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2024-03-15"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2024-06-21"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2024-09-20"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2024-12-20"): QUARTERLY_EXPIRY})).empty
 
 
 @pytest.mark.isolated
@@ -1605,17 +1643,17 @@ def test_remove_quarterly_expiry():
 
     # Quarterly expiry dates should be empty.
     assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-03-18"): "quarterly expiry",
-        pd.Timestamp("2022-06-17"): "quarterly expiry",
-        pd.Timestamp("2022-09-16"): "quarterly expiry",
-        pd.Timestamp("2022-12-16"): "quarterly expiry",
-        pd.Timestamp("2023-03-17"): "quarterly expiry",
-        pd.Timestamp("2023-09-15"): "quarterly expiry",
-        pd.Timestamp("2023-12-15"): "quarterly expiry",
-        pd.Timestamp("2024-03-15"): "quarterly expiry",
-        pd.Timestamp("2024-06-21"): "quarterly expiry",
-        pd.Timestamp("2024-09-20"): "quarterly expiry",
-        pd.Timestamp("2024-12-20"): "quarterly expiry"})).empty
+        pd.Timestamp("2022-03-18"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2022-06-17"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2022-09-16"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2022-12-16"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2023-03-17"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2023-09-15"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2023-12-15"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2024-03-15"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2024-06-21"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2024-09-20"): QUARTERLY_EXPIRY,
+        pd.Timestamp("2024-12-20"): QUARTERLY_EXPIRY})).empty
 
 
 @pytest.mark.isolated
@@ -1634,31 +1672,31 @@ def test_add_monthly_expiry():
 
     # Quarterly expiry dates should be empty.
     assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-21"): "monthly expiry",
-        pd.Timestamp("2022-02-18"): "monthly expiry",
-        pd.Timestamp("2022-04-15"): "monthly expiry",
-        pd.Timestamp("2022-05-20"): "monthly expiry",
-        pd.Timestamp("2022-07-15"): "monthly expiry",
-        pd.Timestamp("2022-08-19"): "monthly expiry",
-        pd.Timestamp("2022-10-21"): "monthly expiry",
-        pd.Timestamp("2022-11-18"): "monthly expiry",
+        pd.Timestamp("2022-01-21"): MONTHLY_EXPIRY,
+        pd.Timestamp("2022-02-18"): MONTHLY_EXPIRY,
+        pd.Timestamp("2022-04-15"): MONTHLY_EXPIRY,
+        pd.Timestamp("2022-05-20"): MONTHLY_EXPIRY,
+        pd.Timestamp("2022-07-15"): MONTHLY_EXPIRY,
+        pd.Timestamp("2022-08-19"): MONTHLY_EXPIRY,
+        pd.Timestamp("2022-10-21"): MONTHLY_EXPIRY,
+        pd.Timestamp("2022-11-18"): MONTHLY_EXPIRY,
         pd.Timestamp("2023-01-19"): "Added Monthly Expiry",
-        pd.Timestamp("2023-01-20"): "monthly expiry",
-        pd.Timestamp("2023-02-17"): "monthly expiry",
-        pd.Timestamp("2023-04-21"): "monthly expiry",
-        pd.Timestamp("2023-05-19"): "monthly expiry",
-        pd.Timestamp("2023-07-21"): "monthly expiry",
-        pd.Timestamp("2023-08-18"): "monthly expiry",
-        pd.Timestamp("2023-10-20"): "monthly expiry",
-        pd.Timestamp("2023-11-17"): "monthly expiry",
-        pd.Timestamp("2024-01-19"): "monthly expiry",
-        pd.Timestamp("2024-02-16"): "monthly expiry",
-        pd.Timestamp("2024-04-19"): "monthly expiry",
-        pd.Timestamp("2024-05-17"): "monthly expiry",
-        pd.Timestamp("2024-07-19"): "monthly expiry",
-        pd.Timestamp("2024-08-16"): "monthly expiry",
-        pd.Timestamp("2024-10-18"): "monthly expiry",
-        pd.Timestamp("2024-11-15"): "monthly expiry"})).empty
+        pd.Timestamp("2023-01-20"): MONTHLY_EXPIRY,
+        pd.Timestamp("2023-02-17"): MONTHLY_EXPIRY,
+        pd.Timestamp("2023-04-21"): MONTHLY_EXPIRY,
+        pd.Timestamp("2023-05-19"): MONTHLY_EXPIRY,
+        pd.Timestamp("2023-07-21"): MONTHLY_EXPIRY,
+        pd.Timestamp("2023-08-18"): MONTHLY_EXPIRY,
+        pd.Timestamp("2023-10-20"): MONTHLY_EXPIRY,
+        pd.Timestamp("2023-11-17"): MONTHLY_EXPIRY,
+        pd.Timestamp("2024-01-19"): MONTHLY_EXPIRY,
+        pd.Timestamp("2024-02-16"): MONTHLY_EXPIRY,
+        pd.Timestamp("2024-04-19"): MONTHLY_EXPIRY,
+        pd.Timestamp("2024-05-17"): MONTHLY_EXPIRY,
+        pd.Timestamp("2024-07-19"): MONTHLY_EXPIRY,
+        pd.Timestamp("2024-08-16"): MONTHLY_EXPIRY,
+        pd.Timestamp("2024-10-18"): MONTHLY_EXPIRY,
+        pd.Timestamp("2024-11-15"): MONTHLY_EXPIRY})).empty
 
 
 @pytest.mark.isolated
@@ -1667,7 +1705,7 @@ def test_overwrite_regular_holiday_with_special_open():
     import exchange_calendars as ec
     import exchange_calendars_extensions as ece
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-01-02"), time(11, 0), "Added Special Open")
+    ece.add_special_open("TEST", pd.Timestamp("2023-01-02"), time(11, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -1676,17 +1714,17 @@ def test_overwrite_regular_holiday_with_special_open():
 
     # Overwritten holiday should no longer be in regular holidays.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-02"): "Holiday 0",
-        pd.Timestamp("2024-01-02"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-02"): HOLIDAY_0,
+        pd.Timestamp("2024-01-02"): HOLIDAY_0})).empty
 
     # Ad-hoc holidays should be unmodified.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
 
     # Overwritten holiday should no longer be in holidays_all calendar.
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-02"): "Holiday 0",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-02"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-02"): HOLIDAY_0,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-02"): HOLIDAY_0})).empty
 
     # Check number of distinct special open times.
     assert len(c.special_opens) == 1
@@ -1694,21 +1732,21 @@ def test_overwrite_regular_holiday_with_special_open():
     # Added special open should be in special opens for regular time.
     assert c.special_opens[0][0] == time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-01-02"): "Added Special Open",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-01-02"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
     # Ad-hoc special opens should be unmodified.
     assert c.special_opens_adhoc == [(time(11, 00), pd.Timestamp("2023-06-01"))]
 
     # Added special open should be in consolidated calendar.
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-05-02"): "Special Open 0",
-        pd.Timestamp("2023-01-02"): "Added Special Open",
-        pd.Timestamp("2023-05-01"): "Special Open 0",
-        pd.Timestamp("2023-06-01"): "ad-hoc special open",
-        pd.Timestamp("2024-05-01"): "Special Open 0"})).empty
+        pd.Timestamp("2022-05-02"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-01-02"): ADDED_SPECIAL_OPEN,
+        pd.Timestamp("2023-05-01"): SPECIAL_OPEN_0,
+        pd.Timestamp("2023-06-01"): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0})).empty
 
 
 @pytest.mark.isolated
@@ -1718,11 +1756,13 @@ def test_apply_changeset():
     import exchange_calendars_extensions as ece
 
     changes = {
-        "holiday": {"add": [{"date": "2023-01-02", "value": {"name": "Inserted Holiday"}}], "remove": ["2023-01-01"]},
-        "special_open": {"add": [{"date": "2023-05-02", "value": {"name": "Inserted Special Open", "time": "11:00"}}], "remove": ["2023-05-01"]},
-        "special_close": {"add": [{"date": "2023-03-02", "value": {"name": "Inserted Special Close", "time": "14:00"}}], "remove": ["2023-03-01"]},
-        "monthly_expiry": {"add": [{"date": "2023-08-17", "value": {"name": "Inserted Monthly Expiry"}}], "remove": ["2023-08-18"]},
-        "quarterly_expiry": {"add": [{"date": "2023-09-14", "value": {"name": "Inserted Quarterly Expiry"}}], "remove": ["2023-09-15"]},
+        "holiday": {"add": {"2023-01-02": {"name": INSERTED_HOLIDAY}}, "remove": ["2023-01-01"]},
+        "special_open": {"add": {"2023-05-02": {"name": "Inserted Special Open", "time": "11:00"}},
+                         "remove": ["2023-05-01"]},
+        "special_close": {"add": {"2023-03-02": {"name": "Inserted Special Close", "time": "14:00"}},
+                          "remove": ["2023-03-01"]},
+        "monthly_expiry": {"add": {"2023-08-17": {"name": "Inserted Monthly Expiry"}}, "remove": ["2023-08-18"]},
+        "quarterly_expiry": {"add": {"2023-09-14": {"name": "Inserted Quarterly Expiry"}}, "remove": ["2023-09-15"]},
     }
     ece.update_calendar("TEST", changes)
     c = ec.get_calendar("TEST")
@@ -1734,10 +1774,10 @@ def test_apply_changeset():
 
     # Verify regular holidays for 2022, 2023, and 2024.
     assert c.regular_holidays.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        # removed: pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-02"): "Inserted Holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        # removed: pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-02"): INSERTED_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     # Verify adhoc holidays.
     assert c.adhoc_holidays == [pd.Timestamp("2023-02-01")]
@@ -1747,10 +1787,10 @@ def test_apply_changeset():
     assert len(c.special_closes[0]) == 2
     assert c.special_closes[0][0] == datetime.time(14, 0)
     assert c.special_closes[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-03-01'): 'Special Close 0',
-        # removed: pd.Timestamp('2023-03-01'): 'Special Close 0',
+        pd.Timestamp('2022-03-01'): SPECIAL_CLOSE_0,
+        # removed: pd.Timestamp('2023-03-01'): SPECIAL_CLOSE_0,
         pd.Timestamp('2023-03-02'): 'Inserted Special Close',
-        pd.Timestamp('2024-03-01'): 'Special Close 0'})).empty
+        pd.Timestamp('2024-03-01'): SPECIAL_CLOSE_0})).empty
 
     # Verify adhoc special closes.
     assert c.special_closes_adhoc == [(datetime.time(14, 0), pd.DatetimeIndex([pd.Timestamp("2023-04-03")]))]
@@ -1760,10 +1800,10 @@ def test_apply_changeset():
     assert len(c.special_opens[0]) == 2
     assert c.special_opens[0][0] == datetime.time(11, 0)
     assert c.special_opens[0][1].holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-05-02'): 'Special Open 0',
-        # removed pd.Timestamp('2023-05-01'): 'Special Open 0',
+        pd.Timestamp('2022-05-02'): SPECIAL_OPEN_0,
+        # removed pd.Timestamp('2023-05-01'): SPECIAL_OPEN_0,
         pd.Timestamp('2023-05-02'): 'Inserted Special Open',
-        pd.Timestamp('2024-05-01'): 'Special Open 0'})).empty
+        pd.Timestamp('2024-05-01'): SPECIAL_OPEN_0})).empty
 
     # Verify adhoc special opens.
     assert c.special_opens_adhoc == [(datetime.time(11, 0), pd.DatetimeIndex([pd.Timestamp("2023-06-01")]))]
@@ -1771,64 +1811,223 @@ def test_apply_changeset():
     # Verify additional holiday calendars.
 
     assert c.holidays_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp("2022-01-01"): "Holiday 0",
-        # removed: pd.Timestamp("2023-01-01"): "Holiday 0",
-        pd.Timestamp("2023-01-02"): "Inserted Holiday",
-        pd.Timestamp("2023-02-01"): "ad-hoc holiday",
-        pd.Timestamp("2024-01-01"): "Holiday 0"})).empty
+        pd.Timestamp("2022-01-01"): HOLIDAY_0,
+        # removed: pd.Timestamp("2023-01-01"): HOLIDAY_0,
+        pd.Timestamp("2023-01-02"): INSERTED_HOLIDAY,
+        pd.Timestamp("2023-02-01"): AD_HOC_HOLIDAY,
+        pd.Timestamp("2024-01-01"): HOLIDAY_0})).empty
 
     assert c.special_closes_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-03-01'): 'Special Close 0',
-        # removed: pd.Timestamp('2023-03-01'): 'Special Close 0',
+        pd.Timestamp('2022-03-01'): SPECIAL_CLOSE_0,
+        # removed: pd.Timestamp('2023-03-01'): SPECIAL_CLOSE_0,
         pd.Timestamp('2023-03-02'): 'Inserted Special Close',
-        pd.Timestamp('2023-04-03'): "ad-hoc special close",
-        pd.Timestamp('2024-03-01'): 'Special Close 0'})).empty
+        pd.Timestamp('2023-04-03'): AD_HOC_SPECIAL_CLOSE,
+        pd.Timestamp('2024-03-01'): SPECIAL_CLOSE_0})).empty
 
     assert c.special_opens_all.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-05-02'): 'Special Open 0',
-        # removed: pd.Timestamp('2023-05-01'): 'Special Open 0',
+        pd.Timestamp('2022-05-02'): SPECIAL_OPEN_0,
+        # removed: pd.Timestamp('2023-05-01'): SPECIAL_OPEN_0,
         pd.Timestamp('2023-05-02'): 'Inserted Special Open',
-        pd.Timestamp('2023-06-01'): "ad-hoc special open",
-        pd.Timestamp('2024-05-01'): 'Special Open 0'})).empty
+        pd.Timestamp('2023-06-01'): AD_HOC_SPECIAL_OPEN,
+        pd.Timestamp('2024-05-01'): SPECIAL_OPEN_0})).empty
 
     assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-03-18'): 'quarterly expiry',
-        pd.Timestamp('2022-06-17'): 'quarterly expiry',
-        pd.Timestamp('2022-09-16'): 'quarterly expiry',
-        pd.Timestamp('2022-12-16'): 'quarterly expiry',
-        pd.Timestamp('2023-03-17'): 'quarterly expiry',
-        pd.Timestamp('2023-06-16'): 'quarterly expiry',
+        pd.Timestamp('2022-03-18'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-06-17'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-09-16'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-12-16'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2023-03-17'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2023-06-16'): QUARTERLY_EXPIRY,
         pd.Timestamp('2023-09-14'): 'Inserted Quarterly Expiry',
-        # removed: pd.Timestamp('2023-09-15'): 'quarterly expiry',
-        pd.Timestamp('2023-12-15'): 'quarterly expiry',
-        pd.Timestamp('2024-03-15'): 'quarterly expiry',
-        pd.Timestamp('2024-06-21'): 'quarterly expiry',
-        pd.Timestamp('2024-09-20'): 'quarterly expiry',
-        pd.Timestamp('2024-12-20'): 'quarterly expiry'})).empty
+        # removed: pd.Timestamp('2023-09-15'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2023-12-15'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2024-03-15'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2024-06-21'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2024-09-20'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2024-12-20'): QUARTERLY_EXPIRY})).empty
 
     assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
-        pd.Timestamp('2022-01-21'): 'monthly expiry',
-        pd.Timestamp('2022-02-18'): 'monthly expiry',
-        pd.Timestamp('2022-04-15'): 'monthly expiry',
-        pd.Timestamp('2022-05-20'): 'monthly expiry',
-        pd.Timestamp('2022-07-15'): 'monthly expiry',
-        pd.Timestamp('2022-08-19'): 'monthly expiry',
-        pd.Timestamp('2022-10-21'): 'monthly expiry',
-        pd.Timestamp('2022-11-18'): 'monthly expiry',
-        pd.Timestamp('2023-01-20'): 'monthly expiry',
-        pd.Timestamp('2023-02-17'): 'monthly expiry',
-        pd.Timestamp('2023-04-21'): 'monthly expiry',
-        pd.Timestamp('2023-05-19'): 'monthly expiry',
-        pd.Timestamp('2023-07-21'): 'monthly expiry',
+        pd.Timestamp('2022-01-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-02-18'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-04-15'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-05-20'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-07-15'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-08-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-10-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-11-18'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-01-20'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-02-17'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-04-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-05-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-07-21'): MONTHLY_EXPIRY,
         pd.Timestamp('2023-08-17'): 'Inserted Monthly Expiry',
-        # removed: pd.Timestamp('2023-08-18'): 'monthly expiry',
-        pd.Timestamp('2023-10-20'): 'monthly expiry',
-        pd.Timestamp('2023-11-17'): 'monthly expiry',
-        pd.Timestamp('2024-01-19'): 'monthly expiry',
-        pd.Timestamp('2024-02-16'): 'monthly expiry',
-        pd.Timestamp('2024-04-19'): 'monthly expiry',
-        pd.Timestamp('2024-05-17'): 'monthly expiry',
-        pd.Timestamp('2024-07-19'): 'monthly expiry',
-        pd.Timestamp('2024-08-16'): 'monthly expiry',
-        pd.Timestamp('2024-10-18'): 'monthly expiry',
-        pd.Timestamp('2024-11-15'): 'monthly expiry'})).empty
+        # removed: pd.Timestamp('2023-08-18'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-10-20'): MONTHLY_EXPIRY,
+        pd.Timestamp('2023-11-17'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-01-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-02-16'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-04-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-05-17'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-07-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-08-16'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-10-18'): MONTHLY_EXPIRY,
+        pd.Timestamp('2024-11-15'): MONTHLY_EXPIRY})).empty
+
+
+@pytest.mark.isolated
+def test_test():
+    import exchange_calendars_extensions as ece
+    ece.apply_extensions()
+    import exchange_calendars as ec
+
+    changes = {
+        "holiday": {
+            "add": {"2022-01-10": {"name": "Holiday"}},
+            "remove": ["2022-01-11"]
+        },
+        "special_open": {
+            "add": {"2022-01-12": {"name": "Special Open", "time": "10:00"}},
+            "remove": ["2022-01-13"]
+        },
+        "special_close": {
+            "add": {"2022-01-14": {"name": "Special Close", "time": "16:00"}},
+            "remove": ["2022-01-17"]
+        },
+        "monthly_expiry": {
+            "add": {"2022-01-18": {"name": MONTHLY_EXPIRY}},
+            "remove": ["2022-01-19"]
+        },
+        "quarterly_expiry": {
+            "add": {"2022-01-20": {"name": QUARTERLY_EXPIRY}},
+            "remove": ["2022-01-21"]
+        }
+    }
+
+    ece.update_calendar('XLON', changes)
+
+    calendar = ec.get_calendar('XLON')
+
+    assert '2022-01-10' in calendar.holidays_all.holidays()
+    assert '2022-01-11' not in calendar.holidays_all.holidays()
+    assert '2022-01-12' in calendar.special_opens_all.holidays()
+    assert '2022-01-13' not in calendar.special_opens_all.holidays()
+    assert '2022-01-14' in calendar.special_closes_all.holidays()
+    assert '2022-01-17' not in calendar.special_closes_all.holidays()
+    assert '2022-01-18' in calendar.monthly_expiries.holidays()
+    assert '2022-01-19' not in calendar.monthly_expiries.holidays()
+    assert '2022-01-20' in calendar.quarterly_expiries.holidays()
+    assert '2022-01-21' not in calendar.quarterly_expiries.holidays()
+
+
+@pytest.mark.isolated
+def test_quarterly_expiry_rollback_one_day():
+    add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-03-18")],
+                                           adhoc_holidays=[],
+                                           regular_special_close=time(14, 00),
+                                           special_closes=[],
+                                           adhoc_special_closes=[],
+                                           regular_special_open=time(11, 00),
+                                           special_opens=[],
+                                           adhoc_special_opens=[],
+                                           weekmask="1111100",
+                                           day_of_week_expiry=4)
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("TEST")
+
+    print(type(c))
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2022-12-31")
+
+    assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-03-17'): QUARTERLY_EXPIRY,  # Should be rolled back from 2022-03-18 since it is a holiday.
+        pd.Timestamp('2022-06-17'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-09-16'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-12-16'): QUARTERLY_EXPIRY})).empty
+
+
+@pytest.mark.isolated
+def test_quarterly_expiry_rollback_multiple_days():
+    add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-03-18")],
+                                           adhoc_holidays=[pd.Timestamp("2022-03-17")],
+                                           regular_special_close=time(14, 00),
+                                           special_closes=[(time(14, 00), [pd.Timestamp("2022-03-16")])],
+                                           adhoc_special_closes=[(time(14, 00), [pd.Timestamp("2022-03-15")])],
+                                           regular_special_open=time(11, 00),
+                                           special_opens=[(time(11, 00), [pd.Timestamp("2022-03-14")])],
+                                           adhoc_special_opens=[],
+                                           weekmask="1111100",
+                                           day_of_week_expiry=4)
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2022-12-31")
+
+    assert c.quarterly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-03-11'): QUARTERLY_EXPIRY,  # Should be rolled back from 2022-03-18.
+        pd.Timestamp('2022-06-17'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-09-16'): QUARTERLY_EXPIRY,
+        pd.Timestamp('2022-12-16'): QUARTERLY_EXPIRY})).empty
+
+
+@pytest.mark.isolated
+def test_monthly_expiry_rollback_one_day():
+    add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-02-18")],
+                                           adhoc_holidays=[],
+                                           regular_special_close=time(14, 00),
+                                           special_closes=[],
+                                           adhoc_special_closes=[],
+                                           regular_special_open=time(11, 00),
+                                           special_opens=[],
+                                           adhoc_special_opens=[],
+                                           weekmask="1111100",
+                                           day_of_week_expiry=4)
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2022-12-31")
+
+    assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-01-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-02-17'): MONTHLY_EXPIRY,  # Should be rolled back from 2022-02-18 since it is a holiday.
+        pd.Timestamp('2022-04-15'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-05-20'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-07-15'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-08-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-10-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-11-18'): MONTHLY_EXPIRY})).empty
+
+
+@pytest.mark.isolated
+def test_monthly_expiry_rollback_multiple_days():
+    add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2022-02-18")],
+                                           adhoc_holidays=[pd.Timestamp("2022-02-17")],
+                                           regular_special_close=time(14, 00),
+                                           special_closes=[(time(14, 00), [pd.Timestamp("2022-02-16")])],
+                                           adhoc_special_closes=[(time(14, 00), [pd.Timestamp("2022-02-15")])],
+                                           regular_special_open=time(11, 00),
+                                           special_opens=[(time(11, 00), [pd.Timestamp("2022-02-14")])],
+                                           adhoc_special_opens=[],
+                                           weekmask="1111100",
+                                           day_of_week_expiry=4)
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("TEST")
+
+    start = pd.Timestamp("2022-01-01")
+    end = pd.Timestamp("2022-12-31")
+
+    assert c.monthly_expiries.holidays(start=start, end=end, return_name=True).compare(pd.Series({
+        pd.Timestamp('2022-01-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-02-11'): MONTHLY_EXPIRY,  # Should be rolled back from 2022-02-18.
+        pd.Timestamp('2022-04-15'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-05-20'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-07-15'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-08-19'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-10-21'): MONTHLY_EXPIRY,
+        pd.Timestamp('2022-11-18'): MONTHLY_EXPIRY})).empty

@@ -1,5 +1,6 @@
 import datetime
 from abc import ABC
+from copy import copy
 from dataclasses import field, dataclass
 from functools import reduce
 from typing import Iterable, Optional, Callable, Union, Type, Protocol, List, Tuple, runtime_checkable
@@ -11,10 +12,9 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars.pandas_extensions.holiday import Holiday as ExchangeCalendarsHoliday
 from pandas.tseries.holiday import Holiday as PandasHoliday
 
-from exchange_calendars_extensions import ChangeSet, HolidaysAndSpecialSessions
+from exchange_calendars_extensions import ChangeSet
 from exchange_calendars_extensions.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday, \
     get_last_day_of_month_holiday
-from exchange_calendars_extensions.observance import get_roll_backward_observance
 
 
 class HolidayCalendar(ExchangeCalendarsHolidayCalendar):
@@ -45,8 +45,70 @@ class HolidayCalendar(ExchangeCalendarsHolidayCalendar):
             return holidays.drop_duplicates()
 
 
+def get_conflicts(holidays_dates: List[pd.Timestamp], other_holidays: pd.DatetimeIndex, weekend_days: Iterable[int]) -> List[int]:
+    """
+    Get the indices of holidays that coincide with holidays from the other calendar or the given weekend days.
+
+    Parameters
+    ----------
+    holidays_dates : List[pd.Timestamp]
+        The dates of the holidays.
+    other_holidays : pd.DatetimeIndex
+        The dates of the holidays from the other calendar.
+    weekend_days : Iterable[int]
+        The days of the week that are considered weekend days.
+
+    Returns
+    -------
+    List[int]
+        The indices of holidays that coincide with holidays from the other calendar or the given weekend days.
+    """
+
+    # Determine the indices of holidays that coincide with holidays from the other calendar.
+    return [i for i in range(len(holidays_dates)) if holidays_dates[i] in other_holidays or holidays_dates[i].weekday() in weekend_days]
+
+
+class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
+
+    def __init__(self, rules, other: ExchangeCalendarsHolidayCalendar, weekmask: str) -> None:
+        super().__init__(rules=rules)
+        self.other = other
+        self.weekend_days = {d for d in range(7) if weekmask[d] == '0'}
+
+    def holidays(self, start=None, end=None, return_name=False):
+        # Get the holidays from the parent class.
+        holidays = super().holidays(start=start, end=end, return_name=return_name)
+
+        # Get the holidays from the other calendar.
+        other_holidays = self.other.holidays(start=start, end=end, return_name=False)
+
+        holidays_dates = list(holidays.index if return_name else holidays)
+
+        conflicts = get_conflicts(holidays_dates, other_holidays, self.weekend_days)
+
+        if len(conflicts) == 0:
+            return holidays
+
+        while True:
+            # For each index of a conflicting holiday, adjust the date by one day into the past.
+            for i in conflicts:
+                holidays_dates[i] = holidays_dates[i] - pd.Timedelta(days=1)
+
+            conflicts = get_conflicts(holidays_dates, other_holidays, self.weekend_days)
+
+            if len(conflicts) == 0:
+                break
+
+        holidays_index = pd.DatetimeIndex(holidays_dates)
+
+        if return_name:
+            return pd.Series(holidays.values, index=holidays_index)
+        else:
+            return holidays_index
+
+
 def get_holiday_calendar_from_timestamps(timestamps: Iterable[pd.Timestamp],
-                                         name: Optional[str] = None) -> HolidayCalendar:
+                                         name: Optional[str] = None) -> ExchangeCalendarsHolidayCalendar:
     """
     Return a holiday calendar with holidays given by a collection of timestamps.
 
@@ -61,15 +123,15 @@ def get_holiday_calendar_from_timestamps(timestamps: Iterable[pd.Timestamp],
 
     Returns
     -------
-    HolidayCalendar
+    ExchangeCalendarsHolidayCalendar
         A new HolidayCalendar object as specified.
     """
     # Generate list of rules, one for each timestamp.
-    rules = [Holiday(name, year=ts.year, month=ts.month, day=ts.day) for ts in
-             list(dict.fromkeys(timestamps))]  # As of Python 3.7, dict preserves insertion order.
+    rules = [Holiday(name, year=ts.year, month=ts.month, day=ts.day, start_date=ts, end_date=ts) for ts in
+             set(dict.fromkeys(timestamps))]  # As of Python 3.7, dict preserves insertion order.
 
     # Return a new HolidayCalendar with the given rules.
-    return HolidayCalendar(rules=rules)
+    return ExchangeCalendarsHolidayCalendar(rules=rules)
 
 
 def get_holiday_calendar_from_day_of_week(day_of_week: int, name: Optional[str] = None) -> HolidayCalendar:
@@ -90,7 +152,7 @@ def get_holiday_calendar_from_day_of_week(day_of_week: int, name: Optional[str] 
     return ExchangeCalendarsHolidayCalendar(rules=rules)
 
 
-def merge_calendars(calendars: Iterable[HolidayCalendar]) -> HolidayCalendar:
+def merge_calendars(calendars: Iterable[ExchangeCalendarsHolidayCalendar]) -> ExchangeCalendarsHolidayCalendar:
     """
     Return a holiday calendar with all holidays from the given calendars merged into a single HolidayCalendar.
 
@@ -98,14 +160,14 @@ def merge_calendars(calendars: Iterable[HolidayCalendar]) -> HolidayCalendar:
     that occur earlier take precedence in case of conflicts, i.e. rules that apply to the same date.
     """
     x = reduce(lambda x, y: HolidayCalendar(rules=[r for r in x.rules] + [r for r in y.rules]), calendars,
-               HolidayCalendar(rules=[]))
+               ExchangeCalendarsHolidayCalendar(rules=[]))
     return x
 
 
-def get_holidays_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCalendar:
+def get_holidays_calendar(exchange_calendar: ExchangeCalendar) -> ExchangeCalendarsHolidayCalendar:
     """
-    Return a holiday calendar with all holidays, regular and ad-hoc, from the given exchange calendar merged into a single
-    HolidayCalendar.
+    Return a holiday calendar with all holidays, regular and ad-hoc, from the given exchange calendar merged into a
+    single calendar.
 
     Parameters
     ----------
@@ -114,7 +176,7 @@ def get_holidays_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCalenda
 
     Returns
     -------
-    HolidayCalendar
+    ExchangeCalendarsHolidayCalendar
         A new HolidayCalendar with all holidays from the given EchangeCalendar.
     """
     holiday_calendars = [get_holiday_calendar_from_timestamps(exchange_calendar.adhoc_holidays, name='ad-hoc holiday'),
@@ -124,10 +186,10 @@ def get_holidays_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCalenda
     return merge_calendars(holiday_calendars)
 
 
-def get_special_opens_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCalendar:
+def get_special_opens_calendar(exchange_calendar: ExchangeCalendar) -> ExchangeCalendarsHolidayCalendar:
     """
-    Return a holiday calendar with all special opens, regular and ad-hoc, from the given exchange calendar merged into a single
-    HolidayCalendar.
+    Return a holiday calendar with all special opens, regular and ad-hoc, from the given exchange calendar merged into a
+    single calendar.
 
     Parameters
     ----------
@@ -136,7 +198,7 @@ def get_special_opens_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCa
 
     Returns
     -------
-    HolidayCalendar
+    ExchangeCalendarsHolidayCalendar
         A new HolidayCalendar with all special opens from the given EchangeCalendar.
     """
     holiday_calendars = []
@@ -158,10 +220,10 @@ def get_special_opens_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCa
     return merge_calendars(holiday_calendars)
 
 
-def get_special_closes_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCalendar:
+def get_special_closes_calendar(exchange_calendar: ExchangeCalendar) -> ExchangeCalendarsHolidayCalendar:
     """
-    Return a holiday calendar with all special closes, regular and ad-hoc, from the given exchange calendar merged into a single
-    HolidayCalendar.
+    Return a holiday calendar with all special closes, regular and ad-hoc, from the given exchange calendar merged into
+    a single calendar.
 
     Parameters
     ----------
@@ -170,7 +232,7 @@ def get_special_closes_calendar(exchange_calendar: ExchangeCalendar) -> HolidayC
 
     Returns
     -------
-    HolidayCalendar
+    ExchangeCalendarsHolidayCalendar
         A new HolidayCalendar with all special closes from the given EchangeCalendar.
     """
     holiday_calendars = []
@@ -192,7 +254,7 @@ def get_special_closes_calendar(exchange_calendar: ExchangeCalendar) -> HolidayC
     return merge_calendars(holiday_calendars)
 
 
-def get_weekend_days_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCalendar:
+def get_weekend_days_calendar(exchange_calendar: ExchangeCalendar) -> ExchangeCalendarsHolidayCalendar:
     """
     Return a holiday calendar with all weekend days from the given exchange calendar as holidays.
 
@@ -203,7 +265,7 @@ def get_weekend_days_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCal
 
     Returns
     -------
-    HolidayCalendar
+    ExchangeCalendarsHolidayCalendar
         A new HolidayCalendar with all weekend days from the given EchangeCalendar.
     """
     rules = [DayOfWeekPeriodicHoliday('weekend day', day_of_week) for day_of_week, v in
@@ -211,10 +273,10 @@ def get_weekend_days_calendar(exchange_calendar: ExchangeCalendar) -> HolidayCal
     return ExchangeCalendarsHolidayCalendar(rules=rules)
 
 
-def get_monthly_expiry_calendar(day_of_week: int,
-                                observance: Optional[Callable[[pd.Timestamp], pd.Timestamp]] = None) -> HolidayCalendar:
+def get_monthly_expiry_rules(day_of_week: int,
+                             observance: Optional[Callable[[pd.Timestamp], pd.Timestamp]] = None) -> List[Holiday]:
     """
-    Return a holiday calendar with a holiday for each month's expiry, but excluding quarterly expiry days.
+    Return a list of rules for a calendar with a holiday for each month's expiry, but excluding quarterly expiry days.
 
     Parameters
     ----------
@@ -225,18 +287,17 @@ def get_monthly_expiry_calendar(day_of_week: int,
 
     Returns
     -------
-    HolidayCalendar
-        A new HolidayCalendar with a holiday for each month's expiry, but excluding quarterly expiry days.
+    List[Holiday]
+        A list of rules for a calendar with a holiday for each month's expiry, but excluding quarterly expiry days.
     """
-    rules = [get_monthly_expiry_holiday('monthly expiry', day_of_week, month, observance) for month in
+    return [get_monthly_expiry_holiday('monthly expiry', day_of_week, month, observance) for month in
              [1, 2, 4, 5, 7, 8, 10, 11]]
-    return ExchangeCalendarsHolidayCalendar(rules=rules)
 
 
-def get_quadruple_witching_calendar(day_of_week: int, observance: Optional[
-    Callable[[pd.Timestamp], pd.Timestamp]] = None) -> HolidayCalendar:
+def get_quadruple_witching_rules(day_of_week: int,
+                                 observance: Optional[Callable[[pd.Timestamp], pd.Timestamp]] = None) -> List[Holiday]:
     """
-    Return a holiday calendar with a holiday for each quarterly expiry aka quadruple witching.
+    Return a list of rules for a calendar with a holiday for each quarterly expiry aka quadruple witching.
 
     Parameters
     ----------
@@ -247,17 +308,16 @@ def get_quadruple_witching_calendar(day_of_week: int, observance: Optional[
 
     Returns
     -------
-    HolidayCalendar
-        A new HolidayCalendar with a holiday for each quarterly expiry.
+    List[Holiday]
+        A list of rules for a calendar with a holiday for each quarterly expiry aka quadruple witching.
     """
-    rules = [get_monthly_expiry_holiday('quarterly expiry', day_of_week, month, observance) for month in [3, 6, 9, 12]]
-    return ExchangeCalendarsHolidayCalendar(rules=rules)
+    return [get_monthly_expiry_holiday('quarterly expiry', day_of_week, month, observance) for month in [3, 6, 9, 12]]
 
 
-def get_last_day_of_month_calendar(name: Optional[str] = 'last trading day of month', observance: Optional[
-    Callable[[pd.Timestamp], pd.Timestamp]] = None) -> HolidayCalendar:
+def get_last_day_of_month_rules(name: Optional[str] = 'last trading day of month', observance: Optional[
+    Callable[[pd.Timestamp], pd.Timestamp]] = None) -> List[Holiday]:
     """
-    Return a holiday calendar with a holiday for each last trading day of the month.
+    Return a list of rules for a calendar with a holiday for each last trading day of the month.
 
     Parameters
     ----------
@@ -268,11 +328,10 @@ def get_last_day_of_month_calendar(name: Optional[str] = 'last trading day of mo
 
     Returns
     -------
-    HolidayCalendar
-        A new HolidayCalendar with a holiday for each last trading day of the month.
+    List[Holiday]
+        A list of rules for a calendar with a holiday for each last trading day of the month.
     """
-    rules = [get_last_day_of_month_holiday(name, i, observance=observance) for i in range(1, 13)]
-    return ExchangeCalendarsHolidayCalendar(rules=rules)
+    return [get_last_day_of_month_holiday(name, i, observance=observance) for i in range(1, 13)]
 
 
 @runtime_checkable
@@ -282,97 +341,97 @@ class ExchangeCalendarExtensions(Protocol):
     """
 
     @property
-    def weekend_days(self) -> HolidayCalendar:
+    def weekend_days(self) -> ExchangeCalendarsHolidayCalendar:
         """
         Return holiday calendar containing all weekend days as holidays.
 
         Returns
         -------
-        HolidayCalendar
+        ExchangeCalendarsHolidayCalendar
             A new HolidayCalendar with all weekend days as holidays.
         """
         ...  # pragma: no cover
 
     @property
-    def holidays_all(self) -> HolidayCalendar:
+    def holidays_all(self) -> ExchangeCalendarsHolidayCalendar:
         """
         Return a holiday calendar containing all holidays, regular and ad-hoc.
 
         Returns
         -------
-        HolidayCalendar
+        ExchangeCalendarsHolidayCalendar
             A new HolidayCalendar with all holidays.
         """
         ...  # pragma: no cover
 
     @property
-    def special_opens_all(self) -> HolidayCalendar:
+    def special_opens_all(self) -> ExchangeCalendarsHolidayCalendar:
         """
         Return a holiday calendar with all special opens, regular and ad-hoc.
 
         Returns
         -------
-        HolidayCalendar
+        ExchangeCalendarsHolidayCalendar
             A new HolidayCalendar with all special opens.
         """
         ...  # pragma: no cover
 
     @property
-    def special_closes_all(self) -> HolidayCalendar:
+    def special_closes_all(self) -> ExchangeCalendarsHolidayCalendar:
         """
         Return a holiday calendar with all special closes, regular and ad-hoc.
 
         Returns
         -------
-        HolidayCalendar
+        ExchangeCalendarsHolidayCalendar
             A new HolidayCalendar with all special closes.
         """
         ...  # pragma: no cover
 
     @property
-    def monthly_expiries(self) -> Union[HolidayCalendar, None]:
+    def monthly_expiries(self) -> Union[ExchangeCalendarsHolidayCalendar, None]:
         """
         Return a holiday calendar with a holiday for each monthly expiry, but excluding quarterly expiry days.
 
         Returns
         -------
-        HolidayCalendar
+        ExchangeCalendarsHolidayCalendar
             A new HolidayCalendar with a holiday for each monthly expiry.
         """
         ...  # pragma: no cover
 
     @property
-    def quarterly_expiries(self) -> Union[HolidayCalendar, None]:
+    def quarterly_expiries(self) -> Union[ExchangeCalendarsHolidayCalendar, None]:
         """
         Return a holiday calendar with a holiday for each quarterly expiry aka quadruple witching.
 
         Returns
         -------
-        HolidayCalendar
+        ExchangeCalendarsHolidayCalendar
             A new HolidayCalendar with a holiday for each quarterly expiry.
         """
         ...  # pragma: no cover
 
     @property
-    def last_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
+    def last_trading_days_of_months(self) -> Union[ExchangeCalendarsHolidayCalendar, None]:
         """
         Return a holiday calendar with a holiday for each last trading day of the month.
 
         Returns
         -------
-        HolidayCalendar
+        ExchangeCalendarsHolidayCalendar
             A new HolidayCalendar with a holiday for each last trading day of the month.
         """
         ...  # pragma: no cover
 
     @property
-    def last_regular_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
+    def last_regular_trading_days_of_months(self) -> Union[ExchangeCalendarsHolidayCalendar, None]:
         """
         Return a holiday calendar with a holiday for each last regular trading day of the month.
 
         Returns
         -------
-        HolidayCalendar
+        ExchangeCalendarsHolidayCalendar
             A new HolidayCalendar with a holiday for each last regular trading day of the month.
         """
         ...
@@ -685,20 +744,20 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     def __init__(self, *args, **kwargs):
         # Save adjusted properties. Initialize with copies of the original properties.
-        a = AdjustedProperties(regular_holidays=regular_holidays_orig(self).rules.copy(),
-                               adhoc_holidays=adhoc_holidays_orig(self).copy(),
-                               special_closes=[(t, d if isinstance(d, int) else d.rules.copy()) for t, d in
-                                               special_closes_orig(self).copy()],
-                               adhoc_special_closes=adhoc_special_closes_orig(self).copy(),
-                               special_opens=[(t, d if isinstance(d, int) else d.rules.copy()) for t, d in
-                                              special_opens_orig(self).copy()],
-                               adhoc_special_opens=adhoc_special_opens_orig(self).copy())
+        a = AdjustedProperties(regular_holidays=list(copy(regular_holidays_orig(self).rules)),
+                               adhoc_holidays=list(copy(adhoc_holidays_orig(self))),
+                               special_closes=[(t, d if isinstance(d, int) else list(copy(d.rules))) for t, d in
+                                               copy(special_closes_orig(self))],
+                               adhoc_special_closes=list(copy(adhoc_special_closes_orig(self))),
+                               special_opens=[(t, d if isinstance(d, int) else list(copy(d.rules))) for t, d in
+                                              copy(special_opens_orig(self))],
+                               adhoc_special_opens=list(copy(adhoc_special_opens_orig(self))))
 
         # Get changeset from provider, maybe.
         changeset: ChangeSet = changeset_provider() if changeset_provider is not None else None
 
         # Set changeset to None if it is empty.
-        if changeset is not None and changeset.is_empty():
+        if changeset is not None and len(changeset) <= 0:
             changeset = None
 
         # Normalize changeset, maybe.
@@ -710,12 +769,13 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
             # Apply all changes pertaining to regular exchange calendar properties.
 
             # Remove holidays.
-            for ts in changeset.changes[HolidaysAndSpecialSessions.HOLIDAY].remove:
+            for ts in changeset.holiday.remove:
                 a.regular_holidays, a.adhoc_holidays = remove_holiday(ts, a.regular_holidays, a.adhoc_holidays)
 
             # Add holidays.
-            for ts, spec in changeset.changes[HolidaysAndSpecialSessions.HOLIDAY].add.items():
-                name = spec['name']
+            for ts, spec in changeset.holiday.add.items():
+                name = spec.name
+
                 # Remove existing holiday, maybe.
                 a.regular_holidays, a.adhoc_holidays = remove_holiday(ts, a.regular_holidays, a.adhoc_holidays)
 
@@ -723,13 +783,13 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
                 a.regular_holidays.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
 
             # Remove special opens.
-            for ts in changeset.changes[HolidaysAndSpecialSessions.SPECIAL_OPEN].remove:
+            for ts in changeset.special_open.remove:
                 a.special_opens, a.adhoc_special_opens = remove_special_session(ts, a.special_opens,
                                                                                 a.adhoc_special_opens)
 
             # Add special opens.
-            for ts, spec in changeset.changes[HolidaysAndSpecialSessions.SPECIAL_OPEN].add.items():
-                name, t = spec['name'], spec['time']
+            for ts, spec in changeset.special_open.add.items():
+                name, t = spec.name, spec.time
 
                 # Remove existing special open, maybe.
                 a.special_opens, a.adhoc_special_opens = remove_special_session(ts, a.special_opens,
@@ -739,13 +799,13 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
                 a.special_opens = add_special_session(name, ts, t, a.special_opens)
 
             # Remove special closes.
-            for ts in changeset.changes[HolidaysAndSpecialSessions.SPECIAL_CLOSE].remove:
+            for ts in changeset.special_close.remove:
                 a.special_closes, a.adhoc_special_closes = remove_special_session(ts, a.special_closes,
                                                                                   a.adhoc_special_closes)
 
             # Add special closes.
-            for ts, spec in changeset.changes[HolidaysAndSpecialSessions.SPECIAL_CLOSE].add.items():
-                name, t = spec['name'], spec['time']
+            for ts, spec in changeset.special_close.add.items():
+                name, t = spec.name, spec.time
 
                 # Remove existing special close, maybe.
                 a.special_closes, a.adhoc_special_closes = remove_special_session(ts, a.special_closes,
@@ -759,31 +819,23 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
         # Call upstream init method.
         init_orig(self, *args, **kwargs)
 
-        # All weekend days and holidays.
-        weekends_and_holidays = merge_calendars([get_weekend_days_calendar(self), get_holidays_calendar(self)])
-
-        # All weekend days, holidays and special business days.
-        weekends_holidays_and_special_business_days = merge_calendars(
-            [weekends_and_holidays, get_special_opens_calendar(self), get_special_closes_calendar(self)])
-
-        a.quarterly_expiries = get_quadruple_witching_calendar(day_of_week_expiry, get_roll_backward_observance(
-            weekends_holidays_and_special_business_days)).rules.copy() if day_of_week_expiry is not None else []
-        a.monthly_expiries = get_monthly_expiry_calendar(day_of_week_expiry, get_roll_backward_observance(
-            weekends_holidays_and_special_business_days)).rules.copy() if day_of_week_expiry is not None else []
+        a.quarterly_expiries = get_quadruple_witching_rules(day_of_week_expiry) if day_of_week_expiry is not None else []
+        a.monthly_expiries = get_monthly_expiry_rules(day_of_week_expiry) if day_of_week_expiry is not None else []
 
         if changeset is not None:
 
             # Remove quarterly expiries.
 
             # Loop over quarterly expiries to remove.
-            for ts in changeset.changes[HolidaysAndSpecialSessions.QUARTERLY_EXPIRY].remove:
+            for ts in changeset.quarterly_expiry.remove:
                 a.quarterly_expiries, _ = remove_holiday(ts, a.quarterly_expiries)
 
             # Add quarterly expiries.
 
             # Loop over quarterly expiries to add.
-            for ts, spec in changeset.changes[HolidaysAndSpecialSessions.QUARTERLY_EXPIRY].add.items():
-                name = spec['name']
+            for ts, spec in changeset.quarterly_expiry.add.items():
+                name = spec.name
+
                 # Remove existing quarterly expiry, maybe.
                 a.quarterly_expiries, _ = remove_holiday(ts, a.quarterly_expiries)
 
@@ -793,26 +845,31 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
             # Remove monthly expiries.
 
             # Loop over monthly expiries to remove.
-            for ts in changeset.changes[HolidaysAndSpecialSessions.MONTHLY_EXPIRY].remove:
+            for ts in changeset.monthly_expiry.remove:
                 a.monthly_expiries, _ = remove_holiday(ts, a.monthly_expiries)
 
             # Add monthly expiries.
 
             # Loop over monthly expiries to add.
-            for ts, spec in changeset.changes[HolidaysAndSpecialSessions.MONTHLY_EXPIRY].add.items():
-                name = spec['name']
+            for ts, spec in changeset.monthly_expiry.add.items():
+                name = spec.name
+
                 # Remove existing monthly expiry, maybe.
                 a.monthly_expiries, _ = remove_holiday(ts, a.monthly_expiries)
 
                 # Add the monthly expiry.
                 a.monthly_expiries.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
 
-        a.last_trading_days_of_months = get_last_day_of_month_calendar('last trading day of month',
-                                                                       get_roll_backward_observance(
-                                                                           weekends_and_holidays)).rules.copy()
-        a.last_regular_trading_days_of_months = get_last_day_of_month_calendar('last regular trading day of month',
-                                                                               get_roll_backward_observance(
-                                                                                   weekends_holidays_and_special_business_days)).rules.copy()
+        a.last_trading_days_of_months = get_last_day_of_month_rules('last trading day of month')
+        a.last_regular_trading_days_of_months = get_last_day_of_month_rules('last regular trading day of month')
+
+        # Save a calendar with all holidays and another one with all holidays and special business days for later use.
+        # These calendars are needed to generate calendars for monthly expiries, quarterly expiries, last trading days
+        # of the month, and last regular trading days of the month. Each of these calendars defines contains days that
+        # need to be rolled back to a previous business day if they fall on a holiday and/or special business day.
+        self._holidays_shared = get_holidays_calendar(self)
+        self._holidays_and_special_business_days_shared = merge_calendars(
+            [get_holidays_calendar(self), get_special_opens_calendar(self), get_special_closes_calendar(self)])
 
     @property
     def regular_holidays(self) -> Union[HolidayCalendar, None]:
@@ -820,7 +877,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def adhoc_holidays(self) -> List[pd.Timestamp]:
-        return self._adjusted_properties.adhoc_holidays.copy()
+        return copy(self._adjusted_properties.adhoc_holidays)
 
     @property
     def special_closes(self) -> List[Tuple[datetime.time, Union[HolidayCalendar, int]]]:
@@ -828,7 +885,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def special_closes_adhoc(self) -> List[Tuple[datetime.time, pd.DatetimeIndex]]:
-        return self._adjusted_properties.adhoc_special_closes.copy()
+        return copy(self._adjusted_properties.adhoc_special_closes)
 
     @property
     def special_opens(self) -> List[Tuple[datetime.time, Union[HolidayCalendar, int]]]:
@@ -836,7 +893,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def special_opens_adhoc(self) -> List[Tuple[datetime.time, pd.DatetimeIndex]]:
-        return self._adjusted_properties.adhoc_special_opens.copy()
+        return copy(self._adjusted_properties.adhoc_special_opens)
 
     @property
     def weekend_days(self) -> Union[HolidayCalendar, None]:
@@ -856,19 +913,19 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def monthly_expiries(self) -> Union[HolidayCalendar, None]:
-        return HolidayCalendar(rules=self._adjusted_properties.monthly_expiries)
+        return AdjustedHolidayCalendar(rules=self._adjusted_properties.monthly_expiries, other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask)
 
     @property
     def quarterly_expiries(self) -> Union[HolidayCalendar, None]:
-        return HolidayCalendar(rules=self._adjusted_properties.quarterly_expiries)
+        return AdjustedHolidayCalendar(rules=self._adjusted_properties.quarterly_expiries, other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask)
 
     @property
     def last_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
-        return HolidayCalendar(rules=self._adjusted_properties.last_trading_days_of_months)
+        return AdjustedHolidayCalendar(rules=self._adjusted_properties.last_trading_days_of_months, other=self._holidays_shared, weekmask=self.weekmask)
 
     @property
     def last_regular_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
-        return HolidayCalendar(rules=self._adjusted_properties.last_regular_trading_days_of_months)
+        return AdjustedHolidayCalendar(rules=self._adjusted_properties.last_regular_trading_days_of_months, other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask)
 
     # Use type to create a new class.
     extended = type(cls.__name__ + "Extended", (cls, ExtendedExchangeCalendar), {

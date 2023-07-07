@@ -18,7 +18,7 @@ jobs:
     - name: Set up Python 3.10.
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: "3.11"
         cache: 'poetry'
     - name: Set poetry package version from tag.
       run: poetry version ${{ github.ref_name }}
@@ -36,7 +36,7 @@ jobs:
     - name: Install from testpypi and import.
       run: |
         i=0
-        while (($i<36)) && [[ ! $(curl -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ github.ref_name }}($|[[:space:]]) ]];\
+        while (($i<120)) && [[ ! $(curl --max-time 120 -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ github.ref_name }}($|[[:space:]]) ]];\
           do echo waiting for package to appear in test index, sleeping 5s; sleep 5s; let i++; done
         pip install --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ github.ref_name }} --no-deps
         pip install -r requirements.txt
@@ -53,7 +53,7 @@ jobs:
     - name: Install and import.
       run: |
         i=0
-        while (($i<36)) && [[ ! $(curl -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ github.ref_name }}($|[[:space:]]) ]];\
+        while (($i<120)) && [[ ! $(curl --max-time 120 -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ github.ref_name }}($|[[:space:]]) ]];\
           do echo waiting for package to appear in index, sleeping 5s; sleep 5s; let i++; done
         pip install --index-url https://pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ github.ref_name }}
         python -c 'import ${{ env.PACKAGE_NAME }};print(${{ env.PACKAGE_NAME }}.__version__)'
