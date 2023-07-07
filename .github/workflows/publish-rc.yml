@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - 'release/**'
+      - 'hotfix/**'
+      - 'support/**'
 
 env:
   PACKAGE_NAME: exchange_calendars_extensions
@@ -23,7 +25,7 @@ jobs:
         cache: 'poetry'
     - name: Determine RC version number.
       run: |
-        export RC_VERSION=$(echo ${{ github.ref_name }} | sed -e 's/^release\///')rc${{ github.run_number }}
+        export RC_VERSION=$(echo ${{ github.ref_name }} | sed -e 's/^\(release\|hotfix\|support\)\///')rc${{ github.run_number }}
         echo "RC version is $RC_VERSION."
         echo "RC_VERSION=$RC_VERSION" >> $GITHUB_ENV
     - name: Set poetry package version from tag.
