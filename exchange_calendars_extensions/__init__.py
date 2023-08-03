@@ -1,6 +1,6 @@
 import functools
 from datetime import time
-from typing import Optional, Callable, Type, Union, Any
+from typing import Optional, Callable, Type, Union, Any, Dict
 
 from exchange_calendars import calendar_utils, register_calendar_type, ExchangeCalendar, get_calendar_names
 from exchange_calendars.calendar_utils import _default_calendar_factories
@@ -35,7 +35,7 @@ from .holiday_calendar import extend_class, ExtendedExchangeCalendar, ExchangeCa
 
 # Dictionary that maps from exchange key to ExchangeCalendarChangeSet. Contains all changesets to apply when creating a
 # new calendar instance.
-_changesets = dict()
+_changesets: Dict[str, ChangeSet] = dict()
 
 # Dictionary that maps from exchange key to ExtendedExchangeCalendar. Contains all extended calendars classes that
 # replace the vanilla classes in exchange_calendars when calling apply_extensions().
@@ -210,8 +210,12 @@ def _with_changeset(f: Callable[Concatenate[ChangeSet, P], ChangeSet]) -> Callab
 #        if not cs.is_consistent():
 #            raise ValueError(f'Changeset for {str} is inconsistent: {cs}.')
 
-        # Save changeset back to _changesets.
-        _changesets[exchange] = cs
+        if cs is not None:
+            # Save changeset back to _changesets.
+            _changesets[exchange] = cs
+        else:
+            # Remove changeset from _changesets.
+            _changesets.pop(exchange, None)
 
         # Remove calendar for exchange key from factory cache.
         _remove_calendar_from_factory_cache(exchange)
@@ -773,6 +777,18 @@ def reset_calendar(exchange: str) -> None:
     _reset_calendar(exchange)
 
 
+def reset_all_calendars() -> None:
+    """
+    Reset all exchange calendars to their original states.
+
+    Returns
+    -------
+    None
+    """
+    # Just clear the dict of changesets.
+    _changesets.clear()
+
+
 @_with_changeset
 def _update_calendar(_: ChangeSet, changes: dict) -> ChangeSet:
     return ChangeSet(**changes)
@@ -792,6 +808,40 @@ def update_calendar(exchange: str, changes: dict) -> None:
     None
     """
     _update_calendar(exchange, changes)
+
+
+def get_changes_for_calendar(exchange: str) -> ChangeSet:
+    """
+    Get the changes for an exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange key for which to get the changes.
+
+    Returns
+    -------
+    ChangeSet
+        The changes for the exchange.
+    """
+    cs: Optional[ChangeSet] = _changesets.get(exchange, None)
+
+    if cs is not None:
+        cs = cs.model_copy(deep=True)
+
+    return cs
+
+
+def get_changes_for_all_calendars() -> dict:
+    """
+    Get the changes for all exchange calendars.
+
+    Returns
+    -------
+    dict
+        The changes for all exchange calendars.
+    """
+    return {k: v.model_copy(deep=True) for k, v in _changesets.items()}
 
 
 # Declare public names.
