@@ -847,7 +847,8 @@ __all__ = ["apply_extensions", "remove_extensions", "register_extension", "exten
            "add_special_close", "remove_special_close", "reset_special_close", "add_special_open",
            "remove_special_open", "reset_special_open", "add_quarterly_expiry", "remove_quarterly_expiry",
            "reset_quarterly_expiry", "add_monthly_expiry", "remove_monthly_expiry", "reset_monthly_expiry",
-           "reset_calendar", "update_calendar", "ExtendedExchangeCalendar", "ExchangeCalendarExtensions"]
+           "reset_calendar", "reset_all_calendars", "update_calendar", "get_changes_for_calendar",
+           "get_changes_for_all_calendars", "ChangeSet", "ExtendedExchangeCalendar", "ExchangeCalendarExtensions"]
 
 __version__ = None
 
