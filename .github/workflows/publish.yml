@@ -38,7 +38,7 @@ jobs:
         i=0
         while (($i<120)) && [[ ! $(curl --max-time 120 -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ github.ref_name }}($|[[:space:]]) ]];\
           do echo waiting for package to appear in test index, sleeping 5s; sleep 5s; let i++; done
-        pip install --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ github.ref_name }} --no-deps
+        pip install --no-cache-dir --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ github.ref_name }} --no-deps
         pip install -r requirements.txt
         python -c 'import ${{ env.PACKAGE_NAME }};print(${{ env.PACKAGE_NAME }}.__version__)'
     - name: Clean pip
@@ -55,5 +55,5 @@ jobs:
         i=0
         while (($i<120)) && [[ ! $(curl --max-time 120 -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ github.ref_name }}($|[[:space:]]) ]];\
           do echo waiting for package to appear in index, sleeping 5s; sleep 5s; let i++; done
-        pip install --index-url https://pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ github.ref_name }}
+        pip install --no-cache-dir --index-url https://pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ github.ref_name }}
         python -c 'import ${{ env.PACKAGE_NAME }};print(${{ env.PACKAGE_NAME }}.__version__)'

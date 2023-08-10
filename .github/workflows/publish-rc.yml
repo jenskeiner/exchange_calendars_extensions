@@ -46,6 +46,6 @@ jobs:
         i=0
         while (($i<120)) && [[ ! $(curl --max-time 120 -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ env.RC_VERSION }}($|[[:space:]]) ]];\
           do echo waiting for package to appear in test index, sleeping 5s; sleep 5s; let i++; done
-        pip install --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.RC_VERSION }} --no-deps
+        pip install --no-cache-dir --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.RC_VERSION }} --no-deps
         pip install -r requirements.txt
         python -c 'import ${{ env.PACKAGE_NAME }};print(${{ env.PACKAGE_NAME }}.__version__)'
