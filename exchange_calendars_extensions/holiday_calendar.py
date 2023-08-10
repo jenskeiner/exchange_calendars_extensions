@@ -12,7 +12,7 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars.pandas_extensions.holiday import Holiday as ExchangeCalendarsHoliday
 from pandas.tseries.holiday import Holiday as PandasHoliday
 
-from exchange_calendars_extensions import ChangeSet
+from exchange_calendars_extensions import ChangeSet, DayType
 from exchange_calendars_extensions.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday, \
     get_last_day_of_month_holiday
 
@@ -664,7 +664,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
         # Loop over all times and the respective rules.
         for t0, rules in special_sessions:
-            # CHeck if time matches.
+            # Check if time matches.
             if t == t0:
                 # Add to existing list.
                 rules.append(h)
@@ -760,107 +760,60 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
         if changeset is not None and len(changeset) <= 0:
             changeset = None
 
-        # Normalize changeset, maybe.
         if changeset is not None:
-            # Creates a normalized copy of the changeset.
-            changeset = changeset.normalize()
-
-        if changeset is not None:
-            # Apply all changes pertaining to regular exchange calendar properties.
-
-            # Remove holidays.
-            for ts in changeset.holiday.remove:
+            # Remove all changed days from holidays, special opens, and special closes.
+            for ts in changeset.all_days:
                 a.regular_holidays, a.adhoc_holidays = remove_holiday(ts, a.regular_holidays, a.adhoc_holidays)
-
-            # Add holidays.
-            for ts, spec in changeset.holiday.add.items():
-                name = spec.name
-
-                # Remove existing holiday, maybe.
-                a.regular_holidays, a.adhoc_holidays = remove_holiday(ts, a.regular_holidays, a.adhoc_holidays)
-
-                # Add the holiday.
-                a.regular_holidays.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
-
-            # Remove special opens.
-            for ts in changeset.special_open.remove:
                 a.special_opens, a.adhoc_special_opens = remove_special_session(ts, a.special_opens,
                                                                                 a.adhoc_special_opens)
-
-            # Add special opens.
-            for ts, spec in changeset.special_open.add.items():
-                name, t = spec.name, spec.time
-
-                # Remove existing special open, maybe.
-                a.special_opens, a.adhoc_special_opens = remove_special_session(ts, a.special_opens,
-                                                                                a.adhoc_special_opens)
-
-                # Add the special open.
-                a.special_opens = add_special_session(name, ts, t, a.special_opens)
-
-            # Remove special closes.
-            for ts in changeset.special_close.remove:
                 a.special_closes, a.adhoc_special_closes = remove_special_session(ts, a.special_closes,
                                                                                   a.adhoc_special_closes)
 
-            # Add special closes.
-            for ts, spec in changeset.special_close.add.items():
-                name, t = spec.name, spec.time
-
-                # Remove existing special close, maybe.
-                a.special_closes, a.adhoc_special_closes = remove_special_session(ts, a.special_closes,
-                                                                                  a.adhoc_special_closes)
-
-                # Add the special close.
-                a.special_closes = add_special_session(name, ts, t, a.special_closes)
+            # Add holiday, special opens, and special closes.
+            for spec in changeset.add:
+                if spec.type == DayType.HOLIDAY:
+                    # Add the holiday.
+                    a.regular_holidays.append(Holiday(spec.name, year=spec.date.year, month=spec.date.month,
+                                                      day=spec.date.day))
+                elif spec.type == DayType.SPECIAL_OPEN:
+                    # Add the special open.
+                    a.special_opens = add_special_session(spec.name, spec.date, spec.time, a.special_opens)
+                elif spec.type == DayType.SPECIAL_CLOSE:
+                    # Add the special close.
+                    a.special_closes = add_special_session(spec.name, spec.date, spec.time, a.special_closes)
 
         self._adjusted_properties = a
 
         # Call upstream init method.
         init_orig(self, *args, **kwargs)
 
-        a.quarterly_expiries = get_quadruple_witching_rules(day_of_week_expiry) if day_of_week_expiry is not None else []
+        # Set up monthly and quarterly expiries. This can only be done after holidays, special opens, and special closes
+        # have been set up.
         a.monthly_expiries = get_monthly_expiry_rules(day_of_week_expiry) if day_of_week_expiry is not None else []
+        a.quarterly_expiries = get_quadruple_witching_rules(day_of_week_expiry) if day_of_week_expiry is not None else []
 
         if changeset is not None:
-
-            # Remove quarterly expiries.
-
-            # Loop over quarterly expiries to remove.
-            for ts in changeset.quarterly_expiry.remove:
+            # Remove all changed days from monthly and quarterly expiries.
+            for ts in changeset.all_days:
+                a.monthly_expiries, _ = remove_holiday(ts, a.monthly_expiries)
                 a.quarterly_expiries, _ = remove_holiday(ts, a.quarterly_expiries)
 
-            # Add quarterly expiries.
+            # Add monthly and quarterly expiries.
+            for spec in changeset.add:
+                if spec.type == DayType.MONTHLY_EXPIRY:
+                    # Add the monthly expiry.
+                    a.monthly_expiries.append(Holiday(spec.name, year=spec.date.year, month=spec.date.month,
+                                                      day=spec.date.day))
+                elif spec.type == DayType.QUARTERLY_EXPIRY:
+                    # Add the quarterly expiry.
+                    a.quarterly_expiries.append(Holiday(spec.name, year=spec.date.year, month=spec.date.month,
+                                                        day=spec.date.day))
 
-            # Loop over quarterly expiries to add.
-            for ts, spec in changeset.quarterly_expiry.add.items():
-                name = spec.name
-
-                # Remove existing quarterly expiry, maybe.
-                a.quarterly_expiries, _ = remove_holiday(ts, a.quarterly_expiries)
-
-                # Add the quarterly expiry.
-                a.quarterly_expiries.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
-
-            # Remove monthly expiries.
-
-            # Loop over monthly expiries to remove.
-            for ts in changeset.monthly_expiry.remove:
-                a.monthly_expiries, _ = remove_holiday(ts, a.monthly_expiries)
-
-            # Add monthly expiries.
-
-            # Loop over monthly expiries to add.
-            for ts, spec in changeset.monthly_expiry.add.items():
-                name = spec.name
-
-                # Remove existing monthly expiry, maybe.
-                a.monthly_expiries, _ = remove_holiday(ts, a.monthly_expiries)
-
-                # Add the monthly expiry.
-                a.monthly_expiries.append(Holiday(name, year=ts.year, month=ts.month, day=ts.day))
-
+        # Set up last trading days of the month.
         a.last_trading_days_of_months = get_last_day_of_month_rules('last trading day of month')
+
+        # Set up last regular trading days of the month. This can only be done after holidays, special opens,
+        # special closes, monthly expiries, and quarterly expiries have been set up.
         a.last_regular_trading_days_of_months = get_last_day_of_month_rules('last regular trading day of month')
 
         # Save a calendar with all holidays and another one with all holidays and special business days for later use.
