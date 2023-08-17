@@ -6,22 +6,38 @@ on:
 
 env:
   PACKAGE_NAME: exchange_calendars_extensions
+  MODULE_NAME: exchange_calendars_extensions.core
 
 jobs:
   build-and-publish:
     name: Build and publish Python distributions to TestPyPI and PyPI.
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
     - uses: actions/checkout@v3
     - name: Install poetry.
       run: pipx install poetry
-    - name: Set up Python 3.10.
+    - name: Set up Python.
       uses: actions/setup-python@v4
       with:
         python-version: "3.11"
         cache: 'poetry'
-    - name: Set poetry package version from tag.
-      run: poetry version ${{ github.ref_name }}
+    - name: Determine version number.
+      run: |
+        export VERSION=${{ github.ref_name }}
+        echo "Version is $VERSION."
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+    - name: Set poetry package version.
+      run: poetry version ${{ env.VERSION }}
+    - name: Determine path to version.py from module name.
+      run: |
+          export VERSION_PATH=$(echo ${{ env.MODULE_NAME }} | sed 's/\./\//g')/version.py
+          echo "VERSION_PATH is $VERSION_PATH."
+          echo "VERSION_PATH=$VERSION_PATH" >> $GITHUB_ENV
+    - name: Generate version.py
+      run: |
+          echo "version = '${{ env.VERSION }}'" > ${{ env.VERSION_PATH }}
     - name: Generate requirements.txt.
       run: poetry export -f requirements.txt --without-hashes > requirements.txt
     - name: Build package with poetry.
@@ -29,31 +45,48 @@ jobs:
     - name: Publish package to Test PyPI.
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        user: __token__
-        password: ${{ secrets.TEST_PYPI_PASSWORD }}
         repository-url: https://test.pypi.org/legacy/
         skip-existing: true
     - name: Install from testpypi and import.
       run: |
         i=0
-        while (($i<120)) && [[ ! $(curl --max-time 120 -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ github.ref_name }}($|[[:space:]]) ]];\
-          do echo waiting for package to appear in test index, sleeping 5s; sleep 5s; let i++; done
-        pip install --no-cache-dir --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ github.ref_name }} --no-deps
+        n=60
+        exists=0
+        while [ $i -lt $n ] && [ $exists -eq 0 ]; do
+            i=$(expr $i + 1)
+            if curl -f -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -e ".releases | has(\"${{ env.VERSION }}\")" &> /dev/null; then
+                echo "$i/$n Package exists in index."
+                exists=1
+            else
+                echo "$i/$n Package has not appeared in index yet. Sleeping 5s."
+                sleep 5s
+            fi
+        done
+        sleep 15s
+        pip install --no-cache-dir --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.VERSION }} --no-deps
         pip install -r requirements.txt
-        python -c 'import ${{ env.PACKAGE_NAME }};print(${{ env.PACKAGE_NAME }}.__version__)'
+        python -c 'import ${{ env.MODULE_NAME }};print(${{ env.MODULE_NAME }}.__version__)'
     - name: Clean pip
       run: |
         pip uninstall -y ${{ env.PACKAGE_NAME }}
         pip cache purge
     - name: Publish package to PyPI.
       uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_PASSWORD }}
     - name: Install and import.
       run: |
         i=0
-        while (($i<120)) && [[ ! $(curl --max-time 120 -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -r '.releases | keys[]') =~ (^|[[:space:]])${{ github.ref_name }}($|[[:space:]]) ]];\
-          do echo waiting for package to appear in index, sleeping 5s; sleep 5s; let i++; done
-        pip install --no-cache-dir --index-url https://pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ github.ref_name }}
-        python -c 'import ${{ env.PACKAGE_NAME }};print(${{ env.PACKAGE_NAME }}.__version__)'
+        n=60
+        exists=0
+        while [ $i -lt $n ] && [ $exists -eq 0 ]; do
+            i=$(expr $i + 1)
+            if curl -f -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -e ".releases | has(\"${{ env.VERSION }}\")" &> /dev/null; then
+                echo "$i/$n Package exists in index."
+                exists=1
+            else
+                echo "$i/$n Package has not appeared in index yet. Sleeping 5s."
+                sleep 5s
+            fi
+        done
+        sleep 15s
+        pip install --no-cache-dir --index-url https://pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.VERSION }}
+        python -c 'import ${{ env.MODULE_NAME }};print(${{ env.MODULE_NAME }}.__version__)'
