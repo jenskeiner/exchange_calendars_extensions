@@ -12,8 +12,8 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars.pandas_extensions.holiday import Holiday as ExchangeCalendarsHoliday
 from pandas.tseries.holiday import Holiday as PandasHoliday
 
-from exchange_calendars_extensions import ChangeSet, DayType
-from exchange_calendars_extensions.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday, \
+from exchange_calendars_extensions.api.changes import ChangeSet, DayType
+from exchange_calendars_extensions.core.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday, \
     get_last_day_of_month_holiday
 
 
