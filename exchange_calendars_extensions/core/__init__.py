@@ -31,8 +31,8 @@ from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
 from pydantic import validate_call
 from typing_extensions import ParamSpec, Concatenate
 
-from .changeset import ChangeSet, DayType, DaySpec, DaySpecWithTime, TimestampLike
-from .holiday_calendar import extend_class, ExtendedExchangeCalendar, ExchangeCalendarExtensions
+from exchange_calendars_extensions.api.changes import ChangeSet, DayType, DaySpec, DaySpecWithTime, TimestampLike
+from exchange_calendars_extensions.core.holiday_calendar import extend_class, ExtendedExchangeCalendar, ExchangeCalendarExtensions
 
 # Dictionary that maps from exchange key to ExchangeCalendarChangeSet. Contains all changesets to apply when creating a
 # new calendar instance.
@@ -601,17 +601,17 @@ try:
     from importlib.metadata import version
     # get version from installed package
     __version__ = version("exchange_calendars_extensions")
+    del version
 except ImportError:
     pass
 
 if __version__ is None:
     try:
         # if package not installed, get version as set when package built.
-        from ._version import version
+        from .version import version
     except Exception:
         # If package not installed and not built, leave __version__ as None
         pass
     else:
         __version__ = version
-
-del version
+        del version

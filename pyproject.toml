@@ -34,15 +34,15 @@ packages = [{include = "exchange_calendars_extensions"}]
 
 [tool.poetry.dependencies]
 python = "~=3.8"
-exchange-calendars = ">=4.0.1"
-typing-extensions = ">=4.6.2,<4.8.0"
-pydantic = ">=2.0.2,<2.2.0"
+exchange-calendars-extensions-api = "==0.1.1"
+exchange-calendars = ">=4.0.1,<5"
+typing-extensions = ">=4.0,<5"
+pydantic = ">=2.0,<3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.3.1,<7.5.0"
 pytest-cov = "~=4.1.0"
 pre-commit = "~=3.3.3"
-
 
 [tool.pytest.ini_options]
 addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"

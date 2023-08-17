@@ -1,7 +1,7 @@
 import pandas as pd
 from pandas import DatetimeIndex, Series
 
-from exchange_calendars_extensions.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday
+from exchange_calendars_extensions.core.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday
 
 DATETIME_64_NS = 'datetime64[ns]'
 

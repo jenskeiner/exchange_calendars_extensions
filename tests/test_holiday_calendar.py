@@ -6,7 +6,7 @@ from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.exchange_calendar_xlon import ChristmasEve, NewYearsEvePost2000
 from pytz import timezone
 
-from exchange_calendars_extensions.holiday_calendar import get_holiday_calendar_from_timestamps, \
+from exchange_calendars_extensions.core.holiday_calendar import get_holiday_calendar_from_timestamps, \
     get_holiday_calendar_from_day_of_week, merge_calendars, get_holidays_calendar, get_special_closes_calendar, \
     get_special_opens_calendar, get_weekend_days_calendar, get_monthly_expiry_rules, get_quadruple_witching_rules, \
     get_last_day_of_month_rules
