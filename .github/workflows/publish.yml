@@ -31,8 +31,8 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.TEST_PYPI_PASSWORD }}
-        repository_url: https://test.pypi.org/legacy/
-        skip_existing: true
+        repository-url: https://test.pypi.org/legacy/
+        skip-existing: true
     - name: Install from testpypi and import.
       run: |
         i=0

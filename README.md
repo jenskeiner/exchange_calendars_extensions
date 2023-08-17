@@ -587,9 +587,10 @@ from `exchange_calendars`:
 
 To facilitate the creation of extended exchange calendar classes, the function `extend_class` is provided in the 
 sub-module `exchange_calendars_extensions.holiday_calendar`.
+
 ```python
 from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
-from exchange_calendars_extensions.holiday_calendar import extend_class
+from exchange_calendars_extensions import extend_class
 
 xlon_extended_cls = extend_class(XLONExchangeCalendar, day_of_week_expiry=4)
 ```

@@ -5,7 +5,7 @@ import pandas as pd
 from exchange_calendars.pandas_extensions.holiday import Holiday
 from pandas import Series, DatetimeIndex
 
-from exchange_calendars_extensions.offset import LastDayOfMonthOffsetClasses, \
+from exchange_calendars_extensions.core.offset import LastDayOfMonthOffsetClasses, \
     ThirdDayOfWeekInMonthOffsetClasses
 
 
