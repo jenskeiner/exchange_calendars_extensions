@@ -8,7 +8,7 @@ on:
       - 'support/**'
 
 env:
-  PACKAGE_NAME: exchange_calendars_extensions
+  PACKAGE_NAME: exchange-calendars-extensions
   MODULE_NAME: exchange_calendars_extensions.core
 
 jobs:
@@ -18,11 +18,11 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install poetry.
       run: pipx install poetry
     - name: Set up Python.
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
         cache: 'poetry'
