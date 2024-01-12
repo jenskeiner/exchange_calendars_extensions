@@ -834,7 +834,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def special_closes(self) -> List[Tuple[datetime.time, Union[HolidayCalendar, int]]]:
-        return [(t, HolidayCalendar(rules=rules)) for t, rules in self._adjusted_properties.special_closes]
+        return [(t, rules if isinstance(rules, int) else HolidayCalendar(rules=rules)) for t, rules in self._adjusted_properties.special_closes]
 
     @property
     def special_closes_adhoc(self) -> List[Tuple[datetime.time, pd.DatetimeIndex]]:
@@ -842,7 +842,7 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def special_opens(self) -> List[Tuple[datetime.time, Union[HolidayCalendar, int]]]:
-        return [(t, HolidayCalendar(rules=rules)) for t, rules in self._adjusted_properties.special_opens]
+        return [(t, rules if isinstance(rules, int) else HolidayCalendar(rules=rules)) for t, rules in self._adjusted_properties.special_opens]
 
     @property
     def special_opens_adhoc(self) -> List[Tuple[datetime.time, pd.DatetimeIndex]]:
