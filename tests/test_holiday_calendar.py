@@ -11,7 +11,7 @@ from exchange_calendars.exchange_calendar import HolidayCalendar as ExchangeCale
 from exchange_calendars_extensions.core.holiday_calendar import get_holiday_calendar_from_timestamps, \
     get_holiday_calendar_from_day_of_week, merge_calendars, get_holidays_calendar, get_special_closes_calendar, \
     get_special_opens_calendar, get_weekend_days_calendar, get_monthly_expiry_rules, get_quadruple_witching_rules, \
-    get_last_day_of_month_rules
+    get_last_day_of_month_rules, roll_one_day_same_month
 
 SPECIAL_OPEN = "special open"
 SPECIAL_CLOSE = "special close"
@@ -19,6 +19,26 @@ QUARTERLY_EXPIRY = "quarterly expiry"
 MONTHLY_EXPIRY = "monthly expiry"
 LAST_DAY_OF_MONTH = "last day of month"
 WEEKEND_DAY = "weekend day"
+
+
+class TestRollOneDaySameMonth:
+    
+    @pytest.mark.parametrize("date", [
+        pd.Timestamp("2020-01-02"),
+        pd.Timestamp("2020-01-03"),
+        pd.Timestamp("2020-01-04")])
+    def test_same_month(self, date: pd.Timestamp):
+        print(date)
+        print(roll_one_day_same_month(date))
+        print(date - pd.Timedelta(days=1))
+        assert roll_one_day_same_month(date) == date - pd.Timedelta(days=1)
+        
+    @pytest.mark.parametrize("date", [
+        pd.Timestamp("2020-01-01"),
+        pd.Timestamp("2020-02-01"),
+        pd.Timestamp("2020-03-01")])
+    def test_not_same_month(self, date: pd.Timestamp):
+        assert roll_one_day_same_month(date) is None        
 
 
 class TestAdjustedHolidayCalendar:
