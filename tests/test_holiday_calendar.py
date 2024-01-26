@@ -5,6 +5,8 @@ from exchange_calendars import get_calendar, ExchangeCalendar
 from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.exchange_calendar_xlon import ChristmasEve, NewYearsEvePost2000
 from pytz import timezone
+import pytest
+from exchange_calendars.exchange_calendar import HolidayCalendar as ExchangeCalendarsHolidayCalendar
 
 from exchange_calendars_extensions.core.holiday_calendar import get_holiday_calendar_from_timestamps, \
     get_holiday_calendar_from_day_of_week, merge_calendars, get_holidays_calendar, get_special_closes_calendar, \
@@ -17,6 +19,23 @@ QUARTERLY_EXPIRY = "quarterly expiry"
 MONTHLY_EXPIRY = "monthly expiry"
 LAST_DAY_OF_MONTH = "last day of month"
 WEEKEND_DAY = "weekend day"
+
+
+class TestAdjustedHolidayCalendar:
+
+    @pytest.fixture(params=[(2015, 7), ( 2020, 1)])
+    def holiday_calendar(self, request) -> ExchangeCalendarsHolidayCalendar:
+        year, month = request.param
+
+        # Return an ExchangeCalendarsHolidayCalendar instance that contains rules for all days in the given year and
+        # month.
+        return ExchangeCalendarsHolidayCalendar(
+            rules=[
+                (pd.Timestamp(f"{year}-{month:02d}-{day:02d}"), f"holiday-{day:02d}") for day in range(1, 32)
+            ]
+        )
+
+
 
 
 class TestHolidayCalendars:
