@@ -31,7 +31,7 @@ from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
 from pydantic import validate_call
 from typing_extensions import ParamSpec, Concatenate
 
-from exchange_calendars_extensions.api.changes import ChangeSet, DayType, DaySpec, DaySpecWithTime, TimestampLike
+from exchange_calendars_extensions.api.changes import ChangeSet, ChangeSetDict, DayType, DaySpec, DaySpecWithTime, TimestampLike
 from exchange_calendars_extensions.core.holiday_calendar import extend_class, ExtendedExchangeCalendar, ExchangeCalendarExtensions
 
 # Dictionary that maps from exchange key to ExchangeCalendarChangeSet. Contains all changesets to apply when creating a
@@ -576,7 +576,7 @@ def get_changes_for_calendar(exchange: str) -> ChangeSet:
     return cs
 
 
-def get_changes_for_all_calendars() -> dict:
+def get_changes_for_all_calendars() -> ChangeSetDict:
     """
     Get the changes for all exchange calendars.
 
@@ -585,7 +585,7 @@ def get_changes_for_all_calendars() -> dict:
     dict
         The changes for all exchange calendars.
     """
-    return {k: v.model_copy(deep=True) for k, v in _changesets.items()}
+    return ChangeSetDict({k: v.model_copy(deep=True) for k, v in _changesets.items()})
 
 
 # Declare public names.
