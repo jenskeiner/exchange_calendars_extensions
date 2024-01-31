@@ -25,3 +25,11 @@ def date2args(date: Union[dt.date, pd.Timestamp]) -> Dict[str, int]:
         'month': date.month,
         'day': date.day
     }
+
+
+def roll_backward(d: pd.Timestamp) -> Union[pd.Timestamp, None]:
+    return d - pd.Timedelta(days=1)
+
+
+def roll_forward(d: pd.Timestamp) -> Union[pd.Timestamp, None]:
+    return d + pd.Timedelta(days=1)

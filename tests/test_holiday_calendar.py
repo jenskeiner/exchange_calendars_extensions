@@ -1,5 +1,4 @@
 from datetime import time
-from typing import Callable, Union
 
 import pandas as pd
 import pytest
@@ -14,7 +13,7 @@ from exchange_calendars_extensions.core.holiday_calendar import get_holiday_cale
     get_holiday_calendar_from_day_of_week, merge_calendars, get_holidays_calendar, get_special_closes_calendar, \
     get_special_opens_calendar, get_weekend_days_calendar, get_monthly_expiry_rules, get_quadruple_witching_rules, \
     get_last_day_of_month_rules, roll_one_day_same_month, AdjustedHolidayCalendar, RollFn
-from tests.util import date2args
+from tests.util import date2args, roll_backward, roll_forward
 
 SPECIAL_OPEN = "special open"
 SPECIAL_CLOSE = "special close"
@@ -45,14 +44,6 @@ class TestRollOneDaySameMonth:
 
 
 class TestAdjustedHolidayCalendar:
-
-    @staticmethod
-    def roll_backward(d: pd.Timestamp) -> Union[pd.Timestamp, None]:
-        return d - pd.Timedelta(days=1)
-
-    @staticmethod
-    def roll_forward(d: pd.Timestamp) -> Union[pd.Timestamp, None]:
-        return d + pd.Timedelta(days=1)
 
     @pytest.mark.parametrize("return_name", [False, True], ids=["return_name=False", "return_name=True"])
     @pytest.mark.parametrize("weekmask, day, day_adjusted, roll_fn", [
@@ -225,15 +216,15 @@ class TestAdjustedHolidayCalendar:
         calendar = AdjustedHolidayCalendar(
             rules=[Holiday(name="Holiday 1", **date2args(day)), Holiday(name="Holiday 2", **date2args(day_after)), ],
             other=ExchangeCalendarsHolidayCalendar(rules=[Holiday(name="Other Holiday", **date2args(day_after)), ]),
-            weekmask="1111111", roll_fn=TestAdjustedHolidayCalendar.roll_backward)
+            weekmask="1111111", roll_fn=roll_backward)
 
         # Holiday 2 should first be adjusted to `day` due to the conflict with Other Holiday. Then, Holiday 1
         # should be adjusted to `day_before` due to the conflict with the adjusted Holiday 2.
         assert calendar.holidays(return_name=True).equals(
             pd.Series(["Holiday 1", "Holiday 2", ], index=[day_before, day, ]))
 
-    @pytest.mark.parametrize("roll_fn", [roll_backward, roll_forward,])
-    def test_roll_outside_range(self, roll_fn: Callable[[pd.Timestamp], pd.Timestamp]):
+    @pytest.mark.parametrize("roll_fn", [roll_backward, roll_forward])
+    def test_roll_outside_range(self, roll_fn: RollFn):
         """Test case where a holiday gets rolled back due to a conflict with a holiday in another calendar, but then
         falls outside the requested date range."""
 
