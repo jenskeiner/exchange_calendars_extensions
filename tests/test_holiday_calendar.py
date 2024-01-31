@@ -14,6 +14,7 @@ from exchange_calendars_extensions.core.holiday_calendar import get_holiday_cale
     get_special_opens_calendar, get_weekend_days_calendar, get_monthly_expiry_rules, get_quadruple_witching_rules, \
     get_last_day_of_month_rules, roll_one_day_same_month, AdjustedHolidayCalendar, RollFn
 from tests.util import date2args, roll_backward, roll_forward
+import tests.util
 
 SPECIAL_OPEN = "special open"
 SPECIAL_CLOSE = "special close"
@@ -126,7 +127,7 @@ class TestAdjustedHolidayCalendar:
         thu = fri - pd.Timedelta(days=1)
 
         # Create a spy on the roll_backward function.
-        spy_roll_fn = mocker.spy(TestAdjustedHolidayCalendar, 'roll_backward')
+        spy_roll_fn = mocker.spy(tests.util, 'roll_backward')
 
         # Calendar with mon as a0 holiday. In the given other calendar, mon is a holiday as well, as is fri. The
         # weekmask covers all days of the week, so it should not have any impact on adjustments. Also uses the given
