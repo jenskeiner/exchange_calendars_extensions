@@ -22,6 +22,8 @@ QUARTERLY_EXPIRY = "quarterly expiry"
 MONTHLY_EXPIRY = "monthly expiry"
 LAST_DAY_OF_MONTH = "last day of month"
 WEEKEND_DAY = "weekend day"
+HOLIDAY = "Holiday"
+OTHER_HOLIDAY = "Other Holiday"
 
 
 class TestRollOneDaySameMonth:
@@ -75,12 +77,12 @@ class TestAdjustedHolidayCalendar:
         # Calendar containing just the single holiday, the given weekmask, and using the given roll function. The other
         # calendar is empty.
         calendar = AdjustedHolidayCalendar(rules=[
-            Holiday(name="Holiday", **date2args(day)),
+            Holiday(name=HOLIDAY, **date2args(day)),
         ], other=ExchangeCalendarsHolidayCalendar([]), weekmask=weekmask, roll_fn=roll_fn)
 
         # Check that holiday is adjusted to the expected day.
         assert calendar.holidays(return_name=return_name).equals(
-            pd.Series(["Holiday", ], index=[day_adjusted, ]) if return_name else pd.DatetimeIndex([day_adjusted, ]))
+            pd.Series([HOLIDAY, ], index=[day_adjusted, ]) if return_name else pd.DatetimeIndex([day_adjusted, ]))
 
     @pytest.mark.parametrize("return_name", [False, True], ids=["return_name=False", "return_name=True"])
     @pytest.mark.parametrize("day, day_adjusted, day_other, roll_fn", [
@@ -105,14 +107,14 @@ class TestAdjustedHolidayCalendar:
 
         # Calendar containing the single holiday, and another holiday in the other given calendar. The weekmask covers
         # all days of the week, so it should not have any impact on adjustments. Also uses the given roll function.
-        calendar = AdjustedHolidayCalendar(rules=[Holiday(name="Holiday", **date2args(day)), ],
+        calendar = AdjustedHolidayCalendar(rules=[Holiday(name=HOLIDAY, **date2args(day)), ],
                                            other=ExchangeCalendarsHolidayCalendar(
-                                               rules=[Holiday(name="Other Holiday", **date2args(day_other)), ]),
+                                               rules=[Holiday(name=HOLIDAY, **date2args(day_other)), ]),
                                            weekmask="1111111", roll_fn=roll_fn)
 
         # Test that the holidays are adjusted correctly.
         assert calendar.holidays(return_name=return_name).equals(
-            pd.Series(["Holiday", ], index=[day_adjusted, ]) if return_name else pd.DatetimeIndex([day_adjusted, ]))
+            pd.Series([HOLIDAY, ], index=[day_adjusted, ]) if return_name else pd.DatetimeIndex([day_adjusted, ]))
 
     def test_multiple_adjustments_and_roll_fn(self, mocker):
         """Test that the roll function is called multiple times when necessary."""
@@ -133,7 +135,7 @@ class TestAdjustedHolidayCalendar:
         # weekmask covers all days of the week, so it should not have any impact on adjustments. Also uses the given
         # roll function.
         calendar = AdjustedHolidayCalendar(rules=[
-            Holiday(name="Holiday", **date2args(mon)),  # Monday.
+            Holiday(name=HOLIDAY, **date2args(mon)),  # Monday.
         ], other=ExchangeCalendarsHolidayCalendar(rules=[
             Holiday(name="Other Holiday 1", **date2args(fri)),  # Previous Friday.
             Holiday(name="Other Holiday 2", **date2args(mon)),  # Monday.
@@ -165,9 +167,9 @@ class TestAdjustedHolidayCalendar:
 
         # Calendar with a holiday that conflicts with a holiday in the other calendar. The weekmask is set to Monday to
         # Sunday.
-        calendar = AdjustedHolidayCalendar(rules=[Holiday(name="Holiday", **date2args(day)), ],
+        calendar = AdjustedHolidayCalendar(rules=[Holiday(name=HOLIDAY, **date2args(day)), ],
                                            other=ExchangeCalendarsHolidayCalendar(
-                                               rules=[Holiday(name="Other Holiday", **date2args(day)), ]),
+                                               rules=[Holiday(name=HOLIDAY, **date2args(day)), ]),
                                            weekmask="1111111", roll_fn=mock_roll_fn)
 
         # Check if holiday gets dropped due to the roll function returning None.
@@ -189,14 +191,14 @@ class TestAdjustedHolidayCalendar:
         # Calendar with conflicting rules. The given other calendar is empty. The weekmask covers all days of the week,
         # so it should not have any impact on adjustments. Also uses the given roll function.
         calendar = AdjustedHolidayCalendar(rules=[
-            Holiday(name="Holiday", **date2args(day)),  # Mon
-            Holiday(name="Other Holiday", **date2args(day)),  # Same day as holiday above.
+            Holiday(name=HOLIDAY, **date2args(day)),  # Mon
+            Holiday(name=HOLIDAY, **date2args(day)),  # Same day as holiday above.
         ], other=ExchangeCalendarsHolidayCalendar([]), weekmask="1111111", roll_fn=roll_fn)
 
         # Check if the holidays are adjusted in order of definition, i.e. Holiday gets adjusted by roll_fn, Other
         # Holiday remains untouched.
         assert calendar.holidays(return_name=True).equals(
-            pd.Series(["Holiday", "Other Holiday", ], index=[day_adjusted, day, ]))
+            pd.Series([HOLIDAY, HOLIDAY, ], index=[day_adjusted, day, ]))
 
     def test_roll_precedence(self):
         """Test case where a holiday gets rolled back due to a conflict with a holiday in another calendar, but then,
@@ -216,7 +218,7 @@ class TestAdjustedHolidayCalendar:
         # Uses a roll function that rolls back one day.
         calendar = AdjustedHolidayCalendar(
             rules=[Holiday(name="Holiday 1", **date2args(day)), Holiday(name="Holiday 2", **date2args(day_after)), ],
-            other=ExchangeCalendarsHolidayCalendar(rules=[Holiday(name="Other Holiday", **date2args(day_after)), ]),
+            other=ExchangeCalendarsHolidayCalendar(rules=[Holiday(name=HOLIDAY, **date2args(day_after)), ]),
             weekmask="1111111", roll_fn=roll_backward)
 
         # Holiday 2 should first be adjusted to `day` due to the conflict with Other Holiday. Then, Holiday 1
@@ -235,16 +237,16 @@ class TestAdjustedHolidayCalendar:
         # Adjusted holiday.
         day_adjusted = roll_fn(day)
 
-        calendar = AdjustedHolidayCalendar(rules=[Holiday(name="Holiday", **date2args(day)), ],
+        calendar = AdjustedHolidayCalendar(rules=[Holiday(name=HOLIDAY, **date2args(day)), ],
                                            other=ExchangeCalendarsHolidayCalendar(
-                                               rules=[Holiday(name="Other Holiday", **date2args(day)), ]),
+                                               rules=[Holiday(name=HOLIDAY, **date2args(day)), ]),
                                            weekmask="1111111", roll_fn=roll_fn)
 
         # Adjusted holiday should be different from unadjusted one.
         assert day_adjusted != day
 
         # Holiday should be adjusted by rolling once due to the conflict with Other Holiday.
-        assert calendar.holidays(return_name=True).equals(pd.Series(["Holiday", ], index=[day_adjusted, ]))
+        assert calendar.holidays(return_name=True).equals(pd.Series([HOLIDAY, ], index=[day_adjusted, ]))
 
         # Holiday should not be included when the requested date range only covers the original date, although the
         # unadjusted date falls within.
