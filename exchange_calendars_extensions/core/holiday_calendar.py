@@ -45,14 +45,14 @@ class HolidayCalendar(ExchangeCalendarsHolidayCalendar):
             return holidays.drop_duplicates()
 
 
-def get_conflicts(holidays_dates: List[pd.Timestamp], other_holidays: pd.DatetimeIndex, weekend_days: Iterable[int]) -> List[int]:
+def get_conflicts(holidays_dates: List[Union[pd.Timestamp, None]], other_holidays: pd.DatetimeIndex, weekend_days: Iterable[int]) -> List[int]:
     """
     Get the indices of holidays that coincide with holidays from the other calendar or the given weekend days.
 
     Parameters
     ----------
-    holidays_dates : List[pd.Timestamp]
-        The dates of the holidays.
+    holidays_dates : List[Union[pd.Timestamp, None]]
+        The dates of the holidays. A date may be None and is then ignored.
     other_holidays : pd.DatetimeIndex
         The dates of the holidays from the other calendar.
     weekend_days : Iterable[int]
@@ -65,46 +65,84 @@ def get_conflicts(holidays_dates: List[pd.Timestamp], other_holidays: pd.Datetim
     """
 
     # Determine the indices of holidays that coincide with holidays from the other calendar.
-    return [i for i in range(len(holidays_dates)) if holidays_dates[i] in other_holidays or holidays_dates[i].weekday() in weekend_days]
+    return [i for i in range(len(holidays_dates)) if holidays_dates[i] is not None and (holidays_dates[i] in other_holidays or holidays_dates[i].weekday() in weekend_days or holidays_dates[i] in holidays_dates[i+1:])]
+
+
+# A function that takes a date and returns a date or None.
+RollFn = Callable[[pd.Timestamp], Union[pd.Timestamp, None]]
+
+
+def roll_one_day_same_month(d: pd.Timestamp) -> Union[pd.Timestamp, None]:
+    """
+    Roll the given date back one day and return the result if the month is still the same. Return None otherwise.
+
+    This function can be used to prevent certain days from being rolled back into the previous month. For example, the
+    last trading day of July 2015 on ASEX is not defined since the exchange was closed the entire month. Hence, this day
+    should not be rolled into June.
+
+    Parameters
+    ----------
+    d : pd.Timestamp
+        The date to roll back.
+
+    Returns
+    -------
+    pd.Timestamp | None
+        The rolled back date, if the month is still the same, or None otherwise.
+    """
+    # Month.
+    month = d.month
+
+    # Roll back one day.
+    d = d - pd.Timedelta(days=1)
+
+    # If the month changed, return None.
+    if d.month != month:
+        return None
+
+    # Return the rolled back date.
+    return d
 
 
 class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
 
-    def __init__(self, rules, other: ExchangeCalendarsHolidayCalendar, weekmask: str) -> None:
+    def __init__(self, rules, other: ExchangeCalendarsHolidayCalendar, weekmask: str,
+                 roll_fn: RollFn = lambda d: d - pd.Timedelta(days=1)) -> None:
         super().__init__(rules=rules)
-        self.other = other
-        self.weekend_days = {d for d in range(7) if weekmask[d] == '0'}
+        self._other = other
+        self._weekend_days = {d for d in range(7) if weekmask[d] == '0'}
+        self._roll_fn = roll_fn
 
     def holidays(self, start=None, end=None, return_name=False):
         # Get the holidays from the parent class.
         holidays = super().holidays(start=start, end=end, return_name=return_name)
 
         # Get the holidays from the other calendar.
-        other_holidays = self.other.holidays(start=start, end=end, return_name=False)
+        other_holidays = self._other.holidays(start=start, end=end, return_name=False)
 
         holidays_dates = list(holidays.index if return_name else holidays)
 
-        conflicts = get_conflicts(holidays_dates, other_holidays, self.weekend_days)
+        conflicts = get_conflicts(holidays_dates, other_holidays, self._weekend_days)
 
         if len(conflicts) == 0:
             return holidays
 
         while True:
-            # For each index of a conflicting holiday, adjust the date by one day into the past.
+            # For each index of a conflicting holiday, adjust the date by using the roll function.
             for i in conflicts:
-                holidays_dates[i] = holidays_dates[i] - pd.Timedelta(days=1)
+                holidays_dates[i] = self._roll_fn(holidays_dates[i])
 
-            conflicts = get_conflicts(holidays_dates, other_holidays, self.weekend_days)
+            conflicts = get_conflicts(holidays_dates, other_holidays, self._weekend_days)
 
             if len(conflicts) == 0:
                 break
 
-        holidays_index = pd.DatetimeIndex(holidays_dates)
-
         if return_name:
-            return pd.Series(holidays.values, index=holidays_index)
+            # Return a series, filter out dates that are None.
+            return pd.Series({d: n for d, n in zip(holidays_dates, holidays.values) if d is not None and (start is None or d >= start) and (end is None or d <= end)})
         else:
-            return holidays_index
+            # Return index, filter out dates that are None.
+            return pd.DatetimeIndex([d for d in holidays_dates if d is not None and (start is None or d >= start) and (end is None or d <= end)])
 
 
 def get_holiday_calendar_from_timestamps(timestamps: Iterable[pd.Timestamp],
@@ -866,19 +904,27 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] 
 
     @property
     def monthly_expiries(self) -> Union[HolidayCalendar, None]:
-        return AdjustedHolidayCalendar(rules=self._adjusted_properties.monthly_expiries, other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask)
+        return AdjustedHolidayCalendar(rules=self._adjusted_properties.monthly_expiries,
+                                       other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask,
+                                       roll_fn=roll_one_day_same_month)
 
     @property
     def quarterly_expiries(self) -> Union[HolidayCalendar, None]:
-        return AdjustedHolidayCalendar(rules=self._adjusted_properties.quarterly_expiries, other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask)
+        return AdjustedHolidayCalendar(rules=self._adjusted_properties.quarterly_expiries,
+                                       other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask,
+                                       roll_fn=roll_one_day_same_month)
 
     @property
     def last_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
-        return AdjustedHolidayCalendar(rules=self._adjusted_properties.last_trading_days_of_months, other=self._holidays_shared, weekmask=self.weekmask)
+        return AdjustedHolidayCalendar(rules=self._adjusted_properties.last_trading_days_of_months,
+                                       other=self._holidays_shared, weekmask=self.weekmask,
+                                       roll_fn=roll_one_day_same_month)
 
     @property
     def last_regular_trading_days_of_months(self) -> Union[HolidayCalendar, None]:
-        return AdjustedHolidayCalendar(rules=self._adjusted_properties.last_regular_trading_days_of_months, other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask)
+        return AdjustedHolidayCalendar(rules=self._adjusted_properties.last_regular_trading_days_of_months,
+                                       other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask,
+                                       roll_fn=roll_one_day_same_month)
 
     # Use type to create a new class.
     extended = type(cls.__name__ + "Extended", (cls, ExtendedExchangeCalendar), {
