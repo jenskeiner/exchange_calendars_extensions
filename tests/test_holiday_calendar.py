@@ -1,17 +1,20 @@
 from datetime import time
+from typing import Callable, Union
 
 import pandas as pd
+import pytest
 from exchange_calendars import get_calendar, ExchangeCalendar
 from exchange_calendars.exchange_calendar import HolidayCalendar
-from exchange_calendars.exchange_calendar_xlon import ChristmasEve, NewYearsEvePost2000
-from pytz import timezone
-import pytest
 from exchange_calendars.exchange_calendar import HolidayCalendar as ExchangeCalendarsHolidayCalendar
+from exchange_calendars.exchange_calendar_xlon import ChristmasEve, NewYearsEvePost2000
+from exchange_calendars.pandas_extensions.holiday import Holiday
+from pytz import timezone
 
 from exchange_calendars_extensions.core.holiday_calendar import get_holiday_calendar_from_timestamps, \
     get_holiday_calendar_from_day_of_week, merge_calendars, get_holidays_calendar, get_special_closes_calendar, \
     get_special_opens_calendar, get_weekend_days_calendar, get_monthly_expiry_rules, get_quadruple_witching_rules, \
-    get_last_day_of_month_rules, roll_one_day_same_month
+    get_last_day_of_month_rules, roll_one_day_same_month, AdjustedHolidayCalendar, RollFn
+from tests.util import date2args
 
 SPECIAL_OPEN = "special open"
 SPECIAL_CLOSE = "special close"
@@ -22,7 +25,7 @@ WEEKEND_DAY = "weekend day"
 
 
 class TestRollOneDaySameMonth:
-    
+
     @pytest.mark.parametrize("date", [
         pd.Timestamp("2020-01-02"),
         pd.Timestamp("2020-01-03"),
@@ -32,30 +35,228 @@ class TestRollOneDaySameMonth:
         print(roll_one_day_same_month(date))
         print(date - pd.Timedelta(days=1))
         assert roll_one_day_same_month(date) == date - pd.Timedelta(days=1)
-        
+
     @pytest.mark.parametrize("date", [
         pd.Timestamp("2020-01-01"),
         pd.Timestamp("2020-02-01"),
         pd.Timestamp("2020-03-01")])
     def test_not_same_month(self, date: pd.Timestamp):
-        assert roll_one_day_same_month(date) is None        
+        assert roll_one_day_same_month(date) is None
 
 
 class TestAdjustedHolidayCalendar:
 
-    @pytest.fixture(params=[(2015, 7), ( 2020, 1)])
-    def holiday_calendar(self, request) -> ExchangeCalendarsHolidayCalendar:
-        year, month = request.param
+    @staticmethod
+    def roll_backward(d: pd.Timestamp) -> Union[pd.Timestamp, None]:
+        return d - pd.Timedelta(days=1)
 
-        # Return an ExchangeCalendarsHolidayCalendar instance that contains rules for all days in the given year and
-        # month.
-        return ExchangeCalendarsHolidayCalendar(
-            rules=[
-                (pd.Timestamp(f"{year}-{month:02d}-{day:02d}"), f"holiday-{day:02d}") for day in range(1, 32)
-            ]
-        )
+    @staticmethod
+    def roll_forward(d: pd.Timestamp) -> Union[pd.Timestamp, None]:
+        return d + pd.Timedelta(days=1)
 
+    @pytest.mark.parametrize("return_name", [False, True], ids=["return_name=False", "return_name=True"])
+    @pytest.mark.parametrize("weekmask, day, day_adjusted, roll_fn", [
+        ("1111100", "2024-01-15", "2024-01-15", roll_backward),  # Mon
+        ("1111100", "2024-01-16", "2024-01-16", roll_backward),  # Tue
+        ("1111100", "2024-01-17", "2024-01-17", roll_backward),  # Wed
+        ("1111100", "2024-01-18", "2024-01-18", roll_backward),  # Thu
+        ("1111100", "2024-01-19", "2024-01-19", roll_backward),  # Fri
+        ("1111100", "2024-01-20", "2024-01-19", roll_backward),  # Sat
+        ("1111100", "2024-01-21", "2024-01-19", roll_backward),  # Sun
+        ("1111100", "2024-01-15", "2024-01-15", roll_forward),  # Mon
+        ("1111100", "2024-01-16", "2024-01-16", roll_forward),  # Tue
+        ("1111100", "2024-01-17", "2024-01-17", roll_forward),  # Wed
+        ("1111100", "2024-01-18", "2024-01-18", roll_forward),  # Thu
+        ("1111100", "2024-01-19", "2024-01-19", roll_forward),  # Fri
+        ("1111100", "2024-01-20", "2024-01-22", roll_forward),  # Sat
+        ("1111100", "2024-01-21", "2024-01-22", roll_forward),  # Sun
+    ])
+    def test_weekmask(self, weekmask: str, day: str, day_adjusted: str, roll_fn: RollFn, return_name: bool):
+        """Test that the weekmask is applied correctly when adjusting the holidays."""
 
+        # Unadjusted holiday.
+        day = pd.Timestamp(day)
+
+        # Adjusted holiday.
+        day_adjusted = pd.Timestamp(day_adjusted)
+
+        # Calendar containing just the single holiday, the given weekmask, and using the given roll function. The other
+        # calendar is empty.
+        calendar = AdjustedHolidayCalendar(rules=[
+            Holiday(name="Holiday", **date2args(day)),
+        ], other=ExchangeCalendarsHolidayCalendar([]), weekmask=weekmask, roll_fn=roll_fn)
+
+        # Check that holiday is adjusted to the expected day.
+        assert calendar.holidays(return_name=return_name).equals(
+            pd.Series(["Holiday", ], index=[day_adjusted, ]) if return_name else pd.DatetimeIndex([day_adjusted, ]))
+
+    @pytest.mark.parametrize("return_name", [False, True], ids=["return_name=False", "return_name=True"])
+    @pytest.mark.parametrize("day, day_adjusted, day_other, roll_fn", [
+        ("2024-01-15", "2024-01-15", "2024-01-16", roll_backward),  # Day after holiday is a holiday. No adjustment.
+        ("2024-01-16", "2024-01-15", "2024-01-16", roll_backward),  # Day coincides with other holiday. Adjust.
+        ("2024-01-17", "2024-01-17", "2024-01-16", roll_backward),  # Day before holiday is a holiday. No adjustment.
+        ("2024-01-15", "2024-01-15", "2024-01-16", roll_forward),  # Day after holiday is a holiday. No adjustment.
+        ("2024-01-16", "2024-01-17", "2024-01-16", roll_forward),  # Day coincides with other holiday. Adjust.
+        ("2024-01-17", "2024-01-17", "2024-01-16", roll_forward),  # Day before holiday is a holiday. No adjustment.
+    ])
+    def test_other_calendar(self, day: str, day_adjusted: str, day_other: str, roll_fn: RollFn, return_name: bool):
+        """Test that the other given calendar is applied correctly when adjusting the holidays."""
+
+        # Unadjusted holiday.
+        day = pd.Timestamp(day)
+
+        # Adjusted holiday.
+        day_adjusted = pd.Timestamp(day_adjusted)
+
+        # Holiday in other calendar.
+        day_other = pd.Timestamp(day_other)
+
+        # Calendar containing the single holiday, and another holiday in the other given calendar. The weekmask covers
+        # all days of the week, so it should not have any impact on adjustments. Also uses the given roll function.
+        calendar = AdjustedHolidayCalendar(rules=[Holiday(name="Holiday", **date2args(day)), ],
+                                           other=ExchangeCalendarsHolidayCalendar(
+                                               rules=[Holiday(name="Other Holiday", **date2args(day_other)), ]),
+                                           weekmask="1111111", roll_fn=roll_fn)
+
+        # Test that the holidays are adjusted correctly.
+        assert calendar.holidays(return_name=return_name).equals(
+            pd.Series(["Holiday", ], index=[day_adjusted, ]) if return_name else pd.DatetimeIndex([day_adjusted, ]))
+
+    def test_multiple_adjustments_and_roll_fn(self, mocker):
+        """Test that the roll function is called multiple times when necessary."""
+
+        # A Monday.
+        mon = pd.Timestamp("2024-01-15")
+
+        # The previous Friday.
+        fri = mon - pd.Timedelta(days=3)
+
+        # The Thursday before the previous Friday.
+        thu = fri - pd.Timedelta(days=1)
+
+        # Create a spy on the roll_backward function.
+        spy_roll_fn = mocker.spy(TestAdjustedHolidayCalendar, 'roll_backward')
+
+        # Calendar with mon as a0 holiday. In the given other calendar, mon is a holiday as well, as is fri. The
+        # weekmask covers all days of the week, so it should not have any impact on adjustments. Also uses the given
+        # roll function.
+        calendar = AdjustedHolidayCalendar(rules=[
+            Holiday(name="Holiday", **date2args(mon)),  # Monday.
+        ], other=ExchangeCalendarsHolidayCalendar(rules=[
+            Holiday(name="Other Holiday 1", **date2args(fri)),  # Previous Friday.
+            Holiday(name="Other Holiday 2", **date2args(mon)),  # Monday.
+        ]), weekmask="1111100", roll_fn=spy_roll_fn)
+
+        # Check if the holiday is adjusted correctly. It should be rolled back to the previous Thrusday.
+        assert calendar.holidays().equals(pd.DatetimeIndex([thu, ]))
+
+        # Should have rolled four times.
+        assert spy_roll_fn.call_count == 4
+
+        # Check expected arguments to roll function.
+        assert spy_roll_fn.call_args_list == [
+            mocker.call(mon),
+            mocker.call(mon - pd.Timedelta(days=1)),
+            mocker.call(mon - pd.Timedelta(days=2)),
+            mocker.call(mon - pd.Timedelta(days=3)),
+        ]
+
+    def test_roll_fn_returns_none(self, mocker):
+        """Test case where the roll function returns None."""
+
+        # Mock the roll function to always return None.
+        mock_roll_fn = mocker.Mock()
+        mock_roll_fn.side_effect = lambda day: None
+
+        # Single holiday to test.
+        day = pd.Timestamp("2024-01-15")
+
+        # Calendar with a holiday that conflicts with a holiday in the other calendar. The weekmask is set to Monday to
+        # Sunday.
+        calendar = AdjustedHolidayCalendar(rules=[Holiday(name="Holiday", **date2args(day)), ],
+                                           other=ExchangeCalendarsHolidayCalendar(
+                                               rules=[Holiday(name="Other Holiday", **date2args(day)), ]),
+                                           weekmask="1111111", roll_fn=mock_roll_fn)
+
+        # Check if holiday gets dropped due to the roll function returning None.
+        assert calendar.holidays().equals(pd.DatetimeIndex([]))
+
+        # Should have rolled a single time.
+        mock_roll_fn.assert_called_once_with(day)
+
+    @pytest.mark.parametrize("roll_fn", [roll_backward, roll_forward])
+    def test_internal_conflict(self, roll_fn: RollFn):
+        """Test case where a holiday conflicts with another one defined in the same calendar."""
+
+        # Arbitrary day to use as holiday.
+        day = pd.Timestamp("2024-01-15")
+
+        # Adjusted holiday.
+        day_adjusted = roll_fn(day)
+
+        # Calendar with conflicting rules. The given other calendar is empty. The weekmask covers all days of the week,
+        # so it should not have any impact on adjustments. Also uses the given roll function.
+        calendar = AdjustedHolidayCalendar(rules=[
+            Holiday(name="Holiday", **date2args(day)),  # Mon
+            Holiday(name="Other Holiday", **date2args(day)),  # Same day as holiday above.
+        ], other=ExchangeCalendarsHolidayCalendar([]), weekmask="1111111", roll_fn=roll_fn)
+
+        # Check if the holidays are adjusted in order of definition, i.e. Holiday gets adjusted by roll_fn, Other
+        # Holiday remains untouched.
+        assert calendar.holidays(return_name=True).equals(
+            pd.Series(["Holiday", "Other Holiday", ], index=[day_adjusted, day, ]))
+
+    def test_roll_precedence(self):
+        """Test case where a holiday gets rolled back due to a conflict with a holiday in another calendar, but then,
+        after the first adjustment, conflicts with a holiday defined in the same calendar."""
+
+        # Arbitrary day to use as holiday.
+        day = pd.Timestamp("2024-01-15")
+
+        # The day after.
+        day_after = day + pd.Timedelta(days=1)
+
+        # The day before.
+        day_before = day - pd.Timedelta(days=1)
+
+        # Calendar with conflicting rules. The rule for Holiday 2 conflicts with the rule for Other Holiday in the given
+        # other calendar. The weekmask covers all days of the week, so it should not have any impact on adjustments.
+        # Uses a roll function that rolls back one day.
+        calendar = AdjustedHolidayCalendar(
+            rules=[Holiday(name="Holiday 1", **date2args(day)), Holiday(name="Holiday 2", **date2args(day_after)), ],
+            other=ExchangeCalendarsHolidayCalendar(rules=[Holiday(name="Other Holiday", **date2args(day_after)), ]),
+            weekmask="1111111", roll_fn=TestAdjustedHolidayCalendar.roll_backward)
+
+        # Holiday 2 should first be adjusted to `day` due to the conflict with Other Holiday. Then, Holiday 1
+        # should be adjusted to `day_before` due to the conflict with the adjusted Holiday 2.
+        assert calendar.holidays(return_name=True).equals(
+            pd.Series(["Holiday 1", "Holiday 2", ], index=[day_before, day, ]))
+
+    @pytest.mark.parametrize("roll_fn", [roll_backward, roll_forward,])
+    def test_roll_outside_range(self, roll_fn: Callable[[pd.Timestamp], pd.Timestamp]):
+        """Test case where a holiday gets rolled back due to a conflict with a holiday in another calendar, but then
+        falls outside the requested date range."""
+
+        # Arbitrary day to use as holiday.
+        day = pd.Timestamp("2024-01-15")
+
+        # Adjusted holiday.
+        day_adjusted = roll_fn(day)
+
+        calendar = AdjustedHolidayCalendar(rules=[Holiday(name="Holiday", **date2args(day)), ],
+                                           other=ExchangeCalendarsHolidayCalendar(
+                                               rules=[Holiday(name="Other Holiday", **date2args(day)), ]),
+                                           weekmask="1111111", roll_fn=roll_fn)
+
+        # Adjusted holiday should be different from unadjusted one.
+        assert day_adjusted != day
+
+        # Holiday should be adjusted by rolling once due to the conflict with Other Holiday.
+        assert calendar.holidays(return_name=True).equals(pd.Series(["Holiday", ], index=[day_adjusted, ]))
+
+        # Holiday should not be included when the requested date range only covers the original date, although the
+        # unadjusted date falls within.
+        assert calendar.holidays(start=day, end=day, return_name=True).equals(pd.Series([], dtype="object"))
 
 
 class TestHolidayCalendars:
@@ -141,7 +342,8 @@ class TestHolidayCalendars:
     def test_get_holidays_calendar(self):
         calendar = get_calendar("XLON")
         holidays_calendar = get_holidays_calendar(calendar)
-        holidays = holidays_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        holidays = holidays_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"),
+                                              return_name=True)
         expected_holidays = pd.Series({
             pd.Timestamp("2020-01-01"): "New Year's Day",
             pd.Timestamp("2020-04-10"): "Good Friday",
@@ -156,7 +358,6 @@ class TestHolidayCalendars:
         assert holidays.compare(expected_holidays).empty
 
     def test_get_special_closes_calendar(self):
-
         class TestCalendar(ExchangeCalendar):
             regular_early_close = time(12, 30)
             name = "TEST"
@@ -201,7 +402,8 @@ class TestHolidayCalendars:
 
         calendar = TestCalendar()
         special_closes_calendar = get_special_closes_calendar(calendar)
-        special_closes = special_closes_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        special_closes = special_closes_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                          end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_special_closes = pd.Series({
             pd.Timestamp("2020-01-06"): SPECIAL_CLOSE,
             pd.Timestamp("2020-01-08"): "ad-hoc special close",
@@ -263,7 +465,6 @@ class TestHolidayCalendars:
         assert special_closes.compare(expected_special_closes).empty
 
     def test_get_special_opens_calendar(self):
-
         class TestCalendar(ExchangeCalendar):
             regular_late_open = time(10, 30)
             name = "TEST"
@@ -308,7 +509,8 @@ class TestHolidayCalendars:
 
         calendar = TestCalendar()
         special_opens_calendar = get_special_opens_calendar(calendar)
-        special_opens = special_opens_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        special_opens = special_opens_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                        end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_special_opens = pd.Series({
             pd.Timestamp("2020-01-06"): SPECIAL_OPEN,
             pd.Timestamp("2020-01-08"): "ad-hoc special open",
@@ -370,7 +572,6 @@ class TestHolidayCalendars:
         assert special_opens.compare(expected_special_opens).empty
 
     def test_get_weekend_days_calendar(self):
-
         class TestCalendar(ExchangeCalendar):
             name = "TEST"
             tz = timezone("Europe/London")
@@ -380,7 +581,8 @@ class TestHolidayCalendars:
 
         calendar = TestCalendar()
         weekend_days_calendar = get_weekend_days_calendar(calendar)
-        weekend_days = weekend_days_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-01-31"), return_name=True)
+        weekend_days = weekend_days_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-01-31"),
+                                                      return_name=True)
         expected_weekend_days = pd.Series({
             pd.Timestamp("2020-01-03"): WEEKEND_DAY,
             pd.Timestamp("2020-01-05"): WEEKEND_DAY,
@@ -396,12 +598,12 @@ class TestHolidayCalendars:
         assert weekend_days.compare(expected_weekend_days).empty
 
     def test_get_monthly_expiry_calendar(self):
-
         # Test plain vanilla calendar without any special days or close days that may fall onto the same days as monthly
         # expiry.
 
         monthly_expiry_calendar = HolidayCalendar(rules=get_monthly_expiry_rules(day_of_week=4))
-        monthly_expiry = monthly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        monthly_expiry = monthly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                          end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_monthly_expiry = pd.Series({
             pd.Timestamp("2020-01-17"): MONTHLY_EXPIRY,
             pd.Timestamp("2020-02-21"): MONTHLY_EXPIRY,
@@ -417,7 +619,8 @@ class TestHolidayCalendars:
 
         # Test calendar with identity observance.
         monthly_expiry_calendar = HolidayCalendar(rules=get_monthly_expiry_rules(day_of_week=4, observance=lambda x: x))
-        monthly_expiry = monthly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        monthly_expiry = monthly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                          end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_monthly_expiry = pd.Series({
             pd.Timestamp("2020-01-17"): MONTHLY_EXPIRY,
             pd.Timestamp("2020-02-21"): MONTHLY_EXPIRY,
@@ -432,8 +635,10 @@ class TestHolidayCalendars:
         assert monthly_expiry.compare(expected_monthly_expiry).empty
 
         # Test calendar with an observance that moves the holiday to the previous day.
-        monthly_expiry_calendar = HolidayCalendar(rules=get_monthly_expiry_rules(day_of_week=4, observance=lambda x: x - pd.Timedelta(days=1)))
-        monthly_expiry = monthly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        monthly_expiry_calendar = HolidayCalendar(
+            rules=get_monthly_expiry_rules(day_of_week=4, observance=lambda x: x - pd.Timedelta(days=1)))
+        monthly_expiry = monthly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                          end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_monthly_expiry = pd.Series({
             pd.Timestamp("2020-01-16"): MONTHLY_EXPIRY,
             pd.Timestamp("2020-02-20"): MONTHLY_EXPIRY,
@@ -448,11 +653,11 @@ class TestHolidayCalendars:
         assert monthly_expiry.compare(expected_monthly_expiry).empty
 
     def test_get_quadruple_witching_calendar(self):
-
         # Test plain vanilla calendar without any special days or close days that may fall onto the same days as quarterly
         # expiry.
         quarterly_expiry_calendar = HolidayCalendar(rules=get_quadruple_witching_rules(day_of_week=4))
-        quarterly_expiry = quarterly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        quarterly_expiry = quarterly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                              end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_quarterly_expiry = pd.Series({
             pd.Timestamp("2020-03-20"): QUARTERLY_EXPIRY,
             pd.Timestamp("2020-06-19"): QUARTERLY_EXPIRY,
@@ -463,8 +668,10 @@ class TestHolidayCalendars:
         assert quarterly_expiry.compare(expected_quarterly_expiry).empty
 
         # Test calendar with identity observance.
-        quarterly_expiry_calendar = HolidayCalendar(rules=get_quadruple_witching_rules(day_of_week=4, observance=lambda x: x))
-        quarterly_expiry = quarterly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        quarterly_expiry_calendar = HolidayCalendar(
+            rules=get_quadruple_witching_rules(day_of_week=4, observance=lambda x: x))
+        quarterly_expiry = quarterly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                              end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_quarterly_expiry = pd.Series({
             pd.Timestamp("2020-03-20"): QUARTERLY_EXPIRY,
             pd.Timestamp("2020-06-19"): QUARTERLY_EXPIRY,
@@ -475,8 +682,10 @@ class TestHolidayCalendars:
         assert quarterly_expiry.compare(expected_quarterly_expiry).empty
 
         # Test calendar with an observance that moves the holiday to the previous day.
-        quarterly_expiry_calendar = HolidayCalendar(rules=get_quadruple_witching_rules(day_of_week=4, observance=lambda x: x - pd.Timedelta(days=1)))
-        quarterly_expiry = quarterly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        quarterly_expiry_calendar = HolidayCalendar(
+            rules=get_quadruple_witching_rules(day_of_week=4, observance=lambda x: x - pd.Timedelta(days=1)))
+        quarterly_expiry = quarterly_expiry_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                              end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_quarterly_expiry = pd.Series({
             pd.Timestamp("2020-03-19"): QUARTERLY_EXPIRY,
             pd.Timestamp("2020-06-18"): QUARTERLY_EXPIRY,
@@ -490,7 +699,8 @@ class TestHolidayCalendars:
         # Test plain vanilla calendar that ignores any special days or close days, even weekends, that may fall onto the
         # same days.
         last_day_of_month_calendar = HolidayCalendar(rules=get_last_day_of_month_rules(name=LAST_DAY_OF_MONTH))
-        last_day_of_month = last_day_of_month_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        last_day_of_month = last_day_of_month_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                                end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_last_day_of_month = pd.Series({
             pd.Timestamp("2020-01-31"): LAST_DAY_OF_MONTH,
             pd.Timestamp("2020-02-29"): LAST_DAY_OF_MONTH,
@@ -509,8 +719,10 @@ class TestHolidayCalendars:
         assert last_day_of_month.compare(expected_last_day_of_month).empty
 
         # Test calendar with an observance that moves the holiday to the previous day.
-        last_day_of_month_calendar = HolidayCalendar(rules=get_last_day_of_month_rules(name=LAST_DAY_OF_MONTH, observance=lambda x: x - pd.Timedelta(days=1)))
-        last_day_of_month = last_day_of_month_calendar.holidays(start=pd.Timestamp("2020-01-01"), end=pd.Timestamp("2020-12-31"), return_name=True)
+        last_day_of_month_calendar = HolidayCalendar(
+            rules=get_last_day_of_month_rules(name=LAST_DAY_OF_MONTH, observance=lambda x: x - pd.Timedelta(days=1)))
+        last_day_of_month = last_day_of_month_calendar.holidays(start=pd.Timestamp("2020-01-01"),
+                                                                end=pd.Timestamp("2020-12-31"), return_name=True)
         expected_last_day_of_month = pd.Series({
             pd.Timestamp("2020-01-30"): LAST_DAY_OF_MONTH,
             pd.Timestamp("2020-02-28"): LAST_DAY_OF_MONTH,

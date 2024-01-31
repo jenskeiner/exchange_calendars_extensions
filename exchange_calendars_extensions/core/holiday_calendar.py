@@ -65,7 +65,11 @@ def get_conflicts(holidays_dates: List[Union[pd.Timestamp, None]], other_holiday
     """
 
     # Determine the indices of holidays that coincide with holidays from the other calendar.
-    return [i for i in range(len(holidays_dates)) if holidays_dates[i] is not None and (holidays_dates[i] in other_holidays or holidays_dates[i].weekday() in weekend_days)]
+    return [i for i in range(len(holidays_dates)) if holidays_dates[i] is not None and (holidays_dates[i] in other_holidays or holidays_dates[i].weekday() in weekend_days or holidays_dates[i] in holidays_dates[i+1:])]
+
+
+# A function that takes a date and returns a date or None.
+RollFn = Callable[[pd.Timestamp], Union[pd.Timestamp, None]]
 
 
 def roll_one_day_same_month(d: pd.Timestamp) -> Union[pd.Timestamp, None]:
@@ -103,7 +107,7 @@ def roll_one_day_same_month(d: pd.Timestamp) -> Union[pd.Timestamp, None]:
 class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
 
     def __init__(self, rules, other: ExchangeCalendarsHolidayCalendar, weekmask: str,
-                 roll_fn: Callable[[pd.Timestamp], Union[pd.Timestamp, None]] = lambda d: d - pd.Timedelta(days=1)) -> None:
+                 roll_fn: RollFn = lambda d: d - pd.Timedelta(days=1)) -> None:
         super().__init__(rules=rules)
         self._other = other
         self._weekend_days = {d for d in range(7) if weekmask[d] == '0'}
@@ -135,10 +139,10 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
 
         if return_name:
             # Return a series, filter out dates that are None.
-            return pd.Series({d: n for d, n in zip(holidays_dates, holidays.values) if d is not None})
+            return pd.Series({d: n for d, n in zip(holidays_dates, holidays.values) if d is not None and (start is None or d >= start) and (end is None or d <= end)})
         else:
             # Return index, filter out dates that are None.
-            return pd.DatetimeIndex([d for d in holidays_dates if d is not None])
+            return pd.DatetimeIndex([d for d in holidays_dates if d is not None and (start is None or d >= start) and (end is None or d <= end)])
 
 
 def get_holiday_calendar_from_timestamps(timestamps: Iterable[pd.Timestamp],

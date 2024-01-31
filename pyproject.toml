@@ -41,6 +41,7 @@ pydantic = ">=2.0,<3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.3.1,<7.5.0"
+pytest-mock = "~=3.11.1"
 pytest-cov = "~=4.1.0"
 pre-commit = ">=3.3.3,<3.6.0"
 
