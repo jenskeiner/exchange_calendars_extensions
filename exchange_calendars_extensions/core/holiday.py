@@ -13,10 +13,10 @@ def get_monthly_expiry_holiday(
         name: str,
         day_of_week: int,
         month: int,
-        observance: Optional[Callable[[pd.Timestamp], pd.Timestamp]] = None,
-        start_date: Optional[pd.Timestamp] = None,
-        end_date: Optional[pd.Timestamp] = None,
-        tz: Optional[tzinfo] = None) -> Holiday:
+        observance: Union[Callable[[pd.Timestamp], pd.Timestamp], None] = None,
+        start_date: Union[pd.Timestamp, None] = None,
+        end_date: Union[pd.Timestamp, None] = None,
+        tz: Union[tzinfo, None] = None) -> Holiday:
     """
     Return a holiday that occurs yearly on the third given day of the week in the given month of the year.
 
@@ -53,10 +53,10 @@ def get_monthly_expiry_holiday(
 def get_last_day_of_month_holiday(
         name: str,
         month: int,
-        observance: Optional[Callable[[pd.Timestamp], pd.Timestamp]] = None,
-        start_date: Optional[pd.Timestamp] = None,
-        end_date: Optional[pd.Timestamp] = None,
-        tz: Optional[tzinfo] = None) -> Holiday:
+        observance: Union[Callable[[pd.Timestamp], pd.Timestamp], None] = None,
+        start_date: Union[pd.Timestamp, None] = None,
+        end_date: Union[pd.Timestamp, None] = None,
+        tz: Union[tzinfo, None] = None) -> Holiday:
     """
     Return a holiday that occurs yearly on the last day of the given month of the year.
 

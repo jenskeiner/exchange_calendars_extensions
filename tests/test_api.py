@@ -1637,14 +1637,21 @@ def test_apply_changeset():
     import exchange_calendars_extensions.core as ece
 
     changes = {
-        'add': [
-            {'date': '2023-01-02', 'type': 'holiday', 'name': INSERTED_HOLIDAY},
-            {'date': '2023-05-02', 'type': 'special_open', 'name': "Inserted Special Open", 'time': '11:00'},
-            {'date': '2023-03-02', 'type': 'special_close', 'name': "Inserted Special Close", 'time': '14:00'},
-            {'date': '2023-08-17', 'type': 'monthly_expiry', 'name': "Inserted Monthly Expiry"},
-            {'date': '2023-09-14', 'type': 'quarterly_expiry', 'name': "Inserted Quarterly Expiry"},
-        ],
-        'remove': ['2023-01-01', '2023-05-01', '2023-03-01', '2023-08-18', '2023-09-15']
+        'add': {
+            '2023-01-02': {'type': 'holiday', 'name': INSERTED_HOLIDAY},
+            '2023-05-02': {'type': 'special_open', 'name': "Inserted Special Open", 'time': '11:00'},
+            '2023-03-02': {'type': 'special_close', 'name': "Inserted Special Close", 'time': '14:00'},
+            '2023-08-17': {'type': 'monthly_expiry', 'name': "Inserted Monthly Expiry"},
+            '2023-09-14': {'type': 'quarterly_expiry', 'name': "Inserted Quarterly Expiry"},
+        },
+        'remove': ['2023-01-01', '2023-05-01', '2023-03-01', '2023-08-18', '2023-09-15'],
+        'tags': {
+            '2023-01-02': ['tag1', 'tag2'],
+            '2023-05-02': ['tag1', 'tag2'],
+            '2023-03-02': ['tag1', 'tag2'],
+            '2023-08-17': ['tag1', 'tag2'],
+            '2023-09-14': ['tag1', 'tag2'],
+        }
     }
     ece.update_calendar("TEST", changes)
     c = ec.get_calendar("TEST")
@@ -1763,14 +1770,21 @@ def test_test():
     import exchange_calendars as ec
 
     changes = {
-        'add': [
-            {'date': '2022-01-10', 'type': 'holiday', 'name': 'Holiday'},
-            {'date': '2022-01-12', 'type': 'special_open', 'name': 'Special Open', 'time': '10:00'},
-            {'date': '2022-01-14', 'type': 'special_close', 'name': 'Special Close', 'time': '16:00'},
-            {'date': '2022-01-18', 'type': 'monthly_expiry', 'name': MONTHLY_EXPIRY},
-            {'date': '2022-01-20', 'type': 'quarterly_expiry', 'name': QUARTERLY_EXPIRY}
-        ],
-        'remove': ['2022-01-11', '2022-01-13', '2022-01-17', '2022-01-19', '2022-01-21']
+        'add': {
+            '2022-01-10': {'type': 'holiday', 'name': 'Holiday'},
+            '2022-01-12': {'type': 'special_open', 'name': 'Special Open', 'time': '10:00'},
+            '2022-01-14': {'type': 'special_close', 'name': 'Special Close', 'time': '16:00'},
+            '2022-01-18': {'type': 'monthly_expiry', 'name': MONTHLY_EXPIRY},
+            '2022-01-20': {'type': 'quarterly_expiry', 'name': QUARTERLY_EXPIRY}
+        },
+        'remove': ['2022-01-11', '2022-01-13', '2022-01-17', '2022-01-19', '2022-01-21'],
+        'tags': {
+            '2022-01-10': ['tag1', 'tag2'],
+            '2022-01-12': ['tag1', 'tag2'],
+            '2022-01-14': ['tag1', 'tag2'],
+            '2022-01-18': ['tag1', 'tag2'],
+            '2022-01-20': ['tag1', 'tag2'],
+        }
     }
 
     ece.update_calendar('XLON', changes)
