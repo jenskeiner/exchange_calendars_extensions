@@ -328,11 +328,6 @@ def _remove_day(cs: ChangeSet, date: TimestampLike) -> ChangeSet:
     -------
     ChangeSet
         The changeset with the removed day.
-
-    Raises
-    ------
-    ValidationError
-        If strict is True and the changeset for the exchange would be inconsistent after removing the day.
     """
     return cs.remove_day(date)
 
@@ -352,11 +347,6 @@ def remove_day(exchange: str, date: TimestampLike) -> None:
     Returns
     -------
     None
-
-    Raises
-    ------
-    ValidationError
-        If strict is True and the changeset for the exchange would be inconsistent after removing the day.
     """
     _remove_day(exchange, date)
 
@@ -379,11 +369,6 @@ def _set_tags(cs: ChangeSet, date: TimestampLike, tags: Tags) -> ChangeSet:
     -------
     ChangeSet
         The changeset with the given tags set for the given day.
-
-    Raises
-    ------
-    ValidationError
-        If strict is True and the changeset for the exchange would be inconsistent after removing the day.
     """
     return cs.remove_day(date)
 
@@ -405,11 +390,6 @@ def set_tags(exchange: str, date: TimestampLike, tags: Tags) -> None:
     Returns
     -------
     None
-
-    Raises
-    ------
-    ValidationError
-        If strict is True and the changeset for the exchange would be inconsistent after removing the day.
     """
     _set_tags(exchange, date, tags)
 
