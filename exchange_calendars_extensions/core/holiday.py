@@ -5,18 +5,21 @@ import pandas as pd
 from exchange_calendars.pandas_extensions.holiday import Holiday
 from pandas import Series, DatetimeIndex
 
-from exchange_calendars_extensions.core.offset import LastDayOfMonthOffsetClasses, \
-    ThirdDayOfWeekInMonthOffsetClasses
+from exchange_calendars_extensions.core.offset import (
+    LastDayOfMonthOffsetClasses,
+    ThirdDayOfWeekInMonthOffsetClasses,
+)
 
 
 def get_monthly_expiry_holiday(
-        name: str,
-        day_of_week: int,
-        month: int,
-        observance: Union[Callable[[pd.Timestamp], pd.Timestamp], None] = None,
-        start_date: Union[pd.Timestamp, None] = None,
-        end_date: Union[pd.Timestamp, None] = None,
-        tz: Union[tzinfo, None] = None) -> Holiday:
+    name: str,
+    day_of_week: int,
+    month: int,
+    observance: Union[Callable[[pd.Timestamp], pd.Timestamp], None] = None,
+    start_date: Union[pd.Timestamp, None] = None,
+    end_date: Union[pd.Timestamp, None] = None,
+    tz: Union[tzinfo, None] = None,
+) -> Holiday:
     """
     Return a holiday that occurs yearly on the third given day of the week in the given month of the year.
 
@@ -45,18 +48,26 @@ def get_monthly_expiry_holiday(
     Holiday
         A new Holiday object as specified.
     """
-    return Holiday(name, month=1, day=1,
-                   offset=ThirdDayOfWeekInMonthOffsetClasses[day_of_week][month](),
-                   observance=observance, start_date=start_date, end_date=end_date, tz=tz)
+    return Holiday(
+        name,
+        month=1,
+        day=1,
+        offset=ThirdDayOfWeekInMonthOffsetClasses[day_of_week][month](),
+        observance=observance,
+        start_date=start_date,
+        end_date=end_date,
+        tz=tz,
+    )
 
 
 def get_last_day_of_month_holiday(
-        name: str,
-        month: int,
-        observance: Union[Callable[[pd.Timestamp], pd.Timestamp], None] = None,
-        start_date: Union[pd.Timestamp, None] = None,
-        end_date: Union[pd.Timestamp, None] = None,
-        tz: Union[tzinfo, None] = None) -> Holiday:
+    name: str,
+    month: int,
+    observance: Union[Callable[[pd.Timestamp], pd.Timestamp], None] = None,
+    start_date: Union[pd.Timestamp, None] = None,
+    end_date: Union[pd.Timestamp, None] = None,
+    tz: Union[tzinfo, None] = None,
+) -> Holiday:
     """
     Return a holiday that occurs yearly on the last day of the given month of the year.
 
@@ -82,9 +93,16 @@ def get_last_day_of_month_holiday(
     Holiday
         A new Holiday object as specified.
     """
-    return Holiday(name, month=1, day=1,
-                   offset=LastDayOfMonthOffsetClasses[month](),
-                   observance=observance, start_date=start_date, end_date=end_date, tz=tz)
+    return Holiday(
+        name,
+        month=1,
+        day=1,
+        offset=LastDayOfMonthOffsetClasses[month](),
+        observance=observance,
+        start_date=start_date,
+        end_date=end_date,
+        tz=tz,
+    )
 
 
 class DayOfWeekPeriodicHoliday(Holiday):
@@ -98,7 +116,7 @@ class DayOfWeekPeriodicHoliday(Holiday):
         day_of_week: int,
         start_date: Optional[pd.Timestamp] = None,
         end_date: Optional[pd.Timestamp] = None,
-        tz: Optional[tzinfo] = None
+        tz: Optional[tzinfo] = None,
     ) -> None:
         """
         Constructor.
@@ -131,7 +149,7 @@ class DayOfWeekPeriodicHoliday(Holiday):
             start_date=start_date,
             end_date=end_date,
             days_of_week=None,
-            tz=tz
+            tz=tz,
         )
 
         # Store day of week.
@@ -164,7 +182,9 @@ class DayOfWeekPeriodicHoliday(Holiday):
             return pd.DatetimeIndex([])
 
         # Get the first date larger or equal to start_date where the day of the week is the same as day_of_week.
-        first = start_date + pd.Timedelta(days=(self.day_of_week - start_date.dayofweek) % 7)
+        first = start_date + pd.Timedelta(
+            days=(self.day_of_week - start_date.dayofweek) % 7
+        )
 
         if first > end_date:
             # Empty result.
@@ -179,7 +199,9 @@ class DayOfWeekPeriodicHoliday(Holiday):
         # Return the dates.
         return dates
 
-    def dates(self, start_date, end_date, return_name=False) -> Union[DatetimeIndex, Series]:
+    def dates(
+        self, start_date, end_date, return_name=False
+    ) -> Union[DatetimeIndex, Series]:
         # Get DateTimeIndex with the dates of the holidays.
         dates = self._dates(start_date, end_date)
 

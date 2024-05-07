@@ -1,12 +1,10 @@
 import datetime as dt
-import pandas as pd
-
-from typing import Dict
-
 from typing import Union
 
+import pandas as pd
 
-def date2args(date: Union[dt.date, pd.Timestamp]) -> Dict[str, int]:
+
+def date2args(date: Union[dt.date, pd.Timestamp]) -> dict[str, int]:
     """
     Convert a date to a dictionary of arguments, including year, month and day.
 
@@ -20,11 +18,7 @@ def date2args(date: Union[dt.date, pd.Timestamp]) -> Dict[str, int]:
     Dict[str, int]
         A dictionary of arguments.
     """
-    return {
-        'year': date.year,
-        'month': date.month,
-        'day': date.day
-    }
+    return {"year": date.year, "month": date.month, "day": date.day}
 
 
 def roll_backward(d: pd.Timestamp) -> Union[pd.Timestamp, None]:

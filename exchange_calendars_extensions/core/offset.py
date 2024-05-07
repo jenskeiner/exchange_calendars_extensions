@@ -1,17 +1,19 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, date
-from typing import Type
 
 import pandas as pd
 from pandas._libs.tslibs import localize_pydatetime
 from pandas._libs.tslibs.offsets import Easter, apply_wraps
 
-from exchange_calendars_extensions.core.util import get_month_name, get_day_of_week_name, third_day_of_week_in_month, \
-    last_day_in_month
+from exchange_calendars_extensions.core.util import (
+    get_month_name,
+    get_day_of_week_name,
+    third_day_of_week_in_month,
+    last_day_in_month,
+)
 
 
 class AbstractHolidayOffset(Easter, ABC):
-
     @staticmethod
     def _is_normalized(dt):
         if dt.hour != 0 or dt.minute != 0 or dt.second != 0 or dt.microsecond != 0:
@@ -63,11 +65,13 @@ class AbstractHolidayOffset(Easter, ABC):
         return date(dt.year, dt.month, dt.day) == self.holiday(dt.year).to_pydate()
 
 
-def get_third_day_of_week_in_month_offset_class(day_of_week: int, month: int) -> Type[AbstractHolidayOffset]:
+def get_third_day_of_week_in_month_offset_class(
+    day_of_week: int, month: int
+) -> type[AbstractHolidayOffset]:
     """
     Return a new class that represents an offset that, when applied to the first day of a year, results in the third
     given day of the week in the given month.
-    
+
     For example, to get the offset for the third Friday in June, call this function with day_of_week=4 and month=6. On
     many exchanges, this will be the quadruple witching day for the second quarter of the year.
 
@@ -97,9 +101,13 @@ def get_third_day_of_week_in_month_offset_class(day_of_week: int, month: int) ->
     month_name = get_month_name(month)
 
     # Create the new class.
-    offset = type(f"MonthlyExpiry{month_name}{day_of_week_name}Offset", (AbstractHolidayOffset,), {
-        "holiday": holiday,
-    })
+    offset = type(
+        f"MonthlyExpiry{month_name}{day_of_week_name}Offset",
+        (AbstractHolidayOffset,),
+        {
+            "holiday": holiday,
+        },
+    )
 
     # Return the new class.
     return offset
@@ -118,10 +126,16 @@ def get_third_day_of_week_in_month_offset_class(day_of_week: int, month: int) ->
 # December are also called quadruple witching.
 #
 # Currently, includes cases for Monday to Friday which should cover all real-world scenarios.
-ThirdDayOfWeekInMonthOffsetClasses = {day_of_week: {month: get_third_day_of_week_in_month_offset_class(day_of_week, month) for month in range(1, 13)} for day_of_week in range(5)}
+ThirdDayOfWeekInMonthOffsetClasses = {
+    day_of_week: {
+        month: get_third_day_of_week_in_month_offset_class(day_of_week, month)
+        for month in range(1, 13)
+    }
+    for day_of_week in range(5)
+}
 
 
-def get_last_day_of_month_offset_class(month: int) -> Type[AbstractHolidayOffset]:
+def get_last_day_of_month_offset_class(month: int) -> type[AbstractHolidayOffset]:
     """
     Return a new class that represents an offset that, when applied to the first day of a year, results in the last
     day of the given month.
@@ -136,6 +150,7 @@ def get_last_day_of_month_offset_class(month: int) -> Type[AbstractHolidayOffset
     Type[AbstractHolidayOffset]
         A new class that represents the offset.
     """
+
     def holiday(self, year) -> date:
         """
         Return a function that returns the last day of the month for a given year.
@@ -146,9 +161,13 @@ def get_last_day_of_month_offset_class(month: int) -> Type[AbstractHolidayOffset
     month_name = get_month_name(month)
 
     # Create the new class.
-    offset = type(f"LastDayOfMonth{month_name}Offset", (AbstractHolidayOffset,), {
-        "holiday": holiday,
-    })
+    offset = type(
+        f"LastDayOfMonth{month_name}Offset",
+        (AbstractHolidayOffset,),
+        {
+            "holiday": holiday,
+        },
+    )
 
     # Return the new class.
     return offset
@@ -156,4 +175,6 @@ def get_last_day_of_month_offset_class(month: int) -> Type[AbstractHolidayOffset
 
 # A dictionary that maps month to corresponding offset class as returned by get_last_day_of_month_offset_class. Used
 # as an internal cache to avoid unnecessarily creating classes with the same parameters.
-LastDayOfMonthOffsetClasses = {month: get_last_day_of_month_offset_class(month) for month in range(1, 13)}
+LastDayOfMonthOffsetClasses = {
+    month: get_last_day_of_month_offset_class(month) for month in range(1, 13)
+}
