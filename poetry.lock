@@ -154,7 +154,7 @@ description = "A package that defines parts of the API of the exchange-calendars
 optional = false
 python-versions = "~=3.9"
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 pandas = "^2"
@@ -162,8 +162,10 @@ pydantic = ">=2,<3"
 typing-extensions = ">=4.0,<5"
 
 [package.source]
-type = "directory"
-url = "../exchange_calendars_extensions_api"
+type = "git"
+url = "https://github.com/jenskeiner/exchange_calendars_extensions_api"
+reference = "develop"
+resolved_reference = "36d62e249ac04ba3de4b16944e1d47d4f6ba2112"
 
 [[package]]
 name = "filelock"
@@ -759,4 +761,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "~=3.9"
-content-hash = "65c0b16d21dca55c37b7734491320c8f25aab38b6716bf0878e2175222fb0b20"
+content-hash = "e94cf46e2f4bc998e3e7440d0249cb90d087a8d4ec6c6ce28c991e25d4afa93d"
