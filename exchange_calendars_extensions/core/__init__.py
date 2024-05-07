@@ -30,8 +30,8 @@ from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
 from pydantic import validate_call, BaseModel, conint
 from typing_extensions import ParamSpec, Concatenate
 
-from exchange_calendars_extensions.api.changes import (ChangeSet, ChangeSetDict, DayType, TimestampLike, DayPropsLike,
-                                                       Tags, TimeLike)
+from exchange_calendars_extensions.api.changes import (ChangeSet, ChangeSetDict, DayType, DateLike, DayPropsLike,
+                                                       Tags, TimeLike, DayMeta)
 from exchange_calendars_extensions.core.holiday_calendar import (extend_class, ExtendedExchangeCalendar,
                                                                  ExchangeCalendarExtensions)
 
@@ -260,7 +260,7 @@ def _with_changeset(f: Callable[Concatenate[ChangeSet, P], ChangeSet]) -> Callab
 
 
 @_with_changeset
-def _add_day(cs: ChangeSet, date: TimestampLike, props: DayPropsLike) -> ChangeSet:
+def _add_day(cs: ChangeSet, date: DateLike, props: DayPropsLike) -> ChangeSet:
     """
     Add a day of a given type to the changeset for a given exchange calendar.
 
@@ -287,7 +287,7 @@ def _add_day(cs: ChangeSet, date: TimestampLike, props: DayPropsLike) -> ChangeS
 
 
 @validate_call(config={'arbitrary_types_allowed': True})
-def add_day(exchange: str, date: TimestampLike, props: DayPropsLike) -> None:
+def add_day(exchange: str, date: DateLike, props: DayPropsLike) -> None:
     """
     Add a day of a given type to the given exchange calendar.
 
@@ -313,7 +313,7 @@ def add_day(exchange: str, date: TimestampLike, props: DayPropsLike) -> None:
 
 
 @_with_changeset
-def _remove_day(cs: ChangeSet, date: TimestampLike) -> ChangeSet:
+def _remove_day(cs: ChangeSet, date: DateLike) -> ChangeSet:
     """
     Remove a day of a given type from the changeset for a given exchange calendar.
 
@@ -333,7 +333,7 @@ def _remove_day(cs: ChangeSet, date: TimestampLike) -> ChangeSet:
 
 
 @validate_call(config={'arbitrary_types_allowed': True})
-def remove_day(exchange: str, date: TimestampLike) -> None:
+def remove_day(exchange: str, date: DateLike) -> None:
     """
     Remove a day of a given type from the given exchange calendar.
 
@@ -352,7 +352,7 @@ def remove_day(exchange: str, date: TimestampLike) -> None:
 
 
 @_with_changeset
-def _set_tags(cs: ChangeSet, date: TimestampLike, tags: Tags) -> ChangeSet:
+def _set_tags(cs: ChangeSet, date: DateLike, tags: Tags) -> ChangeSet:
     """
     Set tags for a given day in the given exchange calendar.
 
@@ -370,11 +370,11 @@ def _set_tags(cs: ChangeSet, date: TimestampLike, tags: Tags) -> ChangeSet:
     ChangeSet
         The changeset with the given tags set for the given day.
     """
-    return cs.remove_day(date)
+    return cs.set_tags(date, tags)
 
 
 @validate_call(config={'arbitrary_types_allowed': True})
-def set_tags(exchange: str, date: TimestampLike, tags: Tags) -> None:
+def set_tags(exchange: str, date: DateLike, tags: Tags) -> None:
     """
     Set tags for a given day in the given exchange calendar.
 
@@ -395,7 +395,93 @@ def set_tags(exchange: str, date: TimestampLike, tags: Tags) -> None:
 
 
 @_with_changeset
-def _reset_day(cs: ChangeSet, date: TimestampLike, include_tags: bool) -> ChangeSet:
+def _set_comment(cs: ChangeSet, date: DateLike, comment: Union[str, None]) -> ChangeSet:
+    """
+    Set comment for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    cs : ChangeSet
+        The changeset where to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    comment : str
+        The comment to set.
+
+    Returns
+    -------
+    ChangeSet
+        The changeset with the given comment set for the given day.
+    """
+    return cs.set_comment(date, comment)
+
+
+@validate_call(config={'arbitrary_types_allowed': True})
+def set_comment(exchange: str, date: DateLike, comment: Union[str, None]) -> None:
+    """
+    Set tags for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange for which to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    comment : str
+        The comment to set.
+
+    Returns
+    -------
+    None
+    """
+    _set_comment(exchange, date, comment)
+
+
+@_with_changeset
+def _set_meta(cs: ChangeSet, date: DateLike, meta: Union[DayMeta, None]) -> ChangeSet:
+    """
+    Set metadata for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    cs : ChangeSet
+        The changeset where to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    meta : DayMeta
+        The metadata to set.
+
+    Returns
+    -------
+    ChangeSet
+        The changeset with the given metadata set for the given day.
+    """
+    return cs.set_meta(date, meta)
+
+
+@validate_call(config={'arbitrary_types_allowed': True})
+def set_meta(exchange: str, date: DateLike, meta: Union[DayMeta, None]) -> None:
+    """
+    Set metadata for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange for which to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    meta : DayMeta
+        The metadata to set.
+
+    Returns
+    -------
+    None
+    """
+    _set_meta(exchange, date, meta)
+
+
+@_with_changeset
+def _reset_day(cs: ChangeSet, date: DateLike, include_tags: bool) -> ChangeSet:
     """
     Clear a day of a given type from the changeset for a given exchange calendar.
 
@@ -417,7 +503,7 @@ def _reset_day(cs: ChangeSet, date: TimestampLike, include_tags: bool) -> Change
 
 
 @validate_call(config={'arbitrary_types_allowed': True})
-def reset_day(exchange: str, date: TimestampLike, include_tags: bool = False) -> None:
+def reset_day(exchange: str, date: DateLike, include_tags: bool = False) -> None:
     """
     Clear a day of a given type from the given exchange calendar.
 
@@ -437,7 +523,7 @@ def reset_day(exchange: str, date: TimestampLike, include_tags: bool = False) ->
     _reset_day(exchange, date, include_tags=include_tags)
 
 
-def add_holiday(exchange: str, date: TimestampLike, name: str = "Holiday") -> None:
+def add_holiday(exchange: str, date: DateLike, name: str = "Holiday") -> None:
     """
     Add a holiday to an exchange calendar.
 
@@ -462,7 +548,7 @@ def add_holiday(exchange: str, date: TimestampLike, name: str = "Holiday") -> No
     _add_day(exchange, date, {'type': DayType.HOLIDAY, 'name': name})
 
 
-def add_special_open(exchange: str, date: TimestampLike, time: TimeLike, name: str = "Special Open") -> None:
+def add_special_open(exchange: str, date: DateLike, time: TimeLike, name: str = "Special Open") -> None:
     """
     Add a special open to an exchange calendar.
 
@@ -489,7 +575,7 @@ def add_special_open(exchange: str, date: TimestampLike, time: TimeLike, name: s
     _add_day(exchange, date, {'type': DayType.SPECIAL_OPEN, 'name': name, 'time': time})
 
 
-def add_special_close(exchange: str, date: TimestampLike, time: TimeLike, name: str = "Special Close") -> None:
+def add_special_close(exchange: str, date: DateLike, time: TimeLike, name: str = "Special Close") -> None:
     """
     Add a special close to an exchange calendar.
 
@@ -516,7 +602,7 @@ def add_special_close(exchange: str, date: TimestampLike, time: TimeLike, name: 
     _add_day(exchange, date, {'type': DayType.SPECIAL_CLOSE, 'name': name, 'time': time})
 
 
-def add_quarterly_expiry(exchange: str, date: TimestampLike, name: str = "Quarterly Expiry") -> None:
+def add_quarterly_expiry(exchange: str, date: DateLike, name: str = "Quarterly Expiry") -> None:
     """
     Add a quarterly expiry to an exchange calendar.
 
@@ -541,7 +627,7 @@ def add_quarterly_expiry(exchange: str, date: TimestampLike, name: str = "Quarte
     _add_day(exchange, date, {'type': DayType.QUARTERLY_EXPIRY, 'name': name})
 
 
-def add_monthly_expiry(exchange: str, date: TimestampLike, name: str = "Monthly Expiry") -> None:
+def add_monthly_expiry(exchange: str, date: DateLike, name: str = "Monthly Expiry") -> None:
     """
     Add a monthly expiry to an exchange calendar.
 
@@ -673,9 +759,9 @@ def get_changes_for_all_calendars() -> ChangeSetDict:
 # Declare public names.
 __all__ = ["apply_extensions", "remove_extensions", "register_extension", "extend_class", "DayType", "add_day",
            "remove_day", "reset_day", "DayPropsLike", "add_holiday", "add_special_close", "add_special_open",
-           "add_quarterly_expiry", "add_monthly_expiry", "reset_calendar", "reset_all_calendars", "update_calendar",
-           "get_changes_for_calendar", "get_changes_for_all_calendars", "ChangeSet", "ExtendedExchangeCalendar",
-           "ExchangeCalendarExtensions"]
+           "add_quarterly_expiry", "add_monthly_expiry", "set_meta", "reset_calendar", "reset_all_calendars",
+           "update_calendar", "get_changes_for_calendar", "get_changes_for_all_calendars", "ChangeSet",
+           "ExtendedExchangeCalendar", "ExchangeCalendarExtensions"]
 
 __version__ = None
 

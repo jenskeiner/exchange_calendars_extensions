@@ -1,5 +1,6 @@
 import datetime
 from abc import ABC
+from collections import OrderedDict
 from copy import copy
 from dataclasses import field, dataclass
 from functools import reduce
@@ -11,10 +12,15 @@ from exchange_calendars.exchange_calendar import HolidayCalendar as ExchangeCale
 from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars.pandas_extensions.holiday import Holiday as ExchangeCalendarsHoliday
 from pandas.tseries.holiday import Holiday as PandasHoliday
+from pydantic import validate_call
+from typing_extensions import Dict
 
-from exchange_calendars_extensions.api.changes import ChangeSet, DayType
+from exchange_calendars_extensions.api.changes import ChangeSet, DayType, DayMeta, TimestampLike
 from exchange_calendars_extensions.core.holiday import get_monthly_expiry_holiday, DayOfWeekPeriodicHoliday, \
     get_last_day_of_month_holiday
+
+# Timdelta that represents a day minus the smallest increment of time.
+ONE_DAY_MINUS_EPS = pd.Timedelta(1, 'd') - pd.Timedelta(1, 'ns')
 
 
 class HolidayCalendar(ExchangeCalendarsHolidayCalendar):
@@ -474,8 +480,7 @@ class ExchangeCalendarExtensions(Protocol):
         """
         ...
 
-    @property
-    def tags(self):
+    def meta(self, start: Union[TimestampLike, None] = None, end: Union[TimestampLike, None] = None) -> Dict[pd.Timestamp, DayMeta]:
         ...
 
 
@@ -826,6 +831,9 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Union[int, Non
 
         self._adjusted_properties = a
 
+        # Save meta.
+        self._meta = changeset.meta if changeset is not None else {}
+
         # Call upstream init method.
         init_orig(self, *args, **kwargs)
 
@@ -930,6 +938,31 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Union[int, Non
                                        other=self._holidays_and_special_business_days_shared, weekmask=self.weekmask,
                                        roll_fn=roll_one_day_same_month)
 
+    @validate_call(config={'arbitrary_types_allowed': True})
+    def meta(self, start: Union[TimestampLike, None] = None, end: Union[TimestampLike, None] = None) -> Dict[pd.Timestamp, DayMeta]:
+        # Check that when start and end are both given, they are both timezone-aware or both timezone-naive.
+        if start and end:
+            if bool(start.tz) != bool(end.tz):
+                raise ValueError("start and end must both be timezone-aware or both timezone-naive.")
+
+            if start > end:
+                raise ValueError("start must be less than or equal to end.")
+
+        # Get timezone from start or end, if given.
+        tz = (start and start.tz) or (end and end.tz) or None
+
+        # Return a dictionary with all metadata for days in the given range. A day is considered to comprise the full
+        # period between midnight (inclusive) and the next midnight (exclusive). If that period overlaps with the given
+        # range, the day is included in the result.
+        #
+        # Note: The code assumes that ONE_DAY_MINUS_EPS gets applied to timezone-naive timestamps where it corresponds
+        # to (almost) a calendar day. The same may not be true for timezone-aware timestamps when the period includes
+        # e.g. a DST transition.
+        if tz:
+            return OrderedDict([(k, v) for k, v in self._meta.items() if (start is None or (k + ONE_DAY_MINUS_EPS).tz_localize(tz=self.tz) >= start) and (end is None or (k.tz_localize(tz=self.tz)) <= end)])
+        else:
+            return OrderedDict([(k, v) for k, v in self._meta.items() if (start is None or (k + ONE_DAY_MINUS_EPS) >= start) and (end is None or k <= end)])
+
     # Use type to create a new class.
     extended = type(cls.__name__ + "Extended", (cls, ExtendedExchangeCalendar), {
         "__init__": __init__,
@@ -946,7 +979,8 @@ def extend_class(cls: Type[ExchangeCalendar], day_of_week_expiry: Union[int, Non
         "monthly_expiries": monthly_expiries,
         "quarterly_expiries": quarterly_expiries,
         "last_trading_days_of_months": last_trading_days_of_months,
-        "last_regular_trading_days_of_months": last_regular_trading_days_of_months
+        "last_regular_trading_days_of_months": last_regular_trading_days_of_months,
+        'meta': meta,
     })
 
     return extended

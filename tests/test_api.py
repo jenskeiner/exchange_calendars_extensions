@@ -1,4 +1,5 @@
 import datetime
+from collections import OrderedDict
 from datetime import time
 from typing import Optional, Tuple, Iterable, Union
 
@@ -8,6 +9,8 @@ from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.pandas_extensions.holiday import Holiday
 from pandas.tseries.holiday import next_monday
 from pytz import timezone
+
+from exchange_calendars_extensions.api.changes import DayMeta
 
 HOLIDAY_0 = 'Holiday 0'
 SPECIAL_OPEN_0 = 'Special Open 0'
@@ -28,8 +31,8 @@ INSERTED_HOLIDAY = 'Inserted Holiday'
 
 def apply_extensions():
     """ Apply the extensions to the exchange_calendars module. """
-    import exchange_calendars_extensions.core as ece
-    ece.apply_extensions()
+    import exchange_calendars_extensions.core as ecx
+    ecx.apply_extensions()
 
 
 def add_test_calendar_and_apply_extensions(holidays: Optional[Iterable[pd.Timestamp]] = (pd.Timestamp("2023-01-01"),),
@@ -119,17 +122,17 @@ def add_test_calendar_and_apply_extensions(holidays: Optional[Iterable[pd.Timest
 
     ec.register_calendar_type("TEST", TestCalendar)
 
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.register_extension("TEST", TestCalendar, day_of_week_expiry=day_of_week_expiry)
+    ecx.register_extension("TEST", TestCalendar, day_of_week_expiry=day_of_week_expiry)
 
-    ece.apply_extensions()
+    ecx.apply_extensions()
 
 
 @pytest.mark.isolated
 def test_unmodified_calendars():
     """ Test that calendars are unmodified when the module is just imported, without calling apply_extensions() """
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     import exchange_calendars as ec
     c = ec.get_calendar("XETR")
@@ -138,8 +141,8 @@ def test_unmodified_calendars():
     assert isinstance(c, ec.ExchangeCalendar)
 
     # Check if returned Calendar is not of extended type.
-    assert not isinstance(c, ece.ExtendedExchangeCalendar)
-    assert not isinstance(c, ece.ExchangeCalendarExtensions)
+    assert not isinstance(c, ecx.ExtendedExchangeCalendar)
+    assert not isinstance(c, ecx.ExchangeCalendarExtensions)
 
 
 @pytest.mark.isolated
@@ -147,14 +150,14 @@ def test_apply_extensions():
     """ Test that calendars are modified when apply_extensions() is called """
     apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     c = ec.get_calendar("XETR")
 
     # Check if returned Calendar is of expected types.
     assert isinstance(c, ec.ExchangeCalendar)
-    assert isinstance(c, ece.ExtendedExchangeCalendar)
-    assert isinstance(c, ece.ExchangeCalendarExtensions)
+    assert isinstance(c, ecx.ExtendedExchangeCalendar)
+    assert isinstance(c, ecx.ExchangeCalendarExtensions)
 
 
 @pytest.mark.isolated
@@ -196,11 +199,11 @@ def test_extended_calendar_xetr():
 def test_extended_calendar_test():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     c = ec.get_calendar("TEST")
 
-    assert isinstance(c, ece.ExtendedExchangeCalendar)
+    assert isinstance(c, ecx.ExtendedExchangeCalendar)
 
     start = pd.Timestamp("2022-01-01")
     end = pd.Timestamp("2024-12-31")
@@ -391,9 +394,9 @@ def test_extended_calendar_test():
 def test_add_new_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
+    ecx.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -423,9 +426,9 @@ def test_add_new_holiday():
 def test_overwrite_existing_regular_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY)
+    ecx.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -453,9 +456,9 @@ def test_overwrite_existing_regular_holiday():
 def test_overwrite_existing_adhoc_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), ADDED_HOLIDAY)
+    ecx.add_holiday("TEST", pd.Timestamp("2023-02-01"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -484,9 +487,9 @@ def test_overwrite_existing_adhoc_holiday():
 def test_remove_existing_regular_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.remove_day("TEST", pd.Timestamp("2023-01-01"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-01-01"))
 
     c = ec.get_calendar("TEST")
 
@@ -512,9 +515,9 @@ def test_remove_existing_regular_holiday():
 def test_remove_existing_adhoc_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.remove_day("TEST", pd.Timestamp("2023-02-01"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-02-01"))
 
     c = ec.get_calendar("TEST")
 
@@ -541,9 +544,9 @@ def test_remove_existing_adhoc_holiday():
 def test_remove_non_existent_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.remove_day("TEST", pd.Timestamp("2023-07-03"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-07-03"))
 
     c = ec.get_calendar("TEST")
 
@@ -571,11 +574,11 @@ def test_remove_non_existent_holiday():
 def test_add_and_remove_new_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     # Add and then remove the same day. The day should stay added.
-    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
-    ece.remove_day("TEST", pd.Timestamp("2023-07-03"))
+    ecx.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
+    ecx.remove_day("TEST", pd.Timestamp("2023-07-03"))
 
     c = ec.get_calendar("TEST")
 
@@ -605,11 +608,11 @@ def test_add_and_remove_new_holiday():
 def test_add_and_remove_existing_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     # Add and then remove the same existing holiday. The day should still be added.
-    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY)
-    ece.remove_day("TEST", pd.Timestamp("2023-01-01"))
+    ecx.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY)
+    ecx.remove_day("TEST", pd.Timestamp("2023-01-01"))
 
     c = ec.get_calendar("TEST")
 
@@ -637,12 +640,12 @@ def test_add_and_remove_existing_holiday():
 def test_remove_and_add_new_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     # Remove and then add the same new holiday. The removal of a non-existent holiday should be ignored, so the day
     # should be added eventually.
-    ece.remove_day("TEST", pd.Timestamp("2023-07-03"))
-    ece.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
+    ecx.remove_day("TEST", pd.Timestamp("2023-07-03"))
+    ecx.add_holiday("TEST", pd.Timestamp("2023-07-03"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -672,12 +675,12 @@ def test_remove_and_add_new_holiday():
 def test_remove_and_add_existing_regular_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
     # the existing regular holiday.
-    ece.remove_day("TEST", pd.Timestamp("2023-01-01"))
-    ece.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY)
+    ecx.remove_day("TEST", pd.Timestamp("2023-01-01"))
+    ecx.add_holiday("TEST", pd.Timestamp("2023-01-01"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -705,12 +708,12 @@ def test_remove_and_add_existing_regular_holiday():
 def test_remove_and_add_existing_adhoc_holiday():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     # Remove and then add the same existent holiday. This should be equivalent to just adding (and thereby overwriting)
     # the existing regular holiday.
-    ece.remove_day("TEST", pd.Timestamp("2023-02-01"))
-    ece.add_holiday("TEST", pd.Timestamp("2023-02-01"), ADDED_HOLIDAY)
+    ecx.remove_day("TEST", pd.Timestamp("2023-02-01"))
+    ecx.add_holiday("TEST", pd.Timestamp("2023-02-01"), ADDED_HOLIDAY)
 
     c = ec.get_calendar("TEST")
 
@@ -739,9 +742,9 @@ def test_remove_and_add_existing_adhoc_holiday():
 def test_add_new_special_open_with_new_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-07-03"), time(12, 0), ADDED_SPECIAL_OPEN)
+    ecx.add_special_open("TEST", pd.Timestamp("2023-07-03"), time(12, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -779,9 +782,9 @@ def test_add_new_special_open_with_new_time():
 def test_add_new_special_open_with_existing_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-07-03"), time(11, 0), ADDED_SPECIAL_OPEN)
+    ecx.add_special_open("TEST", pd.Timestamp("2023-07-03"), time(11, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -815,9 +818,9 @@ def test_add_new_special_open_with_existing_time():
 def test_overwrite_existing_regular_special_open_with_new_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-05-01"), time(12, 0), ADDED_SPECIAL_OPEN)
+    ecx.add_special_open("TEST", pd.Timestamp("2023-05-01"), time(12, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -854,7 +857,7 @@ def test_overwrite_existing_regular_special_open_with_existing_time():
     add_test_calendar_and_apply_extensions(
         special_opens=[(time(11, 00), [pd.Timestamp("2023-05-01")]), (time(12, 00), [pd.Timestamp("2023-05-04")])])
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     c = ec.get_calendar("TEST")
 
@@ -890,7 +893,7 @@ def test_overwrite_existing_regular_special_open_with_existing_time():
         pd.Timestamp("2024-05-01"): SPECIAL_OPEN_0,
         pd.Timestamp("2024-05-06"): SPECIAL_OPEN_0})).empty
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-05-01"), time(12, 0), ADDED_SPECIAL_OPEN)
+    ecx.add_special_open("TEST", pd.Timestamp("2023-05-01"), time(12, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -928,9 +931,9 @@ def test_overwrite_existing_regular_special_open_with_existing_time():
 def test_overwrite_existing_ad_hoc_special_open_with_new_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(12, 0), ADDED_SPECIAL_OPEN)
+    ecx.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(12, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -966,9 +969,9 @@ def test_overwrite_existing_ad_hoc_special_open_with_new_time():
 def test_overwrite_existing_ad_hoc_special_open_with_existing_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(11, 0), ADDED_SPECIAL_OPEN)
+    ecx.add_special_open("TEST", pd.Timestamp("2023-06-01"), time(11, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -1002,9 +1005,9 @@ def test_remove_existing_regular_special_open():
     add_test_calendar_and_apply_extensions(
         special_opens=[(time(11, 00), [pd.Timestamp("2023-05-01")]), (time(12, 00), [pd.Timestamp("2023-05-04")])])
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.remove_day("TEST", pd.Timestamp("2023-05-01"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-05-01"))
 
     c = ec.get_calendar("TEST")
 
@@ -1043,9 +1046,9 @@ def test_remove_existing_regular_special_open():
 def test_remove_existing_ad_hoc_special_open():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.remove_day("TEST", pd.Timestamp("2023-06-01"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-06-01"))
 
     c = ec.get_calendar("TEST")
 
@@ -1076,9 +1079,9 @@ def test_remove_existing_ad_hoc_special_open():
 def test_remove_non_existent_special_open():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.remove_day("TEST", pd.Timestamp("2023-07-03"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-07-03"))
 
     c = ec.get_calendar("TEST")
 
@@ -1110,9 +1113,9 @@ def test_remove_non_existent_special_open():
 def test_add_new_special_close_with_new_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(15, 0), ADDED_SPECIAL_CLOSE)
+    ecx.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(15, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1150,9 +1153,9 @@ def test_add_new_special_close_with_new_time():
 def test_add_new_special_close_with_existing_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(14, 0), ADDED_SPECIAL_CLOSE)
+    ecx.add_special_close("TEST", pd.Timestamp("2023-07-03"), time(14, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1186,9 +1189,9 @@ def test_add_new_special_close_with_existing_time():
 def test_overwrite_existing_regular_special_close_with_new_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), ADDED_SPECIAL_CLOSE)
+    ecx.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1225,7 +1228,7 @@ def test_overwrite_existing_regular_special_close_with_existing_time():
     add_test_calendar_and_apply_extensions(
         special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     c = ec.get_calendar("TEST")
 
@@ -1261,7 +1264,7 @@ def test_overwrite_existing_regular_special_close_with_existing_time():
         pd.Timestamp("2024-03-01"): SPECIAL_CLOSE_0,
         pd.Timestamp("2024-03-04"): SPECIAL_CLOSE_0})).empty
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), ADDED_SPECIAL_CLOSE)
+    ecx.add_special_close("TEST", pd.Timestamp("2023-03-01"), time(15, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1299,9 +1302,9 @@ def test_overwrite_existing_regular_special_close_with_existing_time():
 def test_overwrite_existing_ad_hoc_special_close_with_new_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(15, 0), ADDED_SPECIAL_CLOSE)
+    ecx.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(15, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1337,9 +1340,9 @@ def test_overwrite_existing_ad_hoc_special_close_with_new_time():
 def test_overwrite_existing_ad_hoc_special_close_with_existing_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(14, 0), ADDED_SPECIAL_CLOSE)
+    ecx.add_special_close("TEST", pd.Timestamp("2023-04-03"), time(14, 0), ADDED_SPECIAL_CLOSE)
 
     c = ec.get_calendar("TEST")
 
@@ -1373,9 +1376,9 @@ def test_remove_existing_regular_special_close():
     add_test_calendar_and_apply_extensions(
         special_closes=[(time(14, 00), [pd.Timestamp("2023-03-01")]), (time(15, 00), [pd.Timestamp("2023-03-04")])])
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.remove_day("TEST", pd.Timestamp("2023-03-01"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-03-01"))
 
     c = ec.get_calendar("TEST")
 
@@ -1414,9 +1417,9 @@ def test_remove_existing_regular_special_close():
 def test_remove_existing_ad_hoc_special_close():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.remove_day("TEST", pd.Timestamp("2023-04-03"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-04-03"))
 
     c = ec.get_calendar("TEST")
 
@@ -1447,9 +1450,9 @@ def test_remove_existing_ad_hoc_special_close():
 def test_remove_non_existent_special_close():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.remove_day("TEST", pd.Timestamp("2023-07-03"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-07-03"))
 
     c = ec.get_calendar("TEST")
 
@@ -1481,10 +1484,10 @@ def test_remove_non_existent_special_close():
 def test_add_quarterly_expiry():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     # Add quarterly expiry.
-    ece.add_quarterly_expiry("TEST", pd.Timestamp("2023-06-15"), "Added Quarterly Expiry")
+    ecx.add_quarterly_expiry("TEST", pd.Timestamp("2023-06-15"), "Added Quarterly Expiry")
 
     c = ec.get_calendar("TEST")
 
@@ -1512,10 +1515,10 @@ def test_add_quarterly_expiry():
 def test_remove_quarterly_expiry():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     # Add quarterly expiry.
-    ece.remove_day("TEST", pd.Timestamp("2023-06-16"))
+    ecx.remove_day("TEST", pd.Timestamp("2023-06-16"))
 
     c = ec.get_calendar("TEST")
 
@@ -1541,10 +1544,10 @@ def test_remove_quarterly_expiry():
 def test_add_monthly_expiry():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     # Add quarterly expiry.
-    ece.add_monthly_expiry("TEST", pd.Timestamp("2023-01-19"), "Added Monthly Expiry")
+    ecx.add_monthly_expiry("TEST", pd.Timestamp("2023-01-19"), "Added Monthly Expiry")
 
     c = ec.get_calendar("TEST")
 
@@ -1584,9 +1587,9 @@ def test_add_monthly_expiry():
 def test_overwrite_regular_holiday_with_special_open():
     add_test_calendar_and_apply_extensions(holidays=[pd.Timestamp("2023-01-02")])
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
-    ece.add_special_open("TEST", pd.Timestamp("2023-01-02"), time(11, 0), ADDED_SPECIAL_OPEN)
+    ecx.add_special_open("TEST", pd.Timestamp("2023-01-02"), time(11, 0), ADDED_SPECIAL_OPEN)
 
     c = ec.get_calendar("TEST")
 
@@ -1634,7 +1637,7 @@ def test_overwrite_regular_holiday_with_special_open():
 def test_apply_changeset():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
-    import exchange_calendars_extensions.core as ece
+    import exchange_calendars_extensions.core as ecx
 
     changes = {
         'add': {
@@ -1645,18 +1648,16 @@ def test_apply_changeset():
             '2023-09-14': {'type': 'quarterly_expiry', 'name': "Inserted Quarterly Expiry"},
         },
         'remove': ['2023-01-01', '2023-05-01', '2023-03-01', '2023-08-18', '2023-09-15'],
-        'tags': {
-            '2023-01-02': ['tag1', 'tag2'],
-            '2023-05-02': ['tag1', 'tag2'],
-            '2023-03-02': ['tag1', 'tag2'],
-            '2023-08-17': ['tag1', 'tag2'],
-            '2023-09-14': ['tag1', 'tag2'],
+        'meta': {
+            '2023-01-03': {'tags': ['tag1', 'tag2']},
+            '2023-05-03': {'comment': 'This is a comment'},
+            '2023-03-03': {'tags': ['tag3', 'tag´4'], 'comment': 'This is a comment'},
         }
     }
-    ece.update_calendar("TEST", changes)
+    ecx.update_calendar("TEST", changes)
     c = ec.get_calendar("TEST")
 
-    assert isinstance(c, ece.ExtendedExchangeCalendar)
+    assert isinstance(c, ecx.ExtendedExchangeCalendar)
 
     start = pd.Timestamp("2022-01-01")
     end = pd.Timestamp("2024-12-31")
@@ -1762,11 +1763,15 @@ def test_apply_changeset():
         pd.Timestamp('2024-10-18'): MONTHLY_EXPIRY,
         pd.Timestamp('2024-11-15'): MONTHLY_EXPIRY})).empty
 
+    # Verify tags and comments.
+
+
+
 
 @pytest.mark.isolated
 def test_test():
-    import exchange_calendars_extensions.core as ece
-    ece.apply_extensions()
+    import exchange_calendars_extensions.core as ecx
+    ecx.apply_extensions()
     import exchange_calendars as ec
 
     changes = {
@@ -1778,16 +1783,14 @@ def test_test():
             '2022-01-20': {'type': 'quarterly_expiry', 'name': QUARTERLY_EXPIRY}
         },
         'remove': ['2022-01-11', '2022-01-13', '2022-01-17', '2022-01-19', '2022-01-21'],
-        'tags': {
-            '2022-01-10': ['tag1', 'tag2'],
-            '2022-01-12': ['tag1', 'tag2'],
-            '2022-01-14': ['tag1', 'tag2'],
-            '2022-01-18': ['tag1', 'tag2'],
-            '2022-01-20': ['tag1', 'tag2'],
+        'meta': {
+            '2022-01-22': {'tags': ['tag1', 'tag2']},
+            '2022-01-23': {'comment': 'This is a comment'},
+            '2022-01-24': {'tags': ['tag3', 'tag4'], 'comment': 'This is a comment'},
         }
     }
 
-    ece.update_calendar('XLON', changes)
+    ecx.update_calendar('XLON', changes)
 
     calendar = ec.get_calendar('XLON')
 
@@ -1915,3 +1918,222 @@ def test_monthly_expiry_rollback_multiple_days():
         pd.Timestamp('2022-08-19'): MONTHLY_EXPIRY,
         pd.Timestamp('2022-10-21'): MONTHLY_EXPIRY,
         pd.Timestamp('2022-11-18'): MONTHLY_EXPIRY})).empty
+
+
+@pytest.mark.isolated
+def test_set_tags():
+    add_test_calendar_and_apply_extensions()
+
+    import exchange_calendars as ec
+    import exchange_calendars_extensions.core as ecx
+
+    ecx.set_tags("TEST", "2023-01-03", ["tag1", "tag2"])
+
+    c = ec.get_calendar("TEST")
+
+    assert c.meta() == {pd.Timestamp("2023-01-03"): DayMeta(tags=["tag1", "tag2"], comment=None)}
+
+    ecx.set_tags("TEST", "2023-01-03", None)
+
+    c = ec.get_calendar("TEST")
+
+    assert c.meta() == dict()
+
+    ecx.set_tags("TEST", "2023-01-03", [])
+
+    c = ec.get_calendar("TEST")
+
+    assert c.meta() == dict()
+
+
+@pytest.mark.isolated
+def test_set_comment():
+    add_test_calendar_and_apply_extensions()
+
+    import exchange_calendars as ec
+    import exchange_calendars_extensions.core as ecx
+
+    ecx.set_comment("TEST", "2023-01-03", "This is a comment")
+
+    c = ec.get_calendar("TEST")
+
+    assert c.meta() == {pd.Timestamp("2023-01-03"): DayMeta(tags=[], comment="This is a comment")}
+
+    ecx.set_comment("TEST", "2023-01-03", None)
+
+    c = ec.get_calendar("TEST")
+
+    assert c.meta() == dict()
+
+    ecx.set_comment("TEST", "2023-01-03", "")
+
+    c = ec.get_calendar("TEST")
+
+    assert c.meta() == dict()
+
+
+@pytest.mark.isolated
+def test_set_meta():
+    add_test_calendar_and_apply_extensions()
+
+    import exchange_calendars as ec
+    import exchange_calendars_extensions.core as ecx
+
+    ecx.set_meta("TEST", "2023-01-03", {'comment': 'This is a comment'})
+    ecx.set_meta("TEST", "2023-01-04", {'tags': ['tag1', 'tag2']})
+    ecx.set_meta("TEST", "2023-01-05", {'tags': ['tag1', 'tag2'], 'comment': 'This is a comment'})
+    ecx.set_meta("TEST", "2023-01-06", None)
+
+    c = ec.get_calendar("TEST")
+
+    assert c.meta() == {
+        pd.Timestamp("2023-01-03"): DayMeta(tags=[], comment="This is a comment"),
+        pd.Timestamp("2023-01-04"): DayMeta(tags=["tag1", "tag2"], comment=None),
+        pd.Timestamp("2023-01-05"): DayMeta(tags=["tag1", "tag2"], comment="This is a comment")
+    }
+
+    ecx.set_meta("TEST", "2023-01-03", None)
+    ecx.set_meta("TEST", "2023-01-04", None)
+    ecx.set_meta("TEST", "2023-01-05", None)
+
+    c = ec.get_calendar("TEST")
+
+    assert c.meta() == dict()
+
+
+@pytest.mark.isolated
+def test_get_meta():
+    add_test_calendar_and_apply_extensions()
+
+    import exchange_calendars as ec
+    import exchange_calendars_extensions.core as ecx
+
+    ecx.set_meta("TEST", "2023-01-03", {'comment': 'This is a comment'})
+    ecx.set_meta("TEST", "2023-01-04", {'tags': ['tag1', 'tag2']})
+    ecx.set_meta("TEST", "2023-01-05", {'tags': ['tag1', 'tag2'], 'comment': 'This is a comment'})
+
+    c = ec.get_calendar("TEST")
+
+    assert c.meta() == {
+        pd.Timestamp("2023-01-03"): DayMeta(tags=[], comment="This is a comment"),
+        pd.Timestamp("2023-01-04"): DayMeta(tags=["tag1", "tag2"], comment=None),
+        pd.Timestamp("2023-01-05"): DayMeta(tags=["tag1", "tag2"], comment="This is a comment")
+    }
+
+
+@pytest.mark.isolated
+def test_get_meta_tz_naive():
+    add_test_calendar_and_apply_extensions()
+
+    import exchange_calendars as ec
+    import exchange_calendars_extensions.core as ecx
+
+    day_1 = pd.Timestamp("2023-01-03")
+    day_2 = day_1 + pd.Timedelta(days=1)
+    day_3 = day_2 + pd.Timedelta(days=1)
+
+    meta_1 = DayMeta(tags=[], comment="This is a comment")
+    meta_2 = DayMeta(tags=["tag1", "tag2"], comment=None)
+    meta_3 = DayMeta(tags=["tag1", "tag2"], comment="This is a comment")
+
+    ecx.set_meta("TEST", day_1, meta_1)
+    ecx.set_meta("TEST", day_2, meta_2)
+    ecx.set_meta("TEST", day_3, meta_3)
+
+    c = ec.get_calendar("TEST")
+
+    # Test combinations of start and end aligned with date boundary.
+
+    # start
+    assert c.meta(start=day_1 - pd.Timedelta(days=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(start=day_1) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(start=day_2) == OrderedDict([(day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(start=day_3) == OrderedDict([(day_3, meta_3)])
+    assert c.meta(start=day_3 + pd.Timedelta(days=1)) == OrderedDict()
+
+    # end
+    assert c.meta(end=day_3 + pd.Timedelta(days=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(end=day_3) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(end=day_2) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(end=day_1) == OrderedDict([(day_1, meta_1)])
+    assert c.meta(end=day_1 - pd.Timedelta(days=1)) == OrderedDict()
+
+    # start & end
+    assert c.meta(start=day_1, end=day_3) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(start=day_2, end=day_2) == OrderedDict([(day_2, meta_2)])
+
+    # Test combinations of start and end not aligned with date boundary.
+
+    # start
+    assert c.meta(start=day_1 - pd.Timedelta(hours=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(start=day_1 + pd.Timedelta(hours=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(start=day_1 + pd.Timedelta(hours=23, minutes=59, seconds=59, milliseconds=999, microseconds=999, nanoseconds=999)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(start=day_1 + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(start=day_1 + pd.Timedelta(hours=24)) == OrderedDict([(day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(start=day_1 + pd.Timedelta(days=1)) == OrderedDict([(day_2, meta_2), (day_3, meta_3)])
+
+    # end
+    assert c.meta(end=day_3 + pd.Timedelta(hours=24)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(end=day_3 + pd.Timedelta(days=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(end=day_3 + pd.Timedelta(hours=1) - pd.Timedelta(nanoseconds=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(end=day_3 + pd.Timedelta(nanoseconds=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(end=day_3) == OrderedDict([(day_1, meta_1), (day_2, meta_2), (day_3, meta_3)])
+    assert c.meta(end=day_3 - pd.Timedelta(nanoseconds=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+
+
+def test_get_meta_tz_aware():
+    add_test_calendar_and_apply_extensions()
+
+    import exchange_calendars as ec
+    import exchange_calendars_extensions.core as ecx
+
+    day_1 = pd.Timestamp("2024-03-31")  # Begin of DST 02:00 -> 03:00
+    day_2 = pd.Timestamp("2024-09-29")  # End of DST 03:00 -> 02:00
+
+    meta_1 = DayMeta(tags=["tag1", "tag2"], comment="This is a comment")
+    meta_2 = DayMeta(tags=["tag1", "tag2"], comment="This is a comment")
+
+    ecx.set_meta("TEST", day_1, meta_1)
+    ecx.set_meta("TEST", day_2, meta_2)
+
+    c = ec.get_calendar("TEST")
+
+    assert c.tz == timezone("CET")
+
+    assert c.meta() == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+
+    # Test combinations of timezone-aware start and end.
+
+    # start
+    # day_1 only has 23 hours due to DST transition
+
+    # start in timezone CET, same as the calendar
+    assert c.meta(start=day_1.tz_localize(tz='CET')) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(start=day_1.tz_localize(tz='CET') + pd.Timedelta(days=1) - pd.Timedelta(hours=1, nanoseconds=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(start=day_1.tz_localize(tz='CET') + pd.Timedelta(hours=22, minutes=59, seconds=59, milliseconds=999, microseconds=999, nanoseconds=999)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(start=day_1.tz_localize(tz='CET') + pd.Timedelta(days=1) - pd.Timedelta(hours=1)) == OrderedDict([(day_2, meta_2)])
+    assert c.meta(start=day_1.tz_localize(tz='CET') + pd.Timedelta(hours=23)) == OrderedDict([(day_2, meta_2)])
+
+    # start in UTC
+    assert c.meta(start=day_1.tz_localize(tz='CET').tz_convert(tz='UTC')) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(start=day_1.tz_localize(tz='CET').tz_convert(tz='UTC') + pd.Timedelta(days=1) - pd.Timedelta(hours=1, nanoseconds=1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(start=day_1.tz_localize(tz='CET').tz_convert(tz='UTC') + pd.Timedelta(hours=22, minutes=59, seconds=59, milliseconds=999, microseconds=999, nanoseconds=999)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(start=day_1.tz_localize(tz='CET').tz_convert(tz='UTC') + pd.Timedelta(days=1) - pd.Timedelta(hours=1)) == OrderedDict([(day_2, meta_2)])
+    assert c.meta(start=day_1.tz_localize(tz='CET').tz_convert(tz='UTC') + pd.Timedelta(hours=23)) == OrderedDict([(day_2, meta_2)])
+
+    # end
+    # day_2 has 25 hours due to DST transition
+
+    # end in timezone CET, same as the calendar
+    assert c.meta(end=day_2.tz_localize(tz='CET') + pd.Timedelta(hours=25)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(end=day_2.tz_localize(tz='CET') + pd.Timedelta(hours=24, minutes=59, seconds=59, milliseconds=999, microseconds=999, nanoseconds=999)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(end=day_2.tz_localize(tz='CET') + pd.Timedelta(days=1) + pd.Timedelta(hours=1, nanoseconds=-1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(end=day_2.tz_localize(tz='CET')) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(end=day_2.tz_localize(tz='CET') - pd.Timedelta(nanoseconds=1)) == OrderedDict([(day_1, meta_1)])
+
+    # end in UTC
+    assert c.meta(end=day_2.tz_localize(tz='CET').tz_convert(tz='UTC') + pd.Timedelta(hours=25)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(end=day_2.tz_localize(tz='CET').tz_convert(tz='UTC') + pd.Timedelta(hours=24, minutes=59, seconds=59, milliseconds=999, microseconds=999, nanoseconds=999)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(end=day_2.tz_localize(tz='CET').tz_convert(tz='UTC') + pd.Timedelta(days=1) + pd.Timedelta(hours=1, nanoseconds=-1)) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(end=day_2.tz_localize(tz='CET').tz_convert(tz='UTC')) == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
+    assert c.meta(end=day_2.tz_localize(tz='CET').tz_convert(tz='UTC') - pd.Timedelta(nanoseconds=1)) == OrderedDict([(day_1, meta_1)])
