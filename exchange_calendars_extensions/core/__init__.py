@@ -1,8 +1,12 @@
 import functools
-import datetime as dt
-from typing import Optional, Callable, Type, Union, Any, Dict
+from typing import Callable, Union
 
-from exchange_calendars import calendar_utils, register_calendar_type, ExchangeCalendar, get_calendar_names
+from exchange_calendars import (
+    calendar_utils,
+    register_calendar_type,
+    ExchangeCalendar,
+    get_calendar_names,
+)
 from exchange_calendars.calendar_utils import _default_calendar_factories
 from exchange_calendars.exchange_calendar_asex import ASEXExchangeCalendar
 from exchange_calendars.exchange_calendar_xams import XAMSExchangeCalendar
@@ -28,50 +32,71 @@ from exchange_calendars.exchange_calendar_xtae import XTAEExchangeCalendar
 from exchange_calendars.exchange_calendar_xtse import XTSEExchangeCalendar
 from exchange_calendars.exchange_calendar_xwar import XWARExchangeCalendar
 from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
-from pydantic import validate_call
+from pydantic import validate_call, BaseModel, conint
 from typing_extensions import ParamSpec, Concatenate
 
-from exchange_calendars_extensions.api.changes import ChangeSet, ChangeSetDict, DayType, DaySpec, DaySpecWithTime, TimestampLike
-from exchange_calendars_extensions.core.holiday_calendar import extend_class, ExtendedExchangeCalendar, ExchangeCalendarExtensions
+from exchange_calendars_extensions.api.changes import (
+    ChangeSet,
+    ChangeSetDict,
+    DayType,
+    DateLike,
+    DayPropsLike,
+    Tags,
+    TimeLike,
+    DayMeta,
+)
+from exchange_calendars_extensions.core.holiday_calendar import (
+    extend_class,
+    ExtendedExchangeCalendar,
+    ExchangeCalendarExtensions,
+)
 
 # Dictionary that maps from exchange key to ExchangeCalendarChangeSet. Contains all changesets to apply when creating a
-# new calendar instance.
-_changesets: Dict[str, ChangeSet] = dict()
+# new calendar instance. This dictionary should only ever contain non-empty changesets. If a changeset becomes empty,
+# the corresponding entry should just be removed.
+_changesets: dict[str, ChangeSet] = dict()
 
-# Dictionary that maps from exchange key to ExtendedExchangeCalendar. Contains all extended calendars classes that
-# replace the vanilla classes in exchange_calendars when calling apply_extensions().
-#
-# Note: The values in this dictionary use extend_class() to create the extended classes, respectively for each exchange,
-#     based on the respective vanilla class in exchange_calendars. Also, the changeset_provider is set to a lambda
-#     function that returns the changeset for the respective exchange in _changesets, or None, if no changeset exists.
-_extensions = {
-    "ASEX": (ASEXExchangeCalendar, 4),
-    "XAMS": (XAMSExchangeCalendar, 4),
-    "XBRU": (XBRUExchangeCalendar, 4),
-    "XBUD": (XBUDExchangeCalendar, 4),
-    "XCSE": (XCSEExchangeCalendar, 4),
-    "XDUB": (XDUBExchangeCalendar, 4),
-    "XETR": (XETRExchangeCalendar, 4),
-    "XHEL": (XHELExchangeCalendar, 4),
-    "XIST": (XISTExchangeCalendar, 4),
-    "XJSE": (XJSEExchangeCalendar, 3),
-    "XLIS": (XLISExchangeCalendar, 4),
-    "XLON": (XLONExchangeCalendar, 4),
-    "XMAD": (XMADExchangeCalendar, 4),
-    "XMIL": (XMILExchangeCalendar, 4),
-    "XNYS": (XNYSExchangeCalendar, 4),
-    "XOSL": (XOSLExchangeCalendar, 4),
-    "XPAR": (XPARExchangeCalendar, 4),
-    "XPRA": (XPRAExchangeCalendar, 4),
-    "XSTO": (XSTOExchangeCalendar, 4),
-    "XSWX": (XSWXExchangeCalendar, 4),
-    "XTAE": (XTAEExchangeCalendar, 4),
-    "XTSE": (XTSEExchangeCalendar, 4),
-    "XWAR": (XWARExchangeCalendar, 4),
-    "XWBO": (XWBOExchangeCalendar, 4),
+
+class ExtensionSpec(BaseModel, arbitrary_types_allowed=True):
+    """Specifies how to derive an extended calendar class from a vanilla calendar class."""
+
+    # The base class to extend.
+    base: type[ExchangeCalendar]
+
+    # The day of the week on which options expire. If None, expiry days are not supported.
+    day_of_week_expiry: Union[conint(ge=0, le=6), None] = None
+
+
+# Internal dictionary that specifies how to derive extended calendars for specific exchanges.
+_extensions: dict[str, ExtensionSpec] = {
+    "ASEX": ExtensionSpec(base=ASEXExchangeCalendar, day_of_week_expiry=4),
+    "XAMS": ExtensionSpec(base=XAMSExchangeCalendar, day_of_week_expiry=4),
+    "XBRU": ExtensionSpec(base=XBRUExchangeCalendar, day_of_week_expiry=4),
+    "XBUD": ExtensionSpec(base=XBUDExchangeCalendar, day_of_week_expiry=4),
+    "XCSE": ExtensionSpec(base=XCSEExchangeCalendar, day_of_week_expiry=4),
+    "XDUB": ExtensionSpec(base=XDUBExchangeCalendar, day_of_week_expiry=4),
+    "XETR": ExtensionSpec(base=XETRExchangeCalendar, day_of_week_expiry=4),
+    "XHEL": ExtensionSpec(base=XHELExchangeCalendar, day_of_week_expiry=4),
+    "XIST": ExtensionSpec(base=XISTExchangeCalendar, day_of_week_expiry=4),
+    "XJSE": ExtensionSpec(base=XJSEExchangeCalendar, day_of_week_expiry=3),
+    "XLIS": ExtensionSpec(base=XLISExchangeCalendar, day_of_week_expiry=4),
+    "XLON": ExtensionSpec(base=XLONExchangeCalendar, day_of_week_expiry=4),
+    "XMAD": ExtensionSpec(base=XMADExchangeCalendar, day_of_week_expiry=4),
+    "XMIL": ExtensionSpec(base=XMILExchangeCalendar, day_of_week_expiry=4),
+    "XNYS": ExtensionSpec(base=XNYSExchangeCalendar, day_of_week_expiry=4),
+    "XOSL": ExtensionSpec(base=XOSLExchangeCalendar, day_of_week_expiry=4),
+    "XPAR": ExtensionSpec(base=XPARExchangeCalendar, day_of_week_expiry=4),
+    "XPRA": ExtensionSpec(base=XPRAExchangeCalendar, day_of_week_expiry=4),
+    "XSTO": ExtensionSpec(base=XSTOExchangeCalendar, day_of_week_expiry=4),
+    "XSWX": ExtensionSpec(base=XSWXExchangeCalendar, day_of_week_expiry=4),
+    "XTAE": ExtensionSpec(base=XTAEExchangeCalendar, day_of_week_expiry=4),
+    "XTSE": ExtensionSpec(base=XTSEExchangeCalendar, day_of_week_expiry=4),
+    "XWAR": ExtensionSpec(base=XWARExchangeCalendar, day_of_week_expiry=4),
+    "XWBO": ExtensionSpec(base=XWBOExchangeCalendar, day_of_week_expiry=4),
 }
 
 
+# Internal dictionary containing the original calendar classes.
 _original_classes = dict()
 
 
@@ -79,39 +104,74 @@ def apply_extensions() -> None:
     """
     Apply extensions to exchange_calendars.
 
-    This registers all extended calendars in exchange_calendars, overwriting the respective vanilla calendars.
+    This registers all extended calendars in exchange_calendars, replacing the respective vanilla calendars.
+
+    This function is idempotent. If extensions have already been applied, this function does nothing.
     """
     if len(_original_classes) > 0:
         # Extensions have already been applied.
         return
 
+    # Get all calendar names, including aliases.
     calendar_names = set(get_calendar_names())
 
     def get_changeset_fn(name: str) -> Callable[[], ChangeSet]:
+        """Returns a function that returns the changeset for the given exchange key.
+
+        Parameters
+        ----------
+        name : str
+            The exchange key for which to return the changeset.
+
+        Returns
+        -------
+        Callable[[], ChangeSet]
+            The function that returns the changeset.
+        """
+
         def fn() -> ChangeSet:
             return _changesets.get(name)
+
         return fn
 
+    # Create and register extended calendar classes for all calendars for which no explicit rules have been defined.
     for k in calendar_names - set(_extensions.keys()):
+        # Get the original class.
         cls = _default_calendar_factories.get(k)
+
         if cls is not None:
             # Store the original class for later use.
             _original_classes[k] = cls
-            # Create extended class.
-            cls = extend_class(cls, day_of_week_expiry=None, changeset_provider=get_changeset_fn(k))
+
+            # Create extended class without support for expiry days.
+            cls = extend_class(
+                cls, day_of_week_expiry=None, changeset_provider=get_changeset_fn(k)
+            )
+
             # Register extended class.
             register_calendar_type(k, cls, force=True)
+
             # Remove original class from factory cache.
             _remove_calendar_from_factory_cache(k)
 
+    # Create and register extended calendar classes for all calendars for which explicit rules have been defined.
     for k, v in _extensions.items():
-        cls, day_of_week_expiry = v
+        # Get the original class and the day of the week for expiry days.
+        cls, day_of_week_expiry = v.base, v.day_of_week_expiry
+
         # Store the original class for later use.
         _original_classes[k] = cls
-        # Create extended class.
-        cls = extend_class(cls, day_of_week_expiry=day_of_week_expiry, changeset_provider=get_changeset_fn(k))
+
+        # Create extended class with support for expiry days.
+        cls = extend_class(
+            cls,
+            day_of_week_expiry=day_of_week_expiry,
+            changeset_provider=get_changeset_fn(k),
+        )
+
         # Register extended class.
         register_calendar_type(k, cls, force=True)
+
         # Remove original class from factory cache.
         _remove_calendar_from_factory_cache(k)
 
@@ -129,13 +189,17 @@ def remove_extensions() -> None:
     for k, v in _original_classes.items():
         # Register original class.
         register_calendar_type(k, v, force=True)
+
         # Remove extended class from factory cache.
         _remove_calendar_from_factory_cache(k)
 
+    # Clear original classes.
     _original_classes.clear()
 
 
-def register_extension(name: str, cls: Type[ExchangeCalendar], day_of_week_expiry: Optional[int] = None) -> None:
+def register_extension(
+    name: str, cls: type[ExchangeCalendar], day_of_week_expiry: Union[int, None] = None
+) -> None:
     """
     Register an extended calendar class for a given exchange key and a given base class.
 
@@ -156,7 +220,7 @@ def register_extension(name: str, cls: Type[ExchangeCalendar], day_of_week_expir
     -------
     None
     """
-    _extensions[name] = (cls, day_of_week_expiry)
+    _extensions[name] = ExtensionSpec(base=cls, day_of_week_expiry=day_of_week_expiry)
 
 
 def _remove_calendar_from_factory_cache(name: str):
@@ -169,10 +233,12 @@ def _remove_calendar_from_factory_cache(name: str):
     calendar_utils.global_calendar_dispatcher._factory_output_cache.pop(name, None)
 
 
-P = ParamSpec('P')
+P = ParamSpec("P")
 
 
-def _with_changeset(f: Callable[Concatenate[ChangeSet, P], ChangeSet]) -> Callable[Concatenate[str, P], None]:
+def _with_changeset(
+    f: Callable[Concatenate[ChangeSet, P], ChangeSet],
+) -> Callable[Concatenate[str, P], None]:
     """
     An annotation that obtains the changeset from _changesets that corresponds to the exchange key passed as the first
     positional argument to the wrapped function. Instead of passing the key, passes the retrieved changeset, or a newly
@@ -196,6 +262,7 @@ def _with_changeset(f: Callable[Concatenate[ChangeSet, P], ChangeSet]) -> Callab
     Callable
         The wrapped function.
     """
+
     @functools.wraps(f)
     def wrapper(exchange: str, *args: P.args, **kwargs: P.kwargs) -> None:
         # Retrieve changeset for key, create new empty one, if required.
@@ -221,7 +288,7 @@ def _with_changeset(f: Callable[Concatenate[ChangeSet, P], ChangeSet]) -> Callab
 
 
 @_with_changeset
-def _add_day(cs: ChangeSet, spec: Union[DaySpec, DaySpecWithTime, dict]) -> ChangeSet:
+def _add_day(cs: ChangeSet, date: DateLike, props: DayPropsLike) -> ChangeSet:
     """
     Add a day of a given type to the changeset for a given exchange calendar.
 
@@ -229,8 +296,10 @@ def _add_day(cs: ChangeSet, spec: Union[DaySpec, DaySpecWithTime, dict]) -> Chan
     ----------
     cs : ChangeSet
         The changeset to which to add the day.
-    spec : Union[DaySpec, DaySpecWithTime, dict]
-        The properties to add for the day. Must match the properties required by the given day type.
+    date : TimestampLike
+        The date to add. Must be convertible to pandas.Timestamp.
+    props : DayPropsLike
+        The properties of the day to add.
 
     Returns
     -------
@@ -242,11 +311,11 @@ def _add_day(cs: ChangeSet, spec: Union[DaySpec, DaySpecWithTime, dict]) -> Chan
     ValueError
         If the changeset would be inconsistent after adding the day.
     """
-    return cs.add_day(spec)
+    return cs.add_day(date, props)
 
 
-@validate_call
-def add_day(exchange: str, spec: Union[DaySpec, DaySpecWithTime, dict]) -> None:
+@validate_call(config={"arbitrary_types_allowed": True})
+def add_day(exchange: str, date: DateLike, props: DayPropsLike) -> None:
     """
     Add a day of a given type to the given exchange calendar.
 
@@ -254,7 +323,9 @@ def add_day(exchange: str, spec: Union[DaySpec, DaySpecWithTime, dict]) -> None:
     ----------
     exchange : str
         The exchange key for which to add the day.
-    spec : Union[DaySpec, DaySpecWithTime, dict]
+    date : TimestampLike
+        The date to add. Must be convertible to pandas.Timestamp.
+    props : Union[DaySpec, DaySpecWithTime, dict]
         The properties to add for the day. Must match the properties required by the given day type.
 
     Returns
@@ -266,11 +337,11 @@ def add_day(exchange: str, spec: Union[DaySpec, DaySpecWithTime, dict]) -> None:
     ValidationError
         If strict is True and the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, spec)
+    _add_day(exchange, date, props)
 
 
 @_with_changeset
-def _remove_day(cs: ChangeSet, date: TimestampLike) -> ChangeSet:
+def _remove_day(cs: ChangeSet, date: DateLike) -> ChangeSet:
     """
     Remove a day of a given type from the changeset for a given exchange calendar.
 
@@ -285,16 +356,12 @@ def _remove_day(cs: ChangeSet, date: TimestampLike) -> ChangeSet:
     -------
     ChangeSet
         The changeset with the removed day.
-
-    Raises
-    ------
-    ValidationError
-        If strict is True and the changeset for the exchange would be inconsistent after removing the day.
     """
     return cs.remove_day(date)
 
 
-def remove_day(exchange: str, date: TimestampLike) -> None:
+@validate_call(config={"arbitrary_types_allowed": True})
+def remove_day(exchange: str, date: DateLike) -> None:
     """
     Remove a day of a given type from the given exchange calendar.
 
@@ -308,17 +375,141 @@ def remove_day(exchange: str, date: TimestampLike) -> None:
     Returns
     -------
     None
-
-    Raises
-    ------
-    ValidationError
-        If strict is True and the changeset for the exchange would be inconsistent after removing the day.
     """
     _remove_day(exchange, date)
 
 
 @_with_changeset
-def _reset_day(cs: ChangeSet, date: TimestampLike) -> ChangeSet:
+def _set_tags(cs: ChangeSet, date: DateLike, tags: Tags) -> ChangeSet:
+    """
+    Set tags for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    cs : ChangeSet
+        The changeset where to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    tags : Tags
+        The tags to set.
+
+    Returns
+    -------
+    ChangeSet
+        The changeset with the given tags set for the given day.
+    """
+    return cs.set_tags(date, tags)
+
+
+@validate_call(config={"arbitrary_types_allowed": True})
+def set_tags(exchange: str, date: DateLike, tags: Tags) -> None:
+    """
+    Set tags for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange for which to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    tags : Tags
+        The tags to set.
+
+    Returns
+    -------
+    None
+    """
+    _set_tags(exchange, date, tags)
+
+
+@_with_changeset
+def _set_comment(cs: ChangeSet, date: DateLike, comment: Union[str, None]) -> ChangeSet:
+    """
+    Set comment for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    cs : ChangeSet
+        The changeset where to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    comment : str
+        The comment to set.
+
+    Returns
+    -------
+    ChangeSet
+        The changeset with the given comment set for the given day.
+    """
+    return cs.set_comment(date, comment)
+
+
+@validate_call(config={"arbitrary_types_allowed": True})
+def set_comment(exchange: str, date: DateLike, comment: Union[str, None]) -> None:
+    """
+    Set tags for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange for which to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    comment : str
+        The comment to set.
+
+    Returns
+    -------
+    None
+    """
+    _set_comment(exchange, date, comment)
+
+
+@_with_changeset
+def _set_meta(cs: ChangeSet, date: DateLike, meta: Union[DayMeta, None]) -> ChangeSet:
+    """
+    Set metadata for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    cs : ChangeSet
+        The changeset where to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    meta : DayMeta
+        The metadata to set.
+
+    Returns
+    -------
+    ChangeSet
+        The changeset with the given metadata set for the given day.
+    """
+    return cs.set_meta(date, meta)
+
+
+@validate_call(config={"arbitrary_types_allowed": True})
+def set_meta(exchange: str, date: DateLike, meta: Union[DayMeta, None]) -> None:
+    """
+    Set metadata for a given day in the given exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange for which to set the tags.
+    date : TimestampLike
+        The date for which to set the tags.
+    meta : DayMeta
+        The metadata to set.
+
+    Returns
+    -------
+    None
+    """
+    _set_meta(exchange, date, meta)
+
+
+@_with_changeset
+def _reset_day(cs: ChangeSet, date: DateLike, include_tags: bool) -> ChangeSet:
     """
     Clear a day of a given type from the changeset for a given exchange calendar.
 
@@ -328,16 +519,19 @@ def _reset_day(cs: ChangeSet, date: TimestampLike) -> ChangeSet:
         The changeset from which to clear the day.
     date : TimestampLike
         The date to clear. Must be convertible to pandas.Timestamp.
+    include_tags : bool
+        Whether to also clear the tags for the day.
 
     Returns
     -------
     ChangeSet
         The changeset with the cleared day.
     """
-    return cs.clear_day(date)
+    return cs.clear_day(date, include_meta=include_tags)
 
 
-def reset_day(exchange: str, date: TimestampLike) -> None:
+@validate_call(config={"arbitrary_types_allowed": True})
+def reset_day(exchange: str, date: DateLike, include_tags: bool = False) -> None:
     """
     Clear a day of a given type from the given exchange calendar.
 
@@ -347,15 +541,17 @@ def reset_day(exchange: str, date: TimestampLike) -> None:
         The exchange key for which to clear the day.
     date : TimestampLike
         The date to clear. Must be convertible to pandas.Timestamp.
+    include_tags : bool
+        Whether to also clear the tags for the day. Defaults to False.
 
     Returns
     -------
     None
     """
-    _reset_day(exchange, date)
+    _reset_day(exchange, date, include_tags=include_tags)
 
 
-def add_holiday(exchange: str, date: TimestampLike, name: str = "Holiday") -> None:
+def add_holiday(exchange: str, date: DateLike, name: str = "Holiday") -> None:
     """
     Add a holiday to an exchange calendar.
 
@@ -377,10 +573,12 @@ def add_holiday(exchange: str, date: TimestampLike, name: str = "Holiday") -> No
     ValidationError
         If strict is True and the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, {'date': date, 'type': DayType.HOLIDAY, 'name': name})
+    _add_day(exchange, date, {"type": DayType.HOLIDAY, "name": name})
 
 
-def add_special_open(exchange: str, date: TimestampLike, time: Union[dt.time, str], name: str = "Special Open") -> None:
+def add_special_open(
+    exchange: str, date: DateLike, time: TimeLike, name: str = "Special Open"
+) -> None:
     """
     Add a special open to an exchange calendar.
 
@@ -390,7 +588,7 @@ def add_special_open(exchange: str, date: TimestampLike, time: Union[dt.time, st
         The exchange key for which to add the day.
     date : TimestampLike
         The date to add. Must be convertible to pandas.Timestamp.
-    time : Union[time, str]
+    time : TimeLike
         The time of the special open. If a string, must be in the format 'HH:MM' or 'HH:MM:SS'.
     name : str
         The name of the special open.
@@ -404,10 +602,12 @@ def add_special_open(exchange: str, date: TimestampLike, time: Union[dt.time, st
     ValidationError
         If strict is True and the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, {'date': date, 'type': DayType.SPECIAL_OPEN, 'name': name, 'time': time})
+    _add_day(exchange, date, {"type": DayType.SPECIAL_OPEN, "name": name, "time": time})
 
 
-def add_special_close(exchange: str, date: TimestampLike, time: Union[dt.time, str], name: str = "Special Close") -> None:
+def add_special_close(
+    exchange: str, date: DateLike, time: TimeLike, name: str = "Special Close"
+) -> None:
     """
     Add a special close to an exchange calendar.
 
@@ -417,7 +617,7 @@ def add_special_close(exchange: str, date: TimestampLike, time: Union[dt.time, s
         The exchange key for which to add the day.
     date : TimestampLike
         The date to add. Must be convertible to pandas.Timestamp.
-    time : Union[time, str]
+    time : TimeLike
         The time of the special close. If a string, must be in the format 'HH:MM' or 'HH:MM:SS'.
     name : str
         The name of the special close.
@@ -431,10 +631,14 @@ def add_special_close(exchange: str, date: TimestampLike, time: Union[dt.time, s
     ValidationError
         If strict is True and the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, {'date': date, 'type': DayType.SPECIAL_CLOSE, 'name': name, 'time': time})
+    _add_day(
+        exchange, date, {"type": DayType.SPECIAL_CLOSE, "name": name, "time": time}
+    )
 
 
-def add_quarterly_expiry(exchange: str, date: TimestampLike, name: str = "Quarterly Expiry") -> None:
+def add_quarterly_expiry(
+    exchange: str, date: DateLike, name: str = "Quarterly Expiry"
+) -> None:
     """
     Add a quarterly expiry to an exchange calendar.
 
@@ -456,10 +660,12 @@ def add_quarterly_expiry(exchange: str, date: TimestampLike, name: str = "Quarte
     ValidationError
         If strict is True and the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, {'date': date, 'type': DayType.QUARTERLY_EXPIRY, 'name': name})
+    _add_day(exchange, date, {"type": DayType.QUARTERLY_EXPIRY, "name": name})
 
 
-def add_monthly_expiry(exchange: str, date: Any, name: str = "Monthly Expiry") -> None:
+def add_monthly_expiry(
+    exchange: str, date: DateLike, name: str = "Monthly Expiry"
+) -> None:
     """
     Add a monthly expiry to an exchange calendar.
 
@@ -481,11 +687,11 @@ def add_monthly_expiry(exchange: str, date: Any, name: str = "Monthly Expiry") -
     ValidationError
         If strict is True and the changeset for the exchange would be inconsistent after adding the day.
     """
-    _add_day(exchange, {'date': date, 'type': DayType.MONTHLY_EXPIRY, 'name': name})
+    _add_day(exchange, date, {"type": DayType.MONTHLY_EXPIRY, "name": name})
 
 
 @_with_changeset
-def _reset_calendar(cs: ChangeSet) -> ChangeSet:
+def _reset_calendar(cs: ChangeSet, include_tags: bool) -> ChangeSet:
     """
     Reset an exchange calendar to its original state.
 
@@ -499,7 +705,7 @@ def _reset_calendar(cs: ChangeSet) -> ChangeSet:
     ChangeSet
         The reset changeset.
     """
-    return cs.clear()
+    return cs.clear(include_meta=include_tags)
 
 
 def reset_calendar(exchange: str) -> None:
@@ -515,7 +721,7 @@ def reset_calendar(exchange: str) -> None:
     -------
     None
     """
-    _reset_calendar(exchange)
+    _reset_calendar(exchange, include_tags=True)
 
 
 def reset_all_calendars() -> None:
@@ -544,7 +750,7 @@ def update_calendar(exchange: str, changes: Union[ChangeSet, dict]) -> None:
     ----------
     exchange : str
         The exchange key for which to apply the changes.
-    changes : dict
+    changes : ChangeSet
         The changes to apply.
 
     Returns
@@ -554,7 +760,7 @@ def update_calendar(exchange: str, changes: Union[ChangeSet, dict]) -> None:
     _update_calendar(exchange, changes)
 
 
-def get_changes_for_calendar(exchange: str) -> ChangeSet:
+def get_changes_for_calendar(exchange: str) -> Union[ChangeSet, None]:
     """
     Get the changes for an exchange calendar.
 
@@ -566,9 +772,9 @@ def get_changes_for_calendar(exchange: str) -> ChangeSet:
     Returns
     -------
     ChangeSet
-        The changes for the exchange.
+        The changeset for the given exchange, or None, if no changes have been registered.
     """
-    cs: Optional[ChangeSet] = _changesets.get(exchange, None)
+    cs: Union[ChangeSet, None] = _changesets.get(exchange, None)
 
     if cs is not None:
         cs = cs.model_copy(deep=True)
@@ -589,16 +795,37 @@ def get_changes_for_all_calendars() -> ChangeSetDict:
 
 
 # Declare public names.
-__all__ = ["apply_extensions", "remove_extensions", "register_extension", "extend_class", "DayType", "add_day",
-           "remove_day", "reset_day", "DaySpec", "DaySpecWithTime", "add_holiday", "add_special_close",
-           "add_special_open", "add_quarterly_expiry", "add_monthly_expiry", "reset_calendar", "reset_all_calendars",
-           "update_calendar", "get_changes_for_calendar", "get_changes_for_all_calendars", "ChangeSet",
-           "ExtendedExchangeCalendar", "ExchangeCalendarExtensions"]
+__all__ = [
+    "apply_extensions",
+    "remove_extensions",
+    "register_extension",
+    "extend_class",
+    "DayType",
+    "add_day",
+    "remove_day",
+    "reset_day",
+    "DayPropsLike",
+    "add_holiday",
+    "add_special_close",
+    "add_special_open",
+    "add_quarterly_expiry",
+    "add_monthly_expiry",
+    "set_meta",
+    "reset_calendar",
+    "reset_all_calendars",
+    "update_calendar",
+    "get_changes_for_calendar",
+    "get_changes_for_all_calendars",
+    "ChangeSet",
+    "ExtendedExchangeCalendar",
+    "ExchangeCalendarExtensions",
+]
 
 __version__ = None
 
 try:
     from importlib.metadata import version
+
     # get version from installed package
     __version__ = version("exchange_calendars_extensions")
     del version

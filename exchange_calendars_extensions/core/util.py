@@ -19,9 +19,20 @@ def get_month_name(month: int) -> str:
     if month < 1 or month > 12:
         raise ValueError("Month must be between 1 and 12.")
 
-    month_name = \
-    ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November",
-     "December"][month - 1]
+    month_name = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ][month - 1]
 
     return month_name
 
@@ -43,7 +54,15 @@ def get_day_of_week_name(day_of_week: int) -> str:
     if day_of_week < 0 or day_of_week > 6:
         raise ValueError("Day of week must be between 0 and 6.")
 
-    day_of_week_name = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][day_of_week]
+    day_of_week_name = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ][day_of_week]
 
     return day_of_week_name
 
@@ -95,4 +114,6 @@ def last_day_in_month(month: int, year: int) -> date:
     datetime.date
         the datetime.date representing the last day in the given month.
     """
-    return (date(year, month, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+    return (date(year, month, 1) + timedelta(days=32)).replace(day=1) - timedelta(
+        days=1
+    )

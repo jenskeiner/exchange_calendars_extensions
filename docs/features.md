@@ -63,14 +63,14 @@ Calendars for expiry day sessions are currently only available for the following
 {{% /note %}}
 
 ## Calendar Modifications
-This package also adds the ability to modify existing calendars at runtime. This can be used to add or remove
+It is also possible to modify existing calendars at runtime. This can be used to add or remove
 - holidays (regular and ad-hoc)
 - special open days (regular and ad-hoc)
 - special close days (regular and ad-hoc)
 - quarterly expiry days
 - monthly expiry days
 
-This is useful to fix incorrect information from `exchange-calendars`. This regularly happens, e.g., when an 
+This may be useful to fix incorrect information from `exchange-calendars`. This regularly happens, e.g., when an 
 exchange announces a change to the regular trading schedule on short notice and an updated release of the upstream 
 package is not yet available. After some time, modifications can typically be removed when the upstream package has
 been updated.
@@ -81,3 +81,18 @@ in the [`exchange-calendars`](https://github.com/gerrymanoim/exchange_calendars)
 calendars should only be used as a last resort and to bridge the time until the information has been updated at the 
 root.
 {{% /warning %}}
+
+## Metadata
+In some situations, it may be useful to be able to associate arbitrary metadata with certain dates. Here, metadata can 
+be a set of string tags and/or a string comment.
+
+{{% note %}}
+For example, a tag could be used to mark days on which the exchange 
+deviated from the regular trading schedule in an unplanned way, e.g. a delayed open due to technical issues. That is, 
+tags or a comment could be useful to incorporate additional user-owned information that would normally be outside the 
+scope of the exchange calendars core functionality.
+{{% /note %}}
+
+This package provides functionality to add metadata in the form of tags and/or comments to any date in any calendar.
+It is then possible to filter dates by their metadata to retrieve only dates within a certain time period that e.g. 
+have a certain tag set.
