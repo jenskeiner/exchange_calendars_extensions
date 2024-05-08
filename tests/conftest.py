@@ -21,6 +21,7 @@ def run_test_in_separate_process(test_function: Callable) -> Callable:
         A new function that, when called with some arguments, runs the given test function with those arguments in a
         separate process and returns the result.
     """
+
     def wrapper(*args, **kwargs):
         with multiprocessing.Pool(1) as pool:
             result = pool.apply(test_function, args, kwargs)
