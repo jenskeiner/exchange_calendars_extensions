@@ -86,14 +86,50 @@ This is a comment.
 {'tag1', 'tag2'}
 ```
 
-The `meta()` method supports `TimestampLike` start and end arguments which must be either both timezone-naive or 
+The `meta()` method supports `TimestampLike` `start` and `end` arguments which must be either both timezone-naive or 
 timezone-aware. Otherwise, a `ValueError` is raised.
 
-The returned dictionary includes all days with metadata that overlap with the period between the start and end 
-timestamps. This definition ensures that the result is the expected even in situations where the passed in start and end
-timestamps are not aligned to midnight. In the above example, if start were `2022-01-01 06:00:00` and end were 
-`2022-01-01 18:00:00`, the result would be the same since the time period that represents the full day `2022-01-01` 
-overlaps with the period between start and end.
+The returned dictionary includes all days with metadata that have a non-empty intersection with the period between 
+the `start` and `end`. This result is probably what one would usually expect, even in situations where `start` and/or 
+`end` are not aligned to midnight. In the above example, if `start` were `2022-01-01 06:00:00` and `end` were 
+`2022-01-01 18:00:00`, the result would be the same since the intersection with the full day `2022-01-01` is non-empty.
 
-The start and end timestamps can also be timezone-aware. In this case, the time period that represents a day with 
-metadata is always interpreted in the timezone of the corresponding exchange.
+When `start` and `end` are timezone-naive, as in the examples above, the timezone of the exchange does not matter. Like
+`start` and `end`, the timestamps that mark the beginning and end of a day are used timezone-naive. Effectively, any 
+comparison uses timestamps with a wall-clock time component.
+
+In contrast, when `start` and `end` timestamps are timezone-aware, all other timestamps also used timezone-aware and 
+with the exchange's native timezone. Comparisons are then done between instants, i.e. actual points on the timeline.
+
+The difference between the two cases is illustrated in the following example which considers the date 2024-03-31. In 
+timezones that are based on Central European Time (CET), a transition to Central European Summer Time (CEST) occurs on
+this date. The transition happens at 02:00:00 CET, which is 03:00:00 CEST, i.e. clocks advance by one hour and the day 
+is 23 hours long.
+```python
+import pandas as pd
+
+import exchange_calendars_extensions.core as ecx
+from collections import OrderedDict
+from exchange_calendars_extensions.api.changes import DayMeta
+ecx.apply_extensions()
+import exchange_calendars as ec
+
+# Add metadata.
+day = pd.Timestamp("2024-03-31")
+meta = DayMeta(tags=[], comment="This is a comment")
+ecx.set_meta('XETR', day, meta)
+
+calendar = ec.get_calendar('XETR')
+
+# Get metadata for 2024-03-31, timezone-naive.
+assert calendar.meta(start='2024-03-31 00:00:00') == OrderedDict([(day, meta)])
+assert calendar.meta(start='2024-03-31 23:59:59') == OrderedDict([(day, meta)])
+
+# Get metadata for 2024-03-31, timezone-aware.
+# 2024-03-30 23:00:00 UTC is 2024-03-31 00:00:00 CET.
+assert calendar.meta(start=pd.Timestamp('2024-03-30 23:00:00').tz_localize("UTC")) == OrderedDict([(day, meta)])
+# 2024-03-31 21:59:59 UTC is 2024-03-31 23:59:59 CEST.
+assert calendar.meta(start=pd.Timestamp('2024-03-31 21:59:59').tz_localize("UTC")) == OrderedDict([(day, meta)])
+# 2024-03-31 22:00:00 UTC is 2024-03-31 00:00:00 CEST.
+assert calendar.meta(start=pd.Timestamp('2024-03-31 22:00:00').tz_localize("UTC")) == OrderedDict([])
+```
