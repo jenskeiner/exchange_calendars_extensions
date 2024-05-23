@@ -149,13 +149,13 @@ dev = ["flake8", "hypothesis", "pip-tools", "pytest", "pytest-benchmark", "pytes
 
 [[package]]
 name = "exchange-calendars-extensions-api"
-version = "0.4.0"
+version = "0.4.1"
 description = "A package that defines parts of the API of the exchange-calendars-extensions package."
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "exchange_calendars_extensions_api-0.4.0-py3-none-any.whl", hash = "sha256:f3e03fc2d62006901f0f7434a160e433a08ecd8049fd2d690e3849843e2c8ee4"},
-    {file = "exchange_calendars_extensions_api-0.4.0.tar.gz", hash = "sha256:b0d66996d032938a56d31a08d075273c13045561e7a5f11e0ffd0390a6f6ca35"},
+    {file = "exchange_calendars_extensions_api-0.4.1-py3-none-any.whl", hash = "sha256:032133cae75398a66c5534fc5e0c9b8939b3ec8798e27e941f8283293745dc8c"},
+    {file = "exchange_calendars_extensions_api-0.4.1.tar.gz", hash = "sha256:eaaf1e12f3057dc02a9e9a199f32cdf710ef43ba39027d5a48b0ea9b494a9eaa"},
 ]
 
 [package.dependencies]
