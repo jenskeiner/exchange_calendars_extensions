@@ -1091,13 +1091,16 @@ def extend_class(
         # Remove instances of weekly special open/close days that also coincide with a holiday.
         all_holidays = None
 
+        def get_all_holidays() -> pd.DatetimeIndex:
+            return self._holidays_shared.holidays(
+                start=self.schedule.index[0], end=self.schedule.index[-1]
+            )
+
         for t, rules in self._adjusted_properties.special_opens:
             for rule in rules:
                 if isinstance(rule, DayOfWeekPeriodicHoliday):
                     if all_holidays is None:
-                        all_holidays = self._holidays_shared.holidays(
-                            start=self.schedule.index[0], end=self.schedule.index[-1]
-                        )
+                        all_holidays = get_all_holidays()
                     for ts in all_holidays.intersection(
                         rule.dates(
                             start_date=self.schedule.index[0],
@@ -1112,9 +1115,7 @@ def extend_class(
             for rule in rules:
                 if isinstance(rule, DayOfWeekPeriodicHoliday):
                     if all_holidays is None:
-                        all_holidays = self._holidays_shared.holidays(
-                            start=self.schedule.index[0], end=self.schedule.index[-1]
-                        )
+                        all_holidays = get_all_holidays()
                     for ts in all_holidays.intersection(
                         rule.dates(
                             start_date=self.schedule.index[0],
