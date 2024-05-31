@@ -41,16 +41,16 @@ def add_test_calendar_and_apply_extensions(
     holidays: Optional[Iterable[pd.Timestamp]] = (pd.Timestamp("2023-01-01"),),
     adhoc_holidays: Optional[Iterable[pd.Timestamp]] = (pd.Timestamp("2023-02-01"),),
     regular_special_close: Optional[time] = time(14, 00),
-    special_closes: Optional[Iterable[tuple[datetime.time, Iterable[pd.Timestamp]]]] = (
-        (time(14, 00), (pd.Timestamp("2023-03-01"),)),
-    ),
+    special_closes: Optional[
+        Iterable[tuple[datetime.time, Iterable[pd.Timestamp] | int]]
+    ] = ((time(14, 00), (pd.Timestamp("2023-03-01"),)),),
     adhoc_special_closes: Optional[
         Iterable[tuple[datetime.time, Union[pd.Timestamp, Iterable[pd.Timestamp]]]]
     ] = ((time(14, 00), pd.Timestamp("2023-04-03")),),
     regular_special_open: Optional[time] = time(11, 00),
-    special_opens: Optional[Iterable[tuple[datetime.time, Iterable[pd.Timestamp]]]] = (
-        (time(11, 00), (pd.Timestamp("2023-05-01"),)),
-    ),
+    special_opens: Optional[
+        Iterable[tuple[datetime.time, Iterable[pd.Timestamp] | int]]
+    ] = ((time(11, 00), (pd.Timestamp("2023-05-01"),)),),
     adhoc_special_opens: Optional[
         Iterable[tuple[datetime.time, Union[pd.Timestamp, Iterable[pd.Timestamp]]]]
     ] = ((time(11, 00), pd.Timestamp("2023-06-01")),),
@@ -109,7 +109,9 @@ def add_test_calendar_and_apply_extensions(
                     map(
                         lambda x: (
                             x[0],
-                            HolidayCalendar(
+                            x[1]
+                            if isinstance(x[1], int)
+                            else HolidayCalendar(
                                 [
                                     Holiday(
                                         name=f"Special Close {i}",
@@ -148,7 +150,9 @@ def add_test_calendar_and_apply_extensions(
                     map(
                         lambda x: (
                             x[0],
-                            HolidayCalendar(
+                            x[1]
+                            if isinstance(x[1], int)
+                            else HolidayCalendar(
                                 [
                                     Holiday(
                                         name=f"Special Open {i}",
@@ -1441,6 +1445,92 @@ def test_overwrite_existing_regular_special_open_with_existing_time():
 
 
 @pytest.mark.isolated
+def test_holiday_takes_precedence_over_weekly_special_open():
+    add_test_calendar_and_apply_extensions(
+        holidays=(pd.Timestamp("2023-01-02"),),  # a Monday
+        special_opens=[(time(11, 0), 0)],  # Weekly early close on Mondays.
+    )
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("TEST")
+
+    # Holiday on 2023-02-01 should take precedence over weekly special open on the same day.
+
+    # Day should be in regular holidays calendar.
+    assert (
+        c.regular_holidays.holidays(
+            start="2023-01-02", end="2023-01-02", return_name=True
+        )
+        .compare(
+            pd.Series(
+                {
+                    pd.Timestamp("2023-01-02"): HOLIDAY_0,
+                }
+            )
+        )
+        .empty
+    )
+
+    # Day should be in consolidated holidays calendar.
+    assert (
+        c.holidays_all.holidays(start="2023-01-02", end="2023-01-02", return_name=True)
+        .compare(
+            pd.Series(
+                {
+                    pd.Timestamp("2023-01-02"): HOLIDAY_0,
+                }
+            )
+        )
+        .empty
+    )
+
+    # Day should not be in any special opens calendar.
+    assert len(c.special_opens) == 1
+    assert c.special_opens[0][0] == time(11, 0)
+    assert (
+        c.special_opens[0][1]
+        .holidays(start="2023-01-02", end="2023-01-02", return_name=True)
+        .empty
+    )
+
+    # Day should not be in consolidated special opens calendar.
+    assert c.special_opens_all.holidays(
+        start="2023-01-02", end="2023-01-02", return_name=True
+    ).empty
+
+
+# @pytest.mark.parametrize(
+#     "enable_day_of_week_special_open_calendar",
+#     [
+#         #False,
+#         True,
+#     ],
+# )
+# @pytest.mark.isolated
+# def test_overwrite_weekly_special_open(enable_day_of_week_special_open_calendar):
+#     add_test_calendar_and_apply_extensions(special_opens=[(time(11, 0), 0)])
+#     import exchange_calendars as ec
+#     import exchange_calendars_extensions.core as ecx
+#
+#     ecx.options.enable_day_of_week_special_open_calendar = False #enable_day_of_week_special_open_calendar
+#
+#     #ecx.add_special_open(
+#     #    "TEST", pd.Timestamp("2023-06-05"), time(12, 0), ADDED_SPECIAL_OPEN
+#     #)
+#
+#     if enable_day_of_week_special_open_calendar:
+#         c = ec.get_calendar("TEST")
+#         x = c.holidays_all.holidays(start="2023-01-01", end="2023-01-09", return_name=True)
+#         y = c.special_opens_all.holidays(start="2023-01-01", end="2023-01-09", return_name=True)
+#         z = c.special_closes_all.holidays(start="2023-01-01", end="2023-01-09", return_name=True)
+#         pass
+#     else:
+#         # Should throw an exception since overwriting a day-of-week rule is not implemented yet.
+#         with pytest.raises(NotImplementedError):
+#             _ = ec.get_calendar("TEST")
+
+
+@pytest.mark.isolated
 def test_overwrite_existing_ad_hoc_special_open_with_new_time():
     add_test_calendar_and_apply_extensions()
     import exchange_calendars as ec
@@ -2061,6 +2151,61 @@ def test_overwrite_existing_regular_special_close_with_existing_time():
         )
         .empty
     )
+
+
+@pytest.mark.isolated
+def test_holiday_takes_precedence_over_weekly_special_close():
+    add_test_calendar_and_apply_extensions(
+        holidays=(pd.Timestamp("2023-01-02"),),  # a Monday
+        special_closes=[(time(15, 0), 0)],  # Weekly early close on Mondays.
+    )
+    import exchange_calendars as ec
+
+    c = ec.get_calendar("TEST")
+
+    # Holiday on 2023-02-01 should take precedence over weekly special open on the same day.
+
+    # Day should be in regular holidays calendar.
+    assert (
+        c.regular_holidays.holidays(
+            start="2023-01-02", end="2023-01-02", return_name=True
+        )
+        .compare(
+            pd.Series(
+                {
+                    pd.Timestamp("2023-01-02"): HOLIDAY_0,
+                }
+            )
+        )
+        .empty
+    )
+
+    # Day should be in consolidated holidays calendar.
+    assert (
+        c.holidays_all.holidays(start="2023-01-02", end="2023-01-02", return_name=True)
+        .compare(
+            pd.Series(
+                {
+                    pd.Timestamp("2023-01-02"): HOLIDAY_0,
+                }
+            )
+        )
+        .empty
+    )
+
+    # Day should not be in any special closes calendar.
+    assert len(c.special_closes) == 1
+    assert c.special_closes[0][0] == time(15, 0)
+    assert (
+        c.special_closes[0][1]
+        .holidays(start="2023-01-02", end="2023-01-02", return_name=True)
+        .empty
+    )
+
+    # Day should not be in consolidated special closes calendar.
+    assert c.special_closes_all.holidays(
+        start="2023-01-02", end="2023-01-02", return_name=True
+    ).empty
 
 
 @pytest.mark.isolated

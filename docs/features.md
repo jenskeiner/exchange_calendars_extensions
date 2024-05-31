@@ -96,3 +96,14 @@ scope of the exchange calendars core functionality.
 This package provides functionality to add metadata in the form of tags and/or comments to any date in any calendar.
 It is then possible to filter dates by their metadata to retrieve only dates within a certain time period that e.g. 
 have a certain tag set.
+
+## Miscellaneous
+Exchange calendars support special open/close days with a weekly occurrence pattern. For example, the Tel Aviv Stock
+Exchange (XTAE) has a special close day every Sunday. In a calendar from the `exchange-calendars` package, these days 
+are represented by an integer in the range 0-6, where 0 is Monday and 6 is Sunday, corresponding to the day of the 
+week, instead of an actual holiday calendar. This can be problematic since two cases now need to be handled in any code 
+that uses special open or close definitions. When the extensions from this package are applied, weekly special 
+open/close day patterns are converted into regular holiday calendars to simplify the handling. 
+
+{{% note %}}
+

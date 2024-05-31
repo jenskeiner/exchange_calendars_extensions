@@ -957,12 +957,22 @@ def extend_class(
             regular_holidays=list(copy(regular_holidays_orig(self).rules)),
             adhoc_holidays=list(copy(adhoc_holidays_orig(self))),
             special_closes=[
-                (t, d if isinstance(d, int) else list(copy(d.rules)))
+                (
+                    t,
+                    [DayOfWeekPeriodicHoliday("special close", d)]
+                    if isinstance(d, int)
+                    else list(copy(d.rules)),
+                )  # Convert day-of-week to rule, else just copy.
                 for t, d in copy(special_closes_orig(self))
             ],
             adhoc_special_closes=list(copy(adhoc_special_closes_orig(self))),
             special_opens=[
-                (t, d if isinstance(d, int) else list(copy(d.rules)))
+                (
+                    t,
+                    [DayOfWeekPeriodicHoliday("special open", d)]
+                    if isinstance(d, int)
+                    else list(copy(d.rules)),
+                )  # Convert day-of-week to rule, else just copy.
                 for t, d in copy(special_opens_orig(self))
             ],
             adhoc_special_opens=list(copy(adhoc_special_opens_orig(self))),
@@ -1077,6 +1087,45 @@ def extend_class(
                 get_special_closes_calendar(self),
             ]
         )
+
+        # Remove instances of weekly special open/close days that also coincide with a holiday.
+        all_holidays = None
+
+        for t, rules in self._adjusted_properties.special_opens:
+            for rule in rules:
+                if isinstance(rule, DayOfWeekPeriodicHoliday):
+                    if all_holidays is None:
+                        all_holidays = self._holidays_shared.holidays(
+                            start=self.schedule.index[0], end=self.schedule.index[-1]
+                        )
+                    for ts in all_holidays.intersection(
+                        rule.dates(
+                            start_date=self.schedule.index[0],
+                            end_date=self.schedule.index[-1],
+                        )
+                    ):
+                        a.special_opens, a.adhoc_special_opens = remove_special_session(
+                            ts, a.special_opens, a.adhoc_special_opens
+                        )
+
+        for t, rules in self._adjusted_properties.special_closes:
+            for rule in rules:
+                if isinstance(rule, DayOfWeekPeriodicHoliday):
+                    if all_holidays is None:
+                        all_holidays = self._holidays_shared.holidays(
+                            start=self.schedule.index[0], end=self.schedule.index[-1]
+                        )
+                    for ts in all_holidays.intersection(
+                        rule.dates(
+                            start_date=self.schedule.index[0],
+                            end_date=self.schedule.index[-1],
+                        )
+                    ):
+                        a.special_closes, a.adhoc_special_closes = (
+                            remove_special_session(
+                                ts, a.special_closes, a.adhoc_special_closes
+                            )
+                        )
 
     @property
     def regular_holidays(self) -> Union[HolidayCalendar, None]:
