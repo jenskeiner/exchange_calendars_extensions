@@ -33,7 +33,7 @@ packages = [{include = "exchange_calendars_extensions"}]
 
 [tool.poetry.dependencies]
 python = "~=3.9"
-exchange-calendars-extensions-api = ">=0.4.0,<1"
+exchange-calendars-extensions-api = ">=0.4.2,<1"
 exchange-calendars = ">=4.0.1,<5"
 typing-extensions = ">=4.0,<5"
 pydantic = ">=2.0,<3"
