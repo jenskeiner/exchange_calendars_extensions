@@ -1499,37 +1499,6 @@ def test_holiday_takes_precedence_over_weekly_special_open():
     ).empty
 
 
-# @pytest.mark.parametrize(
-#     "enable_day_of_week_special_open_calendar",
-#     [
-#         #False,
-#         True,
-#     ],
-# )
-# @pytest.mark.isolated
-# def test_overwrite_weekly_special_open(enable_day_of_week_special_open_calendar):
-#     add_test_calendar_and_apply_extensions(special_opens=[(time(11, 0), 0)])
-#     import exchange_calendars as ec
-#     import exchange_calendars_extensions.core as ecx
-#
-#     ecx.options.enable_day_of_week_special_open_calendar = False #enable_day_of_week_special_open_calendar
-#
-#     #ecx.add_special_open(
-#     #    "TEST", pd.Timestamp("2023-06-05"), time(12, 0), ADDED_SPECIAL_OPEN
-#     #)
-#
-#     if enable_day_of_week_special_open_calendar:
-#         c = ec.get_calendar("TEST")
-#         x = c.holidays_all.holidays(start="2023-01-01", end="2023-01-09", return_name=True)
-#         y = c.special_opens_all.holidays(start="2023-01-01", end="2023-01-09", return_name=True)
-#         z = c.special_closes_all.holidays(start="2023-01-01", end="2023-01-09", return_name=True)
-#         pass
-#     else:
-#         # Should throw an exception since overwriting a day-of-week rule is not implemented yet.
-#         with pytest.raises(NotImplementedError):
-#             _ = ec.get_calendar("TEST")
-
-
 @pytest.mark.isolated
 def test_overwrite_existing_ad_hoc_special_open_with_new_time():
     add_test_calendar_and_apply_extensions()
