@@ -42,14 +42,14 @@ def add_test_calendar_and_apply_extensions(
     adhoc_holidays: Optional[Iterable[pd.Timestamp]] = (pd.Timestamp("2023-02-01"),),
     regular_special_close: Optional[time] = time(14, 00),
     special_closes: Optional[
-        Iterable[tuple[datetime.time, Iterable[pd.Timestamp] | int]]
+        Iterable[tuple[datetime.time, Union[Iterable[pd.Timestamp], int]]]
     ] = ((time(14, 00), (pd.Timestamp("2023-03-01"),)),),
     adhoc_special_closes: Optional[
         Iterable[tuple[datetime.time, Union[pd.Timestamp, Iterable[pd.Timestamp]]]]
     ] = ((time(14, 00), pd.Timestamp("2023-04-03")),),
     regular_special_open: Optional[time] = time(11, 00),
     special_opens: Optional[
-        Iterable[tuple[datetime.time, Iterable[pd.Timestamp] | int]]
+        Iterable[tuple[datetime.time, Union[Iterable[pd.Timestamp], int]]]
     ] = ((time(11, 00), (pd.Timestamp("2023-05-01"),)),),
     adhoc_special_opens: Optional[
         Iterable[tuple[datetime.time, Union[pd.Timestamp, Iterable[pd.Timestamp]]]]
