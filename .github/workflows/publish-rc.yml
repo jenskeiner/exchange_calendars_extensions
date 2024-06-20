@@ -65,7 +65,8 @@ jobs:
                 sleep 5s
             fi
         done
-        sleep 15s
-        pip install --no-cache-dir --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.VERSION }} --no-deps
+        sleep 5s
+        args=(--no-cache-dir --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.VERSION }} --no-deps)
+        pip install "${args[@]}" || pip install "${args[@]}"
         pip install -r requirements.txt
         python -c 'import ${{ env.MODULE_NAME }};print(${{ env.MODULE_NAME }}.__version__)'
