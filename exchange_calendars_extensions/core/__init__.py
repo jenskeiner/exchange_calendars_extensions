@@ -4,34 +4,8 @@ from typing import Callable, Union
 from exchange_calendars import (
     calendar_utils,
     register_calendar_type,
-    ExchangeCalendar,
     get_calendar_names,
 )
-from exchange_calendars.calendar_utils import _default_calendar_factories
-from exchange_calendars.exchange_calendar_asex import ASEXExchangeCalendar
-from exchange_calendars.exchange_calendar_xams import XAMSExchangeCalendar
-from exchange_calendars.exchange_calendar_xbru import XBRUExchangeCalendar
-from exchange_calendars.exchange_calendar_xbud import XBUDExchangeCalendar
-from exchange_calendars.exchange_calendar_xcse import XCSEExchangeCalendar
-from exchange_calendars.exchange_calendar_xdub import XDUBExchangeCalendar
-from exchange_calendars.exchange_calendar_xetr import XETRExchangeCalendar
-from exchange_calendars.exchange_calendar_xhel import XHELExchangeCalendar
-from exchange_calendars.exchange_calendar_xist import XISTExchangeCalendar
-from exchange_calendars.exchange_calendar_xjse import XJSEExchangeCalendar
-from exchange_calendars.exchange_calendar_xlis import XLISExchangeCalendar
-from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
-from exchange_calendars.exchange_calendar_xmad import XMADExchangeCalendar
-from exchange_calendars.exchange_calendar_xmil import XMILExchangeCalendar
-from exchange_calendars.exchange_calendar_xnys import XNYSExchangeCalendar
-from exchange_calendars.exchange_calendar_xosl import XOSLExchangeCalendar
-from exchange_calendars.exchange_calendar_xpar import XPARExchangeCalendar
-from exchange_calendars.exchange_calendar_xpra import XPRAExchangeCalendar
-from exchange_calendars.exchange_calendar_xsto import XSTOExchangeCalendar
-from exchange_calendars.exchange_calendar_xswx import XSWXExchangeCalendar
-from exchange_calendars.exchange_calendar_xtae import XTAEExchangeCalendar
-from exchange_calendars.exchange_calendar_xtse import XTSEExchangeCalendar
-from exchange_calendars.exchange_calendar_xwar import XWARExchangeCalendar
-from exchange_calendars.exchange_calendar_xwbo import XWBOExchangeCalendar
 from pydantic import validate_call, BaseModel, conint
 from typing_extensions import ParamSpec, Concatenate
 
@@ -60,39 +34,36 @@ _changesets: dict[str, ChangeSet] = dict()
 class ExtensionSpec(BaseModel, arbitrary_types_allowed=True):
     """Specifies how to derive an extended calendar class from a vanilla calendar class."""
 
-    # The base class to extend.
-    base: type[ExchangeCalendar]
-
     # The day of the week on which options expire. If None, expiry days are not supported.
     day_of_week_expiry: Union[conint(ge=0, le=6), None] = None
 
 
 # Internal dictionary that specifies how to derive extended calendars for specific exchanges.
 _extensions: dict[str, ExtensionSpec] = {
-    "ASEX": ExtensionSpec(base=ASEXExchangeCalendar, day_of_week_expiry=4),
-    "XAMS": ExtensionSpec(base=XAMSExchangeCalendar, day_of_week_expiry=4),
-    "XBRU": ExtensionSpec(base=XBRUExchangeCalendar, day_of_week_expiry=4),
-    "XBUD": ExtensionSpec(base=XBUDExchangeCalendar, day_of_week_expiry=4),
-    "XCSE": ExtensionSpec(base=XCSEExchangeCalendar, day_of_week_expiry=4),
-    "XDUB": ExtensionSpec(base=XDUBExchangeCalendar, day_of_week_expiry=4),
-    "XETR": ExtensionSpec(base=XETRExchangeCalendar, day_of_week_expiry=4),
-    "XHEL": ExtensionSpec(base=XHELExchangeCalendar, day_of_week_expiry=4),
-    "XIST": ExtensionSpec(base=XISTExchangeCalendar, day_of_week_expiry=4),
-    "XJSE": ExtensionSpec(base=XJSEExchangeCalendar, day_of_week_expiry=3),
-    "XLIS": ExtensionSpec(base=XLISExchangeCalendar, day_of_week_expiry=4),
-    "XLON": ExtensionSpec(base=XLONExchangeCalendar, day_of_week_expiry=4),
-    "XMAD": ExtensionSpec(base=XMADExchangeCalendar, day_of_week_expiry=4),
-    "XMIL": ExtensionSpec(base=XMILExchangeCalendar, day_of_week_expiry=4),
-    "XNYS": ExtensionSpec(base=XNYSExchangeCalendar, day_of_week_expiry=4),
-    "XOSL": ExtensionSpec(base=XOSLExchangeCalendar, day_of_week_expiry=4),
-    "XPAR": ExtensionSpec(base=XPARExchangeCalendar, day_of_week_expiry=4),
-    "XPRA": ExtensionSpec(base=XPRAExchangeCalendar, day_of_week_expiry=4),
-    "XSTO": ExtensionSpec(base=XSTOExchangeCalendar, day_of_week_expiry=4),
-    "XSWX": ExtensionSpec(base=XSWXExchangeCalendar, day_of_week_expiry=4),
-    "XTAE": ExtensionSpec(base=XTAEExchangeCalendar, day_of_week_expiry=4),
-    "XTSE": ExtensionSpec(base=XTSEExchangeCalendar, day_of_week_expiry=4),
-    "XWAR": ExtensionSpec(base=XWARExchangeCalendar, day_of_week_expiry=4),
-    "XWBO": ExtensionSpec(base=XWBOExchangeCalendar, day_of_week_expiry=4),
+    "ASEX": ExtensionSpec(day_of_week_expiry=4),
+    "XAMS": ExtensionSpec(day_of_week_expiry=4),
+    "XBRU": ExtensionSpec(day_of_week_expiry=4),
+    "XBUD": ExtensionSpec(day_of_week_expiry=4),
+    "XCSE": ExtensionSpec(day_of_week_expiry=4),
+    "XDUB": ExtensionSpec(day_of_week_expiry=4),
+    "XETR": ExtensionSpec(day_of_week_expiry=4),
+    "XHEL": ExtensionSpec(day_of_week_expiry=4),
+    "XIST": ExtensionSpec(day_of_week_expiry=4),
+    "XJSE": ExtensionSpec(day_of_week_expiry=3),
+    "XLIS": ExtensionSpec(day_of_week_expiry=4),
+    "XLON": ExtensionSpec(day_of_week_expiry=4),
+    "XMAD": ExtensionSpec(day_of_week_expiry=4),
+    "XMIL": ExtensionSpec(day_of_week_expiry=4),
+    "XNYS": ExtensionSpec(day_of_week_expiry=4),
+    "XOSL": ExtensionSpec(day_of_week_expiry=4),
+    "XPAR": ExtensionSpec(day_of_week_expiry=4),
+    "XPRA": ExtensionSpec(day_of_week_expiry=4),
+    "XSTO": ExtensionSpec(day_of_week_expiry=4),
+    "XSWX": ExtensionSpec(day_of_week_expiry=4),
+    "XTAE": ExtensionSpec(day_of_week_expiry=4),
+    "XTSE": ExtensionSpec(day_of_week_expiry=4),
+    "XWAR": ExtensionSpec(day_of_week_expiry=4),
+    "XWBO": ExtensionSpec(day_of_week_expiry=4),
 }
 
 
@@ -137,7 +108,7 @@ def apply_extensions() -> None:
     # Create and register extended calendar classes for all calendars for which no explicit rules have been defined.
     for k in calendar_names - set(_extensions.keys()):
         # Get the original class.
-        cls = _default_calendar_factories.get(k)
+        cls = calendar_utils.global_calendar_dispatcher._calendar_factories.get(k)
 
         if cls is not None:
             # Store the original class for later use.
@@ -156,24 +127,28 @@ def apply_extensions() -> None:
 
     # Create and register extended calendar classes for all calendars for which explicit rules have been defined.
     for k, v in _extensions.items():
-        # Get the original class and the day of the week for expiry days.
-        cls, day_of_week_expiry = v.base, v.day_of_week_expiry
+        # Get the original class.
+        cls = calendar_utils.global_calendar_dispatcher._calendar_factories.get(k)
 
-        # Store the original class for later use.
-        _original_classes[k] = cls
+        if cls is not None:
+            # Get the day of the week for expiry days.
+            day_of_week_expiry = v.day_of_week_expiry
 
-        # Create extended class with support for expiry days.
-        cls = extend_class(
-            cls,
-            day_of_week_expiry=day_of_week_expiry,
-            changeset_provider=get_changeset_fn(k),
-        )
+            # Store the original class for later use.
+            _original_classes[k] = cls
 
-        # Register extended class.
-        register_calendar_type(k, cls, force=True)
+            # Create extended class with support for expiry days.
+            cls = extend_class(
+                cls,
+                day_of_week_expiry=day_of_week_expiry,
+                changeset_provider=get_changeset_fn(k),
+            )
 
-        # Remove original class from factory cache.
-        _remove_calendar_from_factory_cache(k)
+            # Register extended class.
+            register_calendar_type(k, cls, force=True)
+
+            # Remove original class from factory cache.
+            _remove_calendar_from_factory_cache(k)
 
 
 def remove_extensions() -> None:
@@ -197,9 +172,7 @@ def remove_extensions() -> None:
     _original_classes.clear()
 
 
-def register_extension(
-    name: str, cls: type[ExchangeCalendar], day_of_week_expiry: Union[int, None] = None
-) -> None:
+def register_extension(name: str, day_of_week_expiry: Union[int, None] = None) -> None:
     """
     Register an extended calendar class for a given exchange key and a given base class.
 
@@ -220,7 +193,7 @@ def register_extension(
     -------
     None
     """
-    _extensions[name] = ExtensionSpec(base=cls, day_of_week_expiry=day_of_week_expiry)
+    _extensions[name] = ExtensionSpec(day_of_week_expiry=day_of_week_expiry)
 
 
 def _remove_calendar_from_factory_cache(name: str):
