@@ -193,7 +193,7 @@ def add_test_calendar_and_apply_extensions(
 
     import exchange_calendars_extensions.core as ecx
 
-    ecx.register_extension("TEST", TestCalendar, day_of_week_expiry=day_of_week_expiry)
+    ecx.register_extension("TEST", day_of_week_expiry=day_of_week_expiry)
 
     ecx.apply_extensions()
 

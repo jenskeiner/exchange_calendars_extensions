@@ -23,13 +23,14 @@ from exchange_calendars.pandas_extensions.holiday import (
     Holiday as ExchangeCalendarsHoliday,
 )
 from pandas.tseries.holiday import Holiday as PandasHoliday
-from pydantic import validate_call
+from pydantic import validate_call, TypeAdapter, ConfigDict
 
 from exchange_calendars_extensions.api.changes import (
     ChangeSet,
     DayType,
     DayMeta,
     TimestampLike,
+    DateLike,
 )
 from exchange_calendars_extensions.core.holiday import (
     get_monthly_expiry_holiday,
@@ -204,8 +205,11 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
             )
 
 
+_ta = TypeAdapter(DateLike, config=ConfigDict(arbitrary_types_allowed=True))
+
+
 def get_holiday_calendar_from_timestamps(
-    timestamps: Iterable[pd.Timestamp], name: Optional[str] = None
+    timestamps: list[pd.Timestamp], name: Optional[str] = None
 ) -> ExchangeCalendarsHolidayCalendar:
     """
     Return a holiday calendar with holidays given by a collection of timestamps.
@@ -953,29 +957,60 @@ def extend_class(
 
     def __init__(self, *args, **kwargs):
         # Save adjusted properties. Initialize with copies of the original properties.
-        a = AdjustedProperties(
-            regular_holidays=list(copy(regular_holidays_orig(self).rules)),
-            adhoc_holidays=list(copy(adhoc_holidays_orig(self))),
-            special_closes=[
+
+        regular_holidays = regular_holidays_orig(self)
+        regular_holidays = (
+            list(copy(regular_holidays.rules)) if regular_holidays is not None else []
+        )
+        adhoc_holidays = adhoc_holidays_orig(self)
+        adhoc_holidays = (
+            [_ta.validate_python(x) for x in copy(adhoc_holidays)]
+            if adhoc_holidays is not None
+            else []
+        )
+        special_closes = special_closes_orig(self)
+        special_closes = (
+            [
                 (
                     t,
                     [DayOfWeekPeriodicHoliday("special close", d)]
                     if isinstance(d, int)
                     else list(copy(d.rules)),
                 )  # Convert day-of-week to rule, else just copy.
-                for t, d in copy(special_closes_orig(self))
-            ],
-            adhoc_special_closes=list(copy(adhoc_special_closes_orig(self))),
-            special_opens=[
+                for t, d in copy(special_closes)
+            ]
+            if special_closes is not None
+            else []
+        )
+        adhoc_special_closes = adhoc_special_closes_orig(self)
+        adhoc_special_closes = (
+            list(copy(adhoc_special_closes)) if adhoc_special_closes is not None else []
+        )
+        special_opens = special_opens_orig(self)
+        special_opens = (
+            [
                 (
                     t,
                     [DayOfWeekPeriodicHoliday("special open", d)]
                     if isinstance(d, int)
                     else list(copy(d.rules)),
                 )  # Convert day-of-week to rule, else just copy.
-                for t, d in copy(special_opens_orig(self))
-            ],
-            adhoc_special_opens=list(copy(adhoc_special_opens_orig(self))),
+                for t, d in copy(special_opens)
+            ]
+            if special_opens is not None
+            else []
+        )
+        adhoc_special_opens = adhoc_special_opens_orig(self)
+        adhoc_special_opens = (
+            list(copy(adhoc_special_opens)) if adhoc_special_opens is not None else []
+        )
+        a = AdjustedProperties(
+            regular_holidays=regular_holidays,
+            adhoc_holidays=adhoc_holidays,
+            special_closes=special_closes,
+            adhoc_special_closes=adhoc_special_closes,
+            special_opens=special_opens,
+            adhoc_special_opens=adhoc_special_opens,
         )
 
         # Get changeset from provider, maybe.
