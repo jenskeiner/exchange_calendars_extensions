@@ -1,14 +1,15 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
+[project]
 name = "exchange-calendars-extensions"
-version = "0"
+dynamic = ["version"]
 description = "Extensions of the exchange-calendars package"
 license = "Apache-2.0"
-authors = ["Jens Keiner <jens.keiner@gmail.com>"]
+authors = [{name = "Jens Keiner", email="jens.keiner@gmail.com"}]
 readme = "README.md"
+requires-python = ">=3.10"
 homepage = "https://github.com/jenskeiner/exchange_calendars_extensions/"
 repository = "https://github.com/jenskeiner/exchange_calendars_extensions/"
 documentation = "https://github.com/jenskeiner/exchange_calendars_extensions/tree/main/docs/"
@@ -29,20 +30,33 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-packages = [{include = "exchange_calendars_extensions"}]
+dependencies = [
+    "exchange-calendars-extensions-api>=0.4.2,<1",
+    "exchange-calendars>=4.0.1,<5",
+    "typing-extensions >=4.0,<5",
+    "pydantic >=2.0,<3",
+]
 
-[tool.poetry.dependencies]
-python = "~=3.10"
-exchange-calendars-extensions-api = ">=0.4.2,<1"
-exchange-calendars = ">=4.0.1,<5"
-typing-extensions = ">=4.0,<5"
-pydantic = ">=2.0,<3"
+[tool.hatch.version]
+source = "env"
+variable = "PACKAGE_VERSION"
 
-[tool.poetry.group.dev.dependencies]
-pytest = ">=7.3.1,<8.4.0"
-pytest-mock = ">=3.11.1,<3.15.0"
-pytest-cov = ">=4.1,<6.1"
-pre-commit = ">=3.3.3,<4.1.0"
+[tool.hatch.build.targets.sdist]
+exclude = [
+  ".github",
+  ".pre-commit-config.yaml",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/exchange_calendars_extensions"]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.3.1,<8.4.0",
+    "pytest-mock>=3.11.1,<3.15.0",
+    "pytest-cov>=4.1,<6.1",
+    "pre-commit>=3.3.3,<4.1.0",
+]
 
 [tool.pytest.ini_options]
 addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"
