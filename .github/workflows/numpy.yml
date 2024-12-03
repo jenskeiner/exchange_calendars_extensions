@@ -1,4 +1,4 @@
-name: CI
+name: Numpy Issue
 
 on:
   workflow_dispatch:
