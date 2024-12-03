@@ -10,11 +10,12 @@ jobs:
   reproduce-numpy-issue:
     runs-on: windows-latest
     steps:
+    - uses: actions/checkout@v4
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
-        enable-cache: true        
+        enable-cache: false        
     - name: Set up Python 3.13
       run: uv python install 3.13
     - name: Reproduce issue.
-      run: uv run --with numpy==2.0.2 -- python -c "import numpy"
+      run: uv run --no-project --with numpy==2.0.2 -- python -c "import numpy"
