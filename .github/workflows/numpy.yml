@@ -1,6 +1,9 @@
 name: Numpy Issue
 
 on:
+  push:
+    branches:
+      - feature/numpy-issue
   workflow_dispatch:
 
 jobs:
