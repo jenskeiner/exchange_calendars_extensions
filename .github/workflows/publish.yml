@@ -7,6 +7,7 @@ on:
 env:
   PACKAGE_NAME: exchange_calendars_extensions
   MODULE_NAME: exchange_calendars_extensions.core
+  PYTHON_VERSION: "3.11"
 
 jobs:
   build-and-publish:
@@ -16,77 +17,95 @@ jobs:
       id-token: write
     steps:
     - uses: actions/checkout@v4
-    - name: Install poetry.
-      run: pipx install poetry
-    - name: Set up Python.
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
       with:
-        python-version: "3.11"
-        cache: 'poetry'
+        enable-cache: true        
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      run: uv python install ${{ env.PYTHON_VERSION }}
     - name: Determine version number.
       run: |
-        export VERSION=${{ github.ref_name }}
-        echo "Version is $VERSION."
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-    - name: Set poetry package version.
-      run: poetry version ${{ env.VERSION }}
-    - name: Determine path to version.py from module name.
-      run: |
-          export VERSION_PATH=$(echo ${{ env.MODULE_NAME }} | sed 's/\./\//g')/version.py
-          echo "VERSION_PATH is $VERSION_PATH."
-          echo "VERSION_PATH=$VERSION_PATH" >> $GITHUB_ENV
-    - name: Generate version.py
-      run: |
-          echo "version = '${{ env.VERSION }}'" > ${{ env.VERSION_PATH }}
-    - name: Generate requirements.txt.
-      run: poetry export -f requirements.txt --without-hashes > requirements.txt
-    - name: Build package with poetry.
-      run: poetry build
+        export PACKAGE_VERSION=${{ github.ref_name }}
+        echo "Version is $PACKAGE_VERSION."
+        echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
+    - name: Build package
+      run: uv build
     - name: Publish package to Test PyPI.
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
         skip-existing: true
-    - name: Install from testpypi and import.
+    - name: Test that the package can be installed and imported (Test PyPI).
       run: |
         i=0
-        n=60
+        max=10
         exists=0
-        while [ $i -lt $n ] && [ $exists -eq 0 ]; do
+        while [ $i -lt $max ] && [ $exists -eq 0 ]; do
             i=$(expr $i + 1)
-            if curl -f -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -e ".releases | has(\"${{ env.VERSION }}\")" &> /dev/null; then
-                echo "$i/$n Package exists in index."
+            if curl -f -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -e ".releases | has(\"${{ env.PACKAGE_VERSION }}\")" &> /dev/null; then
+                echo "$i/$max Package has appeared in index."
                 exists=1
             else
-                echo "$i/$n Package has not appeared in index yet. Sleeping 5s."
+                echo "$i/$max Package has not appeared in index yet. Sleeping 5s."
                 sleep 5s
             fi
         done
-        sleep 15s
-        pip install --no-cache-dir --index-url https://test.pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.VERSION }} --no-deps
-        pip install -r requirements.txt
-        python -c 'import ${{ env.MODULE_NAME }};print(${{ env.MODULE_NAME }}.__version__)'
-    - name: Clean pip
-      run: |
-        pip uninstall -y ${{ env.PACKAGE_NAME }}
-        pip cache purge
+        if [ $exists -ne 0 ]; then
+            sleep 5s
+            i=0
+            max=3
+            while [ $i -lt $max ]; do
+                if uv run -n --refresh --default-index https://test.pypi.org/simple --index https://pypi.org/simple --index-strategy unsafe-best-match --with "${{ env.PACKAGE_NAME }}==${{ env.PACKAGE_VERSION }}" --no-project -- python -c 'from importlib.metadata import version;print(version("${{ env.MODULE_NAME }}"))'; then
+                    exit 0
+                else
+                    echo "The command failed. Retrying $i/$max."
+                    i=$(expr $i + 1)
+                    sleep 5s
+                fi
+            done
+            echo "The command failed $i/$max times. Failing the job."
+            exit 1
+        else
+            echo "The package was not found in the package index. Test installation and import failed."
+            exit 1
+        fi
+    - name: Delete distribution files.
+      run: rm -rf dist  
+    - name: Build package
+      run: uv build
     - name: Publish package to PyPI.
       uses: pypa/gh-action-pypi-publish@release/v1
-    - name: Install and import.
+    - name: Test that the package can be installed and imported (PyPI).
       run: |
         i=0
-        n=60
+        max=10
         exists=0
-        while [ $i -lt $n ] && [ $exists -eq 0 ]; do
+        while [ $i -lt $max ] && [ $exists -eq 0 ]; do
             i=$(expr $i + 1)
-            if curl -f -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -e ".releases | has(\"${{ env.VERSION }}\")" &> /dev/null; then
-                echo "$i/$n Package exists in index."
+            if curl -f -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -e ".releases | has(\"${{ env.PACKAGE_VERSION }}\")" &> /dev/null; then
+                echo "$i/$max Package has appeared in index."
                 exists=1
             else
-                echo "$i/$n Package has not appeared in index yet. Sleeping 5s."
+                echo "$i/$max Package has not appeared in index yet. Sleeping 5s."
                 sleep 5s
             fi
         done
-        sleep 15s
-        pip install --no-cache-dir --index-url https://pypi.org/simple ${{ env.PACKAGE_NAME }}==${{ env.VERSION }}
-        python -c 'import ${{ env.MODULE_NAME }};print(${{ env.MODULE_NAME }}.__version__)'
+        if [ $exists -ne 0 ]; then
+            sleep 5s
+            i=0
+            max=3
+            while [ $i -lt $max ]; do
+                if uv run -n --refresh --default-index https://pypi.org/simple --index https://pypi.org/simple --with "${{ env.PACKAGE_NAME }}==${{ env.PACKAGE_VERSION }}" --no-project -- python -c 'from importlib.metadata import version;print(version("${{ env.MODULE_NAME }}"))'; then
+                    exit 0
+                else
+                    echo "The command failed. Retrying $i/$max."
+                    i=$(expr $i + 1)
+                    sleep 5s
+                fi
+            done
+            echo "The command failed $i/$max times. Failing the job."
+            exit 1
+        else
+            echo "The package was not found in the package index. Test installation and import failed."
+            exit 1
+        fi
