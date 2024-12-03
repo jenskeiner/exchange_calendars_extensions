@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
+  reproduce-numpy-issue:
     runs-on: windows-latest
     steps:
     - name: Install uv
