@@ -22,17 +22,17 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 packages = [{include = "exchange_calendars_extensions"}]
 
 [tool.poetry.dependencies]
-python = "~=3.9"
+python = "~=3.10"
 exchange-calendars-extensions-api = ">=0.4.2,<1"
 exchange-calendars = ">=4.0.1,<5"
 typing-extensions = ">=4.0,<5"
@@ -76,9 +76,8 @@ exclude = [
 # Same as Black.
 line-length = 88
 
-# Assume Python 3.9.
-target-version = "py39"
-
+# Assume Python 3.10.
+target-version = "py310"
 
 [lint]
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
