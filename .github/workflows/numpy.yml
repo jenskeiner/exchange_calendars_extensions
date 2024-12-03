@@ -18,4 +18,4 @@ jobs:
     - name: Set up Python 3.13
       run: uv python install 3.13
     - name: Reproduce issue.
-      run: uv run --no-project --with numpy==2.0.2 -- python -c "import numpy"
+      run: uv run --no-project --with pandas==2.2.3 --with numpy==2.0.2 -- python -c "import pandas as pd"
