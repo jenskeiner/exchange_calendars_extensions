@@ -13,6 +13,9 @@ on:
       - main
       - develop
 
+env:
+  PACKAGE_VERSION: "0"
+      
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
