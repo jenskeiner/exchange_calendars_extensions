@@ -49,6 +49,9 @@ exclude = [
   ".pre-commit-config.yaml",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/exchange_calendars_extensions"]
+
 [dependency-groups]
 dev = [
     "pytest>=7.3.1,<8.4.0",
