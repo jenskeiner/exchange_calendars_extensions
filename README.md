@@ -58,7 +58,7 @@ pip install exchange-calendars-extensions
 ## Usage
 Import the package and register extended exchange calendar classes with the `exchange_calendars` module.
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 
 ecx.apply_extensions()
 ```
@@ -70,7 +70,7 @@ class `ecx.ExtendedExchangeCalendar`. This class inherits both from
 `ecx.ExchangeCalendarExtensions` which defines the extended properties.
 
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -88,7 +88,7 @@ assert isinstance(calendar, ecx.ExchangeCalendarExtensions)
 The original classes can be re-instated by calling `ecx.remove_extensions()`.
 
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -126,7 +126,7 @@ Extended exchange calendars provide the following calendars as properties:
 
 For example,
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -151,7 +151,7 @@ calendar, together with all regular holidays during the period.
 
 Quarterly and monthly expiry days:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -179,7 +179,7 @@ dtype: object
 
 Last trading days of months:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -222,11 +222,11 @@ in that month.
 
 ### Adding special days
 
-The `exchange_calendars_extensions` module provides the methods `add_holiday(...)`, `add_special_open(...)`, 
+The `exchange_calendars_extensions.core` module provides the methods `add_holiday(...)`, `add_special_open(...)`, 
 `add_special_close(...)`, `add_monthly_expiry(...)` and `add_quarterly_expiry(...)` to add holidays and other types of 
 special days. For example,
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -242,7 +242,7 @@ always added as regular holidays to allow for an individual name.
 
 Adding special open or close days works similarly, but needs the respective special open or close time:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 
 ecx.apply_extensions()
 import exchange_calendars as ec
@@ -254,15 +254,16 @@ calendar = ec.get_calendar('XLON')
 assert '2022-12-28' in calendar.special_opens_all.holidays()
 ```
 
-A more generic way to add a special day is via `add_day(...)` which takes either a `DaySpec` (holidays, 
-monthly/quarterly expiries) or `DaySpecWithTime` (special open/close days) Pydantic model:
+A more generic way to add a special day is via `add_day(...)` which takes either a `DayProps` (holidays, 
+monthly/quarterly expiries) or `DayPropsWithTime` (special open/close days) Pydantic model:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
+from exchange_calendars_extensions.api.changes import DayProps, DayPropsWithTime
 ecx.apply_extensions()
 import exchange_calendars as ec
 
-ecx.add_day('XLON', ecx.DaySpec(date='2022-12-27', type=ecx.DayType.HOLIDAY, name='Holiday'))
-ecx.add_day('XLON', ecx.DaySpecWithTime(date='2022-12-28', type=ecx.DayType.SPECIAL_OPEN, name='Special Open', time='11:00'))
+ecx.add_day('XLON', '2022-12-27', DayProps(type=ecx.DayType.HOLIDAY, name='Holiday'))
+ecx.add_day('XLON', '2022-12-28', DayPropsWithTime(type=ecx.DayType.SPECIAL_OPEN, name='Special Open', time='11:00'))
 
 calendar = ec.get_calendar('XLON')
 
@@ -273,12 +274,12 @@ assert '2022-12-28' in calendar.special_opens_all.holidays()
 
 Thanks to Pydantic, an even easier way is to just use suitable dictionaries: 
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
-ecx.add_day('XLON', {'date': '2022-12-27', 'type': 'holiday', 'name': 'Holiday'})
-ecx.add_day('XLON', {'date': '2022-12-28', 'type': 'special_open', 'name': 'Special Open', 'time': '11:00'})
+ecx.add_day('XLON', '2022-12-27', {'type': 'holiday', 'name': 'Holiday'})
+ecx.add_day('XLON', '2022-12-28', {'type': 'special_open', 'name': 'Special Open', 'time': '11:00'})
 
 calendar = ec.get_calendar('XLON')
 
@@ -292,7 +293,7 @@ The dictionary format makes it particularly easy to read in changes from an exte
 
 To remove a day as a special day (of any type) from a calendar, use `remove_day(...)`. For example,
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -323,7 +324,7 @@ their string value. For example, `ecx.DayType.HOLIDAY` and `'holiday'` are equiv
 Whenever a calendar has been modified programmatically, the changes are only reflected after obtaining a new exchange 
 calendar instance.
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -365,12 +366,12 @@ exchange. When a new calendar instance is created, the changes are applied to th
 
 It is also possible to create a changeset separately and then associate it with a particular exchange:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
 changeset: ecx.ChangeSet = ecx.ChangeSet()
-changeset.add_day({'date': '2022-12-28', 'type': 'holiday', 'name': 'Holiday'})
+changeset.add_day('2022-12-28', {'type': 'holiday', 'name': 'Holiday'})
 changeset.remove_day('2022-12-27')
 
 ecx.update_calendar('XLON', changeset)
@@ -383,12 +384,12 @@ assert '2022-12-28' in calendar.holidays_all.holidays()
 Again, an entire changeset can also be created from a suitably formatted dictionary, making it particularly easy to read
 in and apply changes from an external source like a file.
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
 changeset: ecx.ChangeSet = ecx.ChangeSet(**{
-    'add': [{'date': '2022-12-28', 'type': 'holiday', 'name': 'Holiday'}], 
+    'add': {'2022-12-28': {'type': 'holiday', 'name': 'Holiday'}}, 
     'remove': ['2022-12-27']})
 
 ecx.update_calendar('XLON', changeset)
@@ -404,7 +405,7 @@ assert '2022-12-28' in calendar.holidays_all.holidays()
 The API permits to add and remove the same day as a special day. For example, the following code will add a holiday on
 28 December 2022 to the calendar, and then remove the same day as well.
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -420,7 +421,7 @@ more sense in a case where a day is added to change its type of special day. Con
 holiday for the calendar `XLON` in the original version of the calendar. The following code will change the type of 
 special day to a special open by first removing the day (as a holiday), and then adding it back as a special open day:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -439,7 +440,7 @@ allows to change the type of special day in an existing calendar from one to ano
 In fact, internally, each added days is always implicitly also removed from the calendar first, so that it strictly is 
 not necessary (but allowed) to explicitly remove a day, and then adding it back as a different type of special day:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -459,16 +460,21 @@ As seen above, changesets may contain the same day both in the list of days to a
 However, changesets enforce consistency and will raise an exception if the same day is added more than once.
 For example, the following code will raise an exception:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 
-ecx.add_holiday('XLON', date='2022-12-28', name='Holiday')
-ecx.add_special_open('XLON', date='2022-12-28', name='Special Open', time='11:00')
+try:
+    ecx.add_holiday('XLON', date='2022-12-28', name='Holiday')
+    ecx.add_special_open('XLON', date='2022-12-28', name='Special Open', time='11:00')
+except ValueError as e:
+    print("Exception raised since the same day is added more than once in the changeset.")
+else:
+    raise ValueError("Exception not raised.")
 ```
 In contrast, removing a day is an idempotent operation, i.e. doing it twice will not raise an exception and keep the 
 corresponding changeset the same as after the first removal. 
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 
 ecx.remove_day('XLON', date='2022-12-27')
@@ -481,7 +487,7 @@ It is sometimes necessary to revert individual changes made to a calendar. To th
 `reset_day(...)`:
 
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -506,7 +512,7 @@ assert '2022-12-28' not in calendar.holidays_all.holidays()
 To reset an entire calendar to its original state, use the method `reset_calendar(...)` or update the calendar with an 
 empty ChangeSet:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 import exchange_calendars as ec
 
@@ -531,7 +537,7 @@ assert '2022-12-28' not in calendar.holidays_all.holidays()
 ### Retrieving changes
 For any calendar, it is possible to retrieve a copy of the associated changeset:
 ```python
-import exchange_calendars_extensions as ecx
+import exchange_calendars_extensions.core as ecx
 ecx.apply_extensions()
 
 ecx.add_holiday('XLON', date='2022-12-28', name='Holiday')
@@ -590,7 +596,7 @@ sub-module `exchange_calendars_extensions.holiday_calendar`.
 
 ```python
 from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
-from exchange_calendars_extensions import extend_class
+from exchange_calendars_extensions.core import extend_class
 
 xlon_extended_cls = extend_class(XLONExchangeCalendar, day_of_week_expiry=4)
 ```
@@ -606,9 +612,10 @@ key of the parent class.
 To register a new extended class for an exchange, use the `register_extension()` function before calling 
 `apply_extensions()`.
 ```python
-from exchange_calendars_extensions import register_extension, apply_extensions
+from exchange_calendars_extensions.core import register_extension, apply_extensions
 
-register_extension(key, cls)
+
+register_extension("XLON", day_of_week_expiry=4)
 apply_extensions()
 ...
 ```
