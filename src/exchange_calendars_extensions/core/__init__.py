@@ -1,5 +1,5 @@
 import functools
-from typing import Callable, Union
+from collections.abc import Callable
 
 from exchange_calendars import (
     calendar_utils,
@@ -7,7 +7,8 @@ from exchange_calendars import (
     get_calendar_names,
 )
 from pydantic import validate_call, BaseModel, conint
-from typing_extensions import ParamSpec, Concatenate
+from typing_extensions import ParamSpec
+from typing import Concatenate
 
 from exchange_calendars_extensions.api.changes import (
     ChangeSet,
@@ -35,7 +36,7 @@ class ExtensionSpec(BaseModel, arbitrary_types_allowed=True):
     """Specifies how to derive an extended calendar class from a vanilla calendar class."""
 
     # The day of the week on which options expire. If None, expiry days are not supported.
-    day_of_week_expiry: Union[conint(ge=0, le=6), None] = None
+    day_of_week_expiry: conint(ge=0, le=6) | None = None
 
 
 # Internal dictionary that specifies how to derive extended calendars for specific exchanges.
@@ -172,7 +173,7 @@ def remove_extensions() -> None:
     _original_classes.clear()
 
 
-def register_extension(name: str, day_of_week_expiry: Union[int, None] = None) -> None:
+def register_extension(name: str, day_of_week_expiry: int | None = None) -> None:
     """
     Register an extended calendar class for a given exchange key and a given base class.
 
@@ -184,8 +185,6 @@ def register_extension(name: str, day_of_week_expiry: Union[int, None] = None) -
     ----------
     name : str
         The exchange key for which to register the extended calendar class.
-    cls : type
-        The base class to extend.
     day_of_week_expiry : Optional[int]
         The day of the week on which options expire. If None, expiry days are not supported.
 
@@ -396,7 +395,7 @@ def set_tags(exchange: str, date: DateLike, tags: Tags) -> None:
 
 
 @_with_changeset
-def _set_comment(cs: ChangeSet, date: DateLike, comment: Union[str, None]) -> ChangeSet:
+def _set_comment(cs: ChangeSet, date: DateLike, comment: str | None) -> ChangeSet:
     """
     Set comment for a given day in the given exchange calendar.
 
@@ -418,7 +417,7 @@ def _set_comment(cs: ChangeSet, date: DateLike, comment: Union[str, None]) -> Ch
 
 
 @validate_call(config={"arbitrary_types_allowed": True})
-def set_comment(exchange: str, date: DateLike, comment: Union[str, None]) -> None:
+def set_comment(exchange: str, date: DateLike, comment: str | None) -> None:
     """
     Set tags for a given day in the given exchange calendar.
 
@@ -439,7 +438,7 @@ def set_comment(exchange: str, date: DateLike, comment: Union[str, None]) -> Non
 
 
 @_with_changeset
-def _set_meta(cs: ChangeSet, date: DateLike, meta: Union[DayMeta, None]) -> ChangeSet:
+def _set_meta(cs: ChangeSet, date: DateLike, meta: DayMeta | None) -> ChangeSet:
     """
     Set metadata for a given day in the given exchange calendar.
 
@@ -461,7 +460,7 @@ def _set_meta(cs: ChangeSet, date: DateLike, meta: Union[DayMeta, None]) -> Chan
 
 
 @validate_call(config={"arbitrary_types_allowed": True})
-def set_meta(exchange: str, date: DateLike, meta: Union[DayMeta, None]) -> None:
+def set_meta(exchange: str, date: DateLike, meta: DayMeta | None) -> None:
     """
     Set metadata for a given day in the given exchange calendar.
 
@@ -715,7 +714,7 @@ def _update_calendar(_: ChangeSet, changes: ChangeSet) -> ChangeSet:
 
 
 @validate_call
-def update_calendar(exchange: str, changes: Union[ChangeSet, dict]) -> None:
+def update_calendar(exchange: str, changes: ChangeSet | dict) -> None:
     """
     Apply changes to an exchange calendar.
 
@@ -733,7 +732,7 @@ def update_calendar(exchange: str, changes: Union[ChangeSet, dict]) -> None:
     _update_calendar(exchange, changes)
 
 
-def get_changes_for_calendar(exchange: str) -> Union[ChangeSet, None]:
+def get_changes_for_calendar(exchange: str) -> ChangeSet | None:
     """
     Get the changes for an exchange calendar.
 
@@ -747,7 +746,7 @@ def get_changes_for_calendar(exchange: str) -> Union[ChangeSet, None]:
     ChangeSet
         The changeset for the given exchange, or None, if no changes have been registered.
     """
-    cs: Union[ChangeSet, None] = _changesets.get(exchange, None)
+    cs: ChangeSet | None = _changesets.get(exchange, None)
 
     if cs is not None:
         cs = cs.model_copy(deep=True)
