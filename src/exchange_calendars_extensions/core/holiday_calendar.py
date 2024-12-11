@@ -157,8 +157,8 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
 
     def holidays(self, start=None, end=None, return_name=False):
         # Get the holidays from the parent class.
-        start = Timestamp(start)
-        end = Timestamp(end)
+        start = Timestamp(start) if start is not None else None
+        end = Timestamp(end) if end is not None else None
 
         holidays = super().holidays(start=start, end=end, return_name=return_name)
 
