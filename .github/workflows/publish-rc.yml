@@ -9,7 +9,7 @@ on:
 
 env:
   PACKAGE_NAME: exchange-calendars-extensions
-  MODULE_NAME: exchange_calendars_extensions.core
+  MODULE_NAME: exchange_calendars_extensions
   PYTHON_VERSION: "3.12"
 
 jobs:
