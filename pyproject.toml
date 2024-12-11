@@ -48,7 +48,8 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/exchange_calendars_extensions"]
+sources = ["src"]
+only-include = ["src/exchange_calendars_extensions"]
 
 [dependency-groups]
 dev = [
@@ -59,7 +60,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"
+addopts = "--cov=src/exchange_calendars_extensions --cov-report=term-missing"
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
