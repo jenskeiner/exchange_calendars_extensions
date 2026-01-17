@@ -31,7 +31,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "exchange-calendars-extensions-api>=0.4.2,<1",
+    "exchange-calendars-extensions-api>=0.5.0,<1",
     "exchange-calendars>=4.0.1,<5",
     "typing-extensions >=4.0,<5",
     "pydantic >=2.0,<3",
