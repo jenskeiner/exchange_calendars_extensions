@@ -7,6 +7,13 @@ on:
       - 'hotfix/**'
       - 'support/**'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 env:
   PACKAGE_NAME: exchange-calendars-extensions
   MODULE_NAME: exchange_calendars_extensions
@@ -17,35 +24,43 @@ jobs:
     name: Build and publish release candidate Python distribution to TestPyPI.
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
+      id-token: write  # Required for trusted publishing.
     steps:
-    - uses: actions/checkout@v4
-    - name: Install uv
-      uses: astral-sh/setup-uv@v4
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
       with:
-        enable-cache: true        
-    - name: Set up Python ${{ env.PYTHON_VERSION }}
-      run: uv python install ${{ env.PYTHON_VERSION }}
+        persist-credentials: false
+    - name: Install uv
+      uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7
+      with:
+        enable-cache: false  # No cache when building RCs or releases.
+    - name: Set up Python
+      shell: bash
+      run: uv python install ${PYTHON_VERSION}
     - name: Determine package version.
+      shell: bash
+      env:
+        REF_NAME: ${{ github.ref_name }}
+        RUN_NUMBER: ${{ github.run_number }}
       run: |
-        export PACKAGE_VERSION=$(echo ${{ github.ref_name }} | sed -e 's/^\(release\|hotfix\|support\)\///')rc${{ github.run_number }}
+        export PACKAGE_VERSION=$(echo ${REF_NAME} | sed -e 's/^\(release\|hotfix\|support\)\///')rc${RUN_NUMBER}
         echo "RC version is $PACKAGE_VERSION."
         echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
     - name: Build package
       run: uv build
     - name: Publish package to Test PyPI.
-      uses: pypa/gh-action-pypi-publish@release/v1
+      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
         skip-existing: true
     - name: Test that the package can be installed and imported (Test PyPI).
+      shell: bash
       run: |
         i=0
         max=10
         exists=0
         while [ $i -lt $max ] && [ $exists -eq 0 ]; do
             i=$(expr $i + 1)
-            if curl -f -s https://test.pypi.org/pypi/${{ env.PACKAGE_NAME }}/json | jq -e ".releases | has(\"${{ env.PACKAGE_VERSION }}\")" &> /dev/null; then
+            if curl -f -s https://test.pypi.org/pypi/${PACKAGE_NAME}/json | jq -e ".releases | has(\"${PACKAGE_VERSION}\")" &> /dev/null; then
                 echo "$i/$max Package has appeared in index."
                 exists=1
             else
@@ -58,7 +73,7 @@ jobs:
             i=0
             max=3
             while [ $i -lt $max ]; do
-                if uv run -n --refresh --default-index https://test.pypi.org/simple --index https://pypi.org/simple --index-strategy unsafe-best-match --with "${{ env.PACKAGE_NAME }}==${{ env.PACKAGE_VERSION }}" --no-project -- python -c 'from importlib.metadata import version;print(version("${{ env.MODULE_NAME }}"))'; then
+                if uv run -n --refresh --default-index https://test.pypi.org/simple --index https://pypi.org/simple --index-strategy unsafe-best-match --with "${PACKAGE_NAME}==${PACKAGE_VERSION}" --no-project -- python -c "from importlib.metadata import version;print(version(\"${MODULE_NAME}\"))"; then
                     exit 0
                 else
                     echo "The command failed. Retrying $i/$max."
