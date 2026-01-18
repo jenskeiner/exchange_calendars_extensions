@@ -13,23 +13,37 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   PACKAGE_VERSION: "0"
       
 jobs:
   build-and-test:
+    name: Run automated tests.
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-    - uses: actions/checkout@v6
-    - name: Install uv
-      uses: astral-sh/setup-uv@v7
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
       with:
-        enable-cache: true        
-    - name: Set up Python ${{ matrix.python-version }}
-      run: uv python install ${{ matrix.python-version }}
+        persist-credentials: false
+    - name: Install uv
+      uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7
+      with:
+        enable-cache: true  # zizmor: ignore[cache-poisoning] Blast radius limited because this workflow only runs automated tests.
+    - name: Set up Python
+      shell: bash
+      env:
+        PYTHON_VERSION: ${{ matrix.python-version }}
+      run: uv python install ${PYTHON_VERSION}
     - name: Run tests.
       run: uv run pytest
