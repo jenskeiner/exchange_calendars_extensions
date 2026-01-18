@@ -73,7 +73,7 @@ jobs:
             i=0
             max=3
             while [ $i -lt $max ]; do
-                if uv run -n --refresh --default-index https://test.pypi.org/simple --index https://pypi.org/simple --index-strategy unsafe-best-match --with "${PACKAGE_NAME}==${PACKAGE_VERSION}" --no-project -- python -c 'from importlib.metadata import version;print(version("${MODULE_NAME}"))'; then
+                if uv run -n --refresh --default-index https://test.pypi.org/simple --index https://pypi.org/simple --index-strategy unsafe-best-match --with "${PACKAGE_NAME}==${PACKAGE_VERSION}" --no-project -- python -c "from importlib.metadata import version;print(version(\"${MODULE_NAME}\"))"; then
                     exit 0
                 else
                     echo "The command failed. Retrying $i/$max."

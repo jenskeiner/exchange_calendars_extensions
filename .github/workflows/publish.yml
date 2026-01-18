@@ -70,7 +70,7 @@ jobs:
             i=0
             max=3
             while [ $i -lt $max ]; do
-                if uv run -n --refresh --default-index https://test.pypi.org/simple --index https://pypi.org/simple --index-strategy unsafe-best-match --with "${PACKAGE_NAME}==${PACKAGE_VERSION}" --no-project -- python -c 'from importlib.metadata import version;print(version("${MODULE_NAME}"))'; then
+                if uv run -n --refresh --default-index https://test.pypi.org/simple --index https://pypi.org/simple --index-strategy unsafe-best-match --with "${PACKAGE_NAME}==${PACKAGE_VERSION}" --no-project -- python -c "from importlib.metadata import version;print(version(\"${MODULE_NAME}\"))"; then
                     exit 0
                 else
                     echo "The command failed. Retrying $i/$max."
@@ -91,6 +91,7 @@ jobs:
     - name: Publish package to PyPI.
       uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
     - name: Test that the package can be installed and imported (PyPI).
+      shell: bash
       run: |
         i=0
         max=10
@@ -110,7 +111,7 @@ jobs:
             i=0
             max=3
             while [ $i -lt $max ]; do
-                if uv run -n --refresh --default-index https://pypi.org/simple --index https://pypi.org/simple --with "${PACKAGE_NAME}==${PACKAGE_VERSION}" --no-project -- python -c 'from importlib.metadata import version;print(version("${MODULE_NAME}"))'; then
+                if uv run -n --refresh --default-index https://pypi.org/simple --index https://pypi.org/simple --with "${PACKAGE_NAME}==${PACKAGE_VERSION}" --no-project -- python -c "from importlib.metadata import version;print(version(\"${MODULE_NAME}\"))"; then
                     exit 0
                 else
                     echo "The command failed. Retrying $i/$max."
