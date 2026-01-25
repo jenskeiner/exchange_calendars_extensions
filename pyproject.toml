@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-env-plus>=0.1.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -41,7 +41,7 @@ dependencies = [
 ]
 
 [tool.hatch.version]
-source = "env"
+source = "env-plus"
 variable = "PACKAGE_VERSION"
 
 [tool.hatch.build.targets.sdist]
