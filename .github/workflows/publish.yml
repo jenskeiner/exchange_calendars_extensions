@@ -87,6 +87,7 @@ jobs:
         fi
   build-and-publish-pypi:
     name: Build and publish Python distributions to PyPI.
+    needs: build-and-publish-testpypi
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
