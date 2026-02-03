@@ -1,11 +1,14 @@
 import pandas as pd
 import pytest
+from exchange_calendars import get_calendar
 
 from exchange_calendars_extensions.core.util import (
     get_day_of_week_name,
     get_month_name,
     third_day_of_week_in_month,
     last_day_in_month,
+    get_weekmask_periods,
+    get_applicable_weekmask_period,
 )
 
 
@@ -338,3 +341,82 @@ class TestUtils:
         assert last_day_in_month(10, 2020) == pd.Timestamp("2020-10-31").date()
         assert last_day_in_month(11, 2020) == pd.Timestamp("2020-11-30").date()
         assert last_day_in_month(12, 2020) == pd.Timestamp("2020-12-31").date()
+
+    def test_get_weekmask_periods_without_special_weekmasks(self):
+        """Test get_weekmask_periods for calendars without special_weekmasks."""
+        calendar = get_calendar("XLON")
+        periods = get_weekmask_periods(calendar)
+
+        assert len(periods) == 1
+        assert periods[0].weekmask == "1111100"
+        assert periods[0].start_date is None
+        assert periods[0].end_date is None
+
+    def test_get_weekmask_periods_xtae(self):
+        """Test get_weekmask_periods for XTAE which has a special weekmask from beginning."""
+        calendar = get_calendar("XTAE")
+        periods = get_weekmask_periods(calendar)
+
+        assert len(periods) == 2
+        assert periods[0].weekmask == "1111001"
+        assert periods[0].start_date is None
+        assert periods[0].end_date == pd.Timestamp("2026-01-04")
+
+        assert periods[1].weekmask == "1111100"
+        assert periods[1].start_date == pd.Timestamp("2026-01-05")
+        assert periods[1].end_date is None
+
+    def test_get_weekmask_periods_xbom(self):
+        """Test get_weekmask_periods for XBOM which has special weekmasks with gaps."""
+        calendar = get_calendar("XBOM")
+        periods = get_weekmask_periods(calendar)
+
+        # Should have: default, special1, default gap, special2, default
+        assert len(periods) == 5
+
+        # First: default from beginning until first special weekmask
+        assert periods[0].weekmask == "1111100"
+        assert periods[0].start_date is None
+        assert periods[0].end_date == pd.Timestamp("2024-01-14")
+
+        # Second: first special weekmask
+        assert periods[1].weekmask == "1111110"
+        assert periods[1].start_date == pd.Timestamp("2024-01-15")
+        assert periods[1].end_date == pd.Timestamp("2024-01-21")
+
+        # Third: default gap between special weekmasks
+        assert periods[2].weekmask == "1111100"
+        assert periods[2].start_date == pd.Timestamp("2024-01-22")
+        assert periods[2].end_date == pd.Timestamp("2025-01-26")
+
+        # Fourth: second special weekmask
+        assert periods[3].weekmask == "1111110"
+        assert periods[3].start_date == pd.Timestamp("2025-01-27")
+        assert periods[3].end_date == pd.Timestamp("2025-02-02")
+
+        # Fifth: default from second special weekmask end onwards
+        assert periods[4].weekmask == "1111100"
+        assert periods[4].start_date == pd.Timestamp("2025-02-03")
+        assert periods[4].end_date is None
+
+    def test_get_applicable_weekmask_period(self):
+        """Test get_applicable_weekmask_period returns WeekmaskPeriod."""
+        calendar = get_calendar("XTAE")
+
+        # During special weekmask period
+        period = get_applicable_weekmask_period(calendar, pd.Timestamp("2024-06-15"))
+        assert period.weekmask == "1111001"
+        assert period.start_date is None
+        assert period.end_date == pd.Timestamp("2026-01-04")
+
+        # Last day of special weekmask
+        period = get_applicable_weekmask_period(calendar, pd.Timestamp("2026-01-04"))
+        assert period.weekmask == "1111001"
+        assert period.start_date is None
+        assert period.end_date == pd.Timestamp("2026-01-04")
+
+        # First day of regular weekmask
+        period = get_applicable_weekmask_period(calendar, pd.Timestamp("2026-06-15"))
+        assert period.weekmask == "1111100"
+        assert period.start_date == pd.Timestamp("2026-01-05")
+        assert period.end_date is None

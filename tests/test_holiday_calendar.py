@@ -26,6 +26,7 @@ from exchange_calendars_extensions.core.holiday_calendar import (
     AdjustedHolidayCalendar,
     RollFn,
 )
+from exchange_calendars_extensions.core.util import WeekmaskPeriod
 from tests.util import date2args, roll_backward, roll_forward
 import tests.util
 
@@ -112,7 +113,7 @@ class TestAdjustedHolidayCalendar:
                 Holiday(name=HOLIDAY, **date2args(day)),
             ],
             other=ExchangeCalendarsHolidayCalendar([]),
-            weekmask=weekmask,
+            weekmask_periods=(WeekmaskPeriod(weekmask=weekmask),),
             roll_fn=roll_fn,
         )
 
@@ -208,7 +209,7 @@ class TestAdjustedHolidayCalendar:
                     Holiday(name=HOLIDAY, **date2args(day_other)),
                 ]
             ),
-            weekmask="1111111",
+            weekmask_periods=(WeekmaskPeriod(weekmask="1111111"),),
             roll_fn=roll_fn,
         )
 
@@ -260,7 +261,7 @@ class TestAdjustedHolidayCalendar:
                     Holiday(name="Other Holiday 2", **date2args(mon)),  # Monday.
                 ]
             ),
-            weekmask="1111100",
+            weekmask_periods=(WeekmaskPeriod(weekmask="1111100"),),
             roll_fn=spy_roll_fn,
         )
 
@@ -305,7 +306,7 @@ class TestAdjustedHolidayCalendar:
                     Holiday(name=HOLIDAY, **date2args(day)),
                 ]
             ),
-            weekmask="1111111",
+            weekmask_periods=WeekmaskPeriod(weekmask="1111111"),
             roll_fn=mock_roll_fn,
         )
 
@@ -333,7 +334,7 @@ class TestAdjustedHolidayCalendar:
                 Holiday(name=HOLIDAY, **date2args(day)),  # Same day as holiday above.
             ],
             other=ExchangeCalendarsHolidayCalendar([]),
-            weekmask="1111111",
+            weekmask_periods=(WeekmaskPeriod(weekmask="1111111"),),
             roll_fn=roll_fn,
         )
 
@@ -378,7 +379,7 @@ class TestAdjustedHolidayCalendar:
                     Holiday(name=HOLIDAY, **date2args(day_after)),
                 ]
             ),
-            weekmask="1111111",
+            weekmask_periods=(WeekmaskPeriod(weekmask="1111111"),),
             roll_fn=roll_backward,
         )
 
@@ -417,7 +418,7 @@ class TestAdjustedHolidayCalendar:
                     Holiday(name=HOLIDAY, **date2args(day)),
                 ]
             ),
-            weekmask="1111111",
+            weekmask_periods=(WeekmaskPeriod(weekmask="1111111"),),
             roll_fn=roll_fn,
         )
 
@@ -1022,3 +1023,120 @@ class TestHolidayCalendars:
         )
 
         assert last_day_of_month.compare(expected_last_day_of_month).empty
+
+
+class TestAdjustedHolidayCalendarWithMultipleWeekmaskPeriods:
+    """Test AdjustedHolidayCalendar with multiple weekmask periods."""
+
+    def test_roll_within_single_period(self):
+        """Test that rolling works correctly within a single period."""
+        # A single period: Jan 1-31, Mon-Fri open (Sat/Sun weekend)
+        periods = (
+            WeekmaskPeriod(
+                weekmask="1111100",  # Mon-Fri open
+                start_date=pd.Timestamp("2024-01-01"),
+                end_date=pd.Timestamp("2024-01-31"),
+            ),
+        )
+
+        # Holiday on Saturday Jan 6, should roll back to Friday Jan 5
+        calendar = AdjustedHolidayCalendar(
+            rules=[
+                Holiday(name=HOLIDAY, **date2args(pd.Timestamp("2024-01-06"))),
+            ],
+            other=ExchangeCalendarsHolidayCalendar([]),
+            weekmask_periods=periods,
+            roll_fn=roll_backward,
+        )
+
+        result = calendar.holidays()
+        assert len(result) == 1
+        assert result[0] == pd.Timestamp("2024-01-05")
+
+    def test_roll_backward_across_period_boundary(self):
+        """Test rolling backward from one period into another with different weekmask."""
+        # Period 1: Jan 1-10, Mon-Fri open (Sat/Sun weekend)
+        # Period 2: Jan 11-31, Mon-Sat open (only Sun weekend)
+        periods = (
+            WeekmaskPeriod(
+                weekmask="1111100",  # Mon-Fri open
+                start_date=pd.Timestamp("2024-01-01"),
+                end_date=pd.Timestamp("2024-01-10"),
+            ),
+            WeekmaskPeriod(
+                weekmask="1111110",  # Mon-Sat open
+                start_date=pd.Timestamp("2024-01-11"),
+                end_date=pd.Timestamp("2024-01-31"),
+            ),
+        )
+
+        # Holiday on Sunday Jan 14 (in period 2 where Sun is weekend)
+        # Should roll: Jan 14 (Sun, weekend in period 2) -> Jan 13 (Sat, conflict)
+        # -> Jan 12 (Fri, conflict) -> Jan 11 (Thu, conflict) -> Jan 10 (Wed, conflict)
+        # -> Jan 9 (Tue, conflict) -> Jan 8 (Mon, conflict) -> Jan 7 (Sun, weekend in period 1)
+        # -> Jan 6 (Sat, weekend in period 1) -> Jan 5
+        calendar = AdjustedHolidayCalendar(
+            rules=[
+                Holiday(name=HOLIDAY, **date2args(pd.Timestamp("2024-01-14"))),
+            ],
+            other=ExchangeCalendarsHolidayCalendar(
+                rules=[
+                    Holiday(name="Other 1", **date2args(pd.Timestamp("2024-01-13"))),
+                    Holiday(name="Other 2", **date2args(pd.Timestamp("2024-01-12"))),
+                    Holiday(name="Other 3", **date2args(pd.Timestamp("2024-01-11"))),
+                    Holiday(name="Other 4", **date2args(pd.Timestamp("2024-01-10"))),
+                    Holiday(name="Other 5", **date2args(pd.Timestamp("2024-01-09"))),
+                    Holiday(name="Other 6", **date2args(pd.Timestamp("2024-01-08"))),
+                ]
+            ),
+            weekmask_periods=periods,
+            roll_fn=roll_backward,
+        )
+
+        result = calendar.holidays()
+        assert len(result) == 1
+        assert result[0] == pd.Timestamp("2024-01-5")
+
+    def test_roll_forward_across_period_boundary(self):
+        """Test rolling forward from one period into another with different weekmask."""
+        # Period 1: Jan 1-10, Mon-Fri open (Sat/Sun weekend)
+        # Period 2: Jan 11-31, Mon-Sat open (only Sun weekend)
+        periods = (
+            WeekmaskPeriod(
+                weekmask="1111100",  # Mon-Fri open
+                start_date=pd.Timestamp("2024-01-01"),
+                end_date=pd.Timestamp("2024-01-10"),
+            ),
+            WeekmaskPeriod(
+                weekmask="1111110",  # Mon-Sat open
+                start_date=pd.Timestamp("2024-01-11"),
+                end_date=pd.Timestamp("2024-01-31"),
+            ),
+        )
+
+        # Holiday on Sat Jan 6 (in period 1 where Sat is weekend)
+        # With conflict on Jan 5, rolls forward to Jan 6 (Sat, weekend in period 1)
+        # Should roll: Jan 6 (Sat, weekend in period 1) -> Jan 7 (Sun, weekend in period 1)
+        # -> Jan 8 (Mon, conflict) -> Jan 9 (Tue, conflict) -> Jan 10 (Wed, conflict)
+        # -> Jan 11 (Thu, conflict) -> Jan 12 (Fri, conflict) -> Jan 13
+        calendar = AdjustedHolidayCalendar(
+            rules=[
+                Holiday(name=HOLIDAY, **date2args(pd.Timestamp("2024-01-06"))),
+            ],
+            other=ExchangeCalendarsHolidayCalendar(
+                rules=[
+                    Holiday(name="Other 1", **date2args(pd.Timestamp("2024-01-08"))),
+                    Holiday(name="Other 2", **date2args(pd.Timestamp("2024-01-09"))),
+                    Holiday(name="Other 3", **date2args(pd.Timestamp("2024-01-10"))),
+                    Holiday(name="Other 4", **date2args(pd.Timestamp("2024-01-11"))),
+                    Holiday(name="Other 5", **date2args(pd.Timestamp("2024-01-12"))),
+                ]
+            ),
+            weekmask_periods=periods,
+            roll_fn=roll_forward,
+        )
+
+        result = calendar.holidays()
+        assert len(result) == 1
+        # Jan 5 (conflict) -> Jan 6 (Sat, weekend) -> Jan 7 (Sun, weekend) -> Jan 8 (Mon, open)
+        assert result[0] == pd.Timestamp("2024-01-13")
