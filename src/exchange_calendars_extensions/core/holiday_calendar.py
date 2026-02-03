@@ -37,6 +37,10 @@ from exchange_calendars_extensions.core.holiday import (
     DayOfWeekPeriodicHoliday,
     get_last_day_of_month_holiday,
 )
+from exchange_calendars_extensions.core.util import (
+    WeekmaskPeriod,
+    get_weekmask_periods,
+)
 
 # Timdelta that represents a day minus the smallest increment of time.
 ONE_DAY_MINUS_EPS = pd.Timedelta(1, "d") - pd.Timedelta(1, "ns")
@@ -73,7 +77,7 @@ class HolidayCalendar(ExchangeCalendarsHolidayCalendar):
 def get_conflicts(
     holidays_dates: list[pd.Timestamp | None],
     other_holidays: pd.DatetimeIndex,
-    weekend_days: Iterable[int],
+    weekend_days_or_periods: tuple[WeekmaskPeriod, ...],
 ) -> list[int]:
     """
     Get the indices of holidays that coincide with holidays from the other calendar or the given weekend days.
@@ -84,14 +88,25 @@ def get_conflicts(
         The dates of the holidays. A date may be None and is then ignored.
     other_holidays : pd.DatetimeIndex
         The dates of the holidays from the other calendar.
-    weekend_days : Iterable[int]
-        The days of the week that are considered weekend days.
+    weekend_days_or_periods : tuple[WeekmaskPeriod, ...]
+        Tuple of WeekmaskPeriod objects that define different weekend periods.
 
     Returns
     -------
     List[int]
         The indices of holidays that coincide with holidays from the other calendar or the given weekend days.
     """
+
+    def is_weekend_day(date: pd.Timestamp) -> bool:
+        """Check if a date is a weekend day based on the applicable weekmask period."""
+        # Find the applicable period for this date
+        for period in weekend_days_or_periods:
+            if (period.start_date is None or date >= period.start_date) and (
+                period.end_date is None or date <= period.end_date
+            ):
+                return period.weekmask[date.weekday()] == "0"
+        # Fallback: if no period matches, treat as not a weekend
+        return False
 
     # Determine the indices of holidays that coincide with holidays from the other calendar.
     return [
@@ -100,7 +115,7 @@ def get_conflicts(
         if holidays_dates[i] is not None
         and (
             holidays_dates[i] in other_holidays
-            or holidays_dates[i].weekday() in weekend_days
+            or is_weekend_day(holidays_dates[i])
             or holidays_dates[i] in holidays_dates[i + 1 :]
         )
     ]
@@ -147,12 +162,12 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
         self,
         rules,
         other: ExchangeCalendarsHolidayCalendar,
-        weekmask: str,
+        weekmask_periods: tuple[WeekmaskPeriod, ...],
         roll_fn: RollFn = lambda d: d - pd.Timedelta(days=1),
     ) -> None:
         super().__init__(rules=rules)
         self._other = other
-        self._weekend_days = {d for d in range(7) if weekmask[d] == "0"}
+        self._weekmask_periods = weekmask_periods
         self._roll_fn = roll_fn
 
     def holidays(self, start=None, end=None, return_name=False):
@@ -167,7 +182,9 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
 
         holidays_dates = list(holidays.index if return_name else holidays)
 
-        conflicts = get_conflicts(holidays_dates, other_holidays, self._weekend_days)
+        conflicts = get_conflicts(
+            holidays_dates, other_holidays, self._weekmask_periods
+        )
 
         if len(conflicts) == 0:
             return holidays
@@ -178,7 +195,7 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
                 holidays_dates[i] = self._roll_fn(holidays_dates[i])
 
             conflicts = get_conflicts(
-                holidays_dates, other_holidays, self._weekend_days
+                holidays_dates, other_holidays, self._weekmask_periods
             )
 
             if len(conflicts) == 0:
@@ -405,12 +422,30 @@ def get_weekend_days_calendar(
     -------
     ExchangeCalendarsHolidayCalendar
         A new HolidayCalendar with all weekend days from the given EchangeCalendar.
+
+    Notes
+    -----
+    For calendars with special_weekmasks (where the weekmask has changed over time), this function
+    creates rules for each period with its respective weekmask.
+
+    The default weekmask applies to all periods not covered by special weekmasks.
     """
-    rules = [
-        DayOfWeekPeriodicHoliday("weekend day", day_of_week)
-        for day_of_week, v in enumerate(exchange_calendar.weekmask)
-        if v == "0"
-    ]
+    rules: list[Holiday] = []
+
+    weekmask_periods = get_weekmask_periods(exchange_calendar)
+
+    for p in weekmask_periods:
+        for day_of_week, v in enumerate(p.weekmask):
+            if v == "0":
+                rules.append(
+                    DayOfWeekPeriodicHoliday(
+                        "weekend day",
+                        day_of_week,
+                        start_date=p.start_date,
+                        end_date=p.end_date,
+                    )
+                )
+
     return ExchangeCalendarsHolidayCalendar(rules=rules)
 
 
@@ -1215,7 +1250,7 @@ def extend_class(
         return AdjustedHolidayCalendar(
             rules=self._adjusted_properties.monthly_expiries,
             other=self._holidays_and_special_business_days_shared,
-            weekmask=self.weekmask,
+            weekmask_periods=get_weekmask_periods(self),
             roll_fn=roll_one_day_same_month,
         )
 
@@ -1224,7 +1259,7 @@ def extend_class(
         return AdjustedHolidayCalendar(
             rules=self._adjusted_properties.quarterly_expiries,
             other=self._holidays_and_special_business_days_shared,
-            weekmask=self.weekmask,
+            weekmask_periods=get_weekmask_periods(self),
             roll_fn=roll_one_day_same_month,
         )
 
@@ -1235,7 +1270,7 @@ def extend_class(
         return AdjustedHolidayCalendar(
             rules=self._adjusted_properties.last_trading_days_of_months,
             other=self._holidays_shared,
-            weekmask=self.weekmask,
+            weekmask_periods=get_weekmask_periods(self),
             roll_fn=roll_one_day_same_month,
         )
 
@@ -1246,7 +1281,7 @@ def extend_class(
         return AdjustedHolidayCalendar(
             rules=self._adjusted_properties.last_regular_trading_days_of_months,
             other=self._holidays_and_special_business_days_shared,
-            weekmask=self.weekmask,
+            weekmask_periods=get_weekmask_periods(self),
             roll_fn=roll_one_day_same_month,
         )
 
