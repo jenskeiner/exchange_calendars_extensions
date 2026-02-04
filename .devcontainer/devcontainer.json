@@ -1,24 +1,30 @@
 {
-  "name": "python3",
-  "build": {
-    "dockerfile": "Dockerfile"
+  "name": "exchange-calendars-extensions",
+  "image": "mcr.microsoft.com/devcontainers/python:dev-3.14",
+  "containerEnv": {
+    "UV_LINK_MODE": "copy"
   },
-  "settings": {
-    "terminal.integrated.shell.linux": "/bin/bash",
-    "python.testing.pytestArgs": [
-      "tests"
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+  "features": {
+    "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
+    "ghcr.io/jsburckhardt/devcontainer-features/ruff:1": {},
+    "ghcr.io/prulloac/devcontainer-features/pre-commit:1": {}
   },
-  "features": {},
-  "forwardPorts": [],
-  "postCreateCommand": "poetry install",
   "customizations": {
     "vscode": {
       "extensions": [
-        "donjayamanne.python-extension-pack"
-      ]
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy"
+      ],
+      "settings": {
+        "python.testing.pytestArgs": [
+          "tests"
+        ],
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestEnabled": true
+      }
     }
-  }
+  },
+  "postCreateCommand": "uv sync",
+  "remoteUser": "vscode"
 }
