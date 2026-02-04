@@ -12,12 +12,12 @@ menu:
 
 ## Consolidated Calendars
 
-This package adds consolidated calendars for holidays and special open/close days, respectively. These calendars combine 
+This package adds consolidated calendars for holidays and special open/close days, respectively. These calendars combine
 regular with ad-hoc occurrences. This makes it easier to enumerate these days in order.
 
 {{% note %}}
-Depending on the exchange, the consolidated calendars for special open/close days may aggregate days with different 
-open/close times into a single calendar. It is currently not possible to recover the open/close time for a day from a 
+Depending on the exchange, the consolidated calendars for special open/close days may aggregate days with different
+open/close times into a single calendar. It is currently not possible to recover the open/close time for a day from a
 consolidated calendar.
 {{% /note %}}
 
@@ -70,40 +70,39 @@ It is also possible to modify existing calendars at runtime. This can be used to
 - quarterly expiry days
 - monthly expiry days
 
-This may be useful to fix incorrect information from `exchange-calendars`. This regularly happens, e.g., when an 
-exchange announces a change to the regular trading schedule on short notice and an updated release of the upstream 
+This may be useful to fix incorrect information from `exchange-calendars`. This regularly happens, e.g., when an
+exchange announces a change to the regular trading schedule on short notice and an updated release of the upstream
 package is not yet available. After some time, modifications can typically be removed when the upstream package has
 been updated.
 
 {{% warning %}}
-If you find incorrect information, consider opening a pull request on GitHub to update the information directly 
-in the [`exchange-calendars`](https://github.com/gerrymanoim/exchange_calendars) repository. Ad-hoc modifications to 
-calendars should only be used as a last resort and to bridge the time until the information has been updated at the 
+If you find incorrect information, consider opening a pull request on GitHub to update the information directly
+in the [`exchange-calendars`](https://github.com/gerrymanoim/exchange_calendars) repository. Ad-hoc modifications to
+calendars should only be used as a last resort and to bridge the time until the information has been updated at the
 root.
 {{% /warning %}}
 
 ## Metadata
-In some situations, it may be useful to be able to associate arbitrary metadata with certain dates. Here, metadata can 
+In some situations, it may be useful to be able to associate arbitrary metadata with certain dates. Here, metadata can
 be a set of string tags and/or a string comment.
 
 {{% note %}}
-For example, a tag could be used to mark days on which the exchange 
-deviated from the regular trading schedule in an unplanned way, e.g. a delayed open due to technical issues. That is, 
-tags or a comment could be useful to incorporate additional user-owned information that would normally be outside the 
+For example, a tag could be used to mark days on which the exchange
+deviated from the regular trading schedule in an unplanned way, e.g. a delayed open due to technical issues. That is,
+tags or a comment could be useful to incorporate additional user-owned information that would normally be outside the
 scope of the exchange calendars core functionality.
 {{% /note %}}
 
 This package provides functionality to add metadata in the form of tags and/or comments to any date in any calendar.
-It is then possible to filter dates by their metadata to retrieve only dates within a certain time period that e.g. 
+It is then possible to filter dates by their metadata to retrieve only dates within a certain time period that e.g.
 have a certain tag set.
 
 ## Miscellaneous
 Exchange calendars support special open/close days with a weekly occurrence pattern. For example, the Tel Aviv Stock
-Exchange (XTAE) has a special close day every Sunday. In a calendar from the `exchange-calendars` package, these days 
-are represented by an integer in the range 0-6, where 0 is Monday and 6 is Sunday, corresponding to the day of the 
-week, instead of an actual holiday calendar. This can be problematic since two cases now need to be handled in any code 
-that uses special open or close definitions. When the extensions from this package are applied, weekly special 
-open/close day patterns are converted into regular holiday calendars to simplify the handling. 
+Exchange (XTAE) has a special close day every Sunday. In a calendar from the `exchange-calendars` package, these days
+are represented by an integer in the range 0-6, where 0 is Monday and 6 is Sunday, corresponding to the day of the
+week, instead of an actual holiday calendar. This can be problematic since two cases now need to be handled in any code
+that uses special open or close definitions. When the extensions from this package are applied, weekly special
+open/close day patterns are converted into regular holiday calendars to simplify the handling.
 
 {{% note %}}
-
