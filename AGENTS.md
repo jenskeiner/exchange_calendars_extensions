@@ -1,6 +1,6 @@
 # Exchange Calendar Service
 
-A library based on [exchange_calendars](https://github.com/gerrymanoim/exchange_calendars) that adds additional 
+A library based on [exchange_calendars](https://github.com/gerrymanoim/exchange_calendars) that adds additional
 features to the calendars:
 - Combined calendars for regular and ad-hoc holidays/special open days/special close days.
 - Calendars for the last trading session of each month, and the last *regular* trading session of each month.

@@ -22,7 +22,7 @@ concurrency:
 
 env:
   PACKAGE_VERSION: "0"
-      
+
 jobs:
   build-and-test:
     name: Run automated tests.
