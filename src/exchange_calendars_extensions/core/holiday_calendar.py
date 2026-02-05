@@ -1,16 +1,16 @@
 import datetime
 from abc import ABC
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from copy import copy
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
 from functools import reduce
 from typing import (
-    Union,
+    Literal,
     Protocol,
+    Union,
     runtime_checkable,
 )
-from collections.abc import Callable
 
 import pandas as pd
 from exchange_calendars import ExchangeCalendar
@@ -21,21 +21,21 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars.pandas_extensions.holiday import (
     Holiday as ExchangeCalendarsHoliday,
 )
-from pandas import Timestamp
-from pandas.tseries.holiday import Holiday as PandasHoliday
-from pydantic import validate_call, TypeAdapter, ConfigDict
-
 from exchange_calendars_extensions.api.changes import (
     ChangeSet,
-    DayType,
-    DayMeta,
-    TimestampLike,
     DateLike,
+    DayMeta,
+    DayType,
+    TimestampLike,
 )
+from pandas import Timestamp
+from pandas.tseries.holiday import Holiday as PandasHoliday
+from pydantic import ConfigDict, TypeAdapter, validate_call
+
 from exchange_calendars_extensions.core.holiday import (
-    get_monthly_expiry_holiday,
     DayOfWeekPeriodicHoliday,
     get_last_day_of_month_holiday,
+    get_monthly_expiry_holiday,
 )
 from exchange_calendars_extensions.core.util import (
     WeekmaskPeriod,
@@ -407,8 +407,9 @@ def get_special_closes_calendar(
     return merge_calendars(holiday_calendars)
 
 
-def get_weekend_days_calendar(
+def get_days_calendar(
     exchange_calendar: ExchangeCalendar,
+    mask: Literal["0", "1"],
 ) -> ExchangeCalendarsHolidayCalendar:
     """
     Return a holiday calendar with all weekend days from the given exchange calendar as holidays.
@@ -436,10 +437,10 @@ def get_weekend_days_calendar(
 
     for p in weekmask_periods:
         for day_of_week, v in enumerate(p.weekmask):
-            if v == "0":
+            if v == mask:
                 rules.append(
                     DayOfWeekPeriodicHoliday(
-                        "weekend day",
+                        "regular day" if mask == "1" else "weekend day",
                         day_of_week,
                         start_date=p.start_date,
                         end_date=p.end_date,
@@ -539,6 +540,18 @@ class ExchangeCalendarExtensions(Protocol):
         -------
         ExchangeCalendarsHolidayCalendar
             A new HolidayCalendar with all weekend days as holidays.
+        """
+        ...  # pragma: no cover
+
+    @property
+    def week_days(self) -> ExchangeCalendarsHolidayCalendar:
+        """
+        Return holiday calendar containing all week days as holidays.
+
+        Returns
+        -------
+        ExchangeCalendarsHolidayCalendar
+            A new HolidayCalendar with all week days as holidays.
         """
         ...  # pragma: no cover
 
@@ -712,6 +725,7 @@ def extend_class(
     - special_opens_all: a HolidayCalendar with all special open days, regular and ad-hoc.
     - special_closes_all: a HolidayCalendar with all special close days, regular and ad-hoc.
     - weekend_days: a HolidayCalendar with all weekend days.
+    - week_days: a HolidayCalendar with all week days.
     - monthly_expiries: a HolidayCalendar with all monthly expiry days.
     - quarterly_expiries: a HolidayCalendar with all quarterly expiry days.
     - last_trading_days_of_months: a HolidayCalendar with the respective last trading day of each month.
@@ -721,7 +735,8 @@ def extend_class(
     days in a given date range since regular and ad-hoc special days are merged into a single calendar.
 
     The property weekend_days may be useful to determine weekend days in a given date range since parsing the weekmask
-    property of the underlying ExchangeCalendar class is avoided.
+    property of the underlying ExchangeCalendar class is avoided. Similarly, week_days returns all days that are not
+    weekend days.
 
     The property monthly_expiries returns expiry days for months January, February, April, May, July, August, October,
     and November. For most exchanges, these days are the third Friday or Thursday in the respective month. If that day
@@ -1231,7 +1246,11 @@ def extend_class(
 
     @property
     def weekend_days(self) -> HolidayCalendar | None:
-        return get_weekend_days_calendar(self)
+        return get_days_calendar(self, mask="0")
+
+    @property
+    def week_days(self) -> HolidayCalendar | None:
+        return get_days_calendar(self, mask="1")
 
     @property
     def holidays_all(self) -> HolidayCalendar | None:
@@ -1346,6 +1365,7 @@ def extend_class(
             "special_opens": special_opens,
             "special_opens_adhoc": special_opens_adhoc,
             "weekend_days": weekend_days,
+            "week_days": week_days,
             "holidays_all": holidays_all,
             "special_opens_all": special_opens_all,
             "special_closes_all": special_closes_all,

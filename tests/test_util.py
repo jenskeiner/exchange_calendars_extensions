@@ -3,12 +3,12 @@ import pytest
 from exchange_calendars import get_calendar
 
 from exchange_calendars_extensions.core.util import (
+    get_applicable_weekmask_period,
     get_day_of_week_name,
     get_month_name,
-    third_day_of_week_in_month,
-    last_day_in_month,
     get_weekmask_periods,
-    get_applicable_weekmask_period,
+    last_day_in_month,
+    third_day_of_week_in_month,
 )
 
 
@@ -404,19 +404,25 @@ class TestUtils:
         calendar = get_calendar("XTAE")
 
         # During special weekmask period
-        period = get_applicable_weekmask_period(calendar, pd.Timestamp("2024-06-15"))
+        period = get_applicable_weekmask_period(
+            get_weekmask_periods(calendar), pd.Timestamp("2024-06-15")
+        )
         assert period.weekmask == "1111001"
         assert period.start_date is None
         assert period.end_date == pd.Timestamp("2026-01-04")
 
         # Last day of special weekmask
-        period = get_applicable_weekmask_period(calendar, pd.Timestamp("2026-01-04"))
+        period = get_applicable_weekmask_period(
+            get_weekmask_periods(calendar), pd.Timestamp("2026-01-04")
+        )
         assert period.weekmask == "1111001"
         assert period.start_date is None
         assert period.end_date == pd.Timestamp("2026-01-04")
 
         # First day of regular weekmask
-        period = get_applicable_weekmask_period(calendar, pd.Timestamp("2026-06-15"))
+        period = get_applicable_weekmask_period(
+            get_weekmask_periods(calendar), pd.Timestamp("2026-06-15")
+        )
         assert period.weekmask == "1111100"
         assert period.start_date == pd.Timestamp("2026-01-05")
         assert period.end_date is None

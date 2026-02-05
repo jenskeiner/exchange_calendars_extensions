@@ -1,5 +1,4 @@
-from datetime import date
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Annotated
 
 import pandas as pd
@@ -232,7 +231,7 @@ def get_weekmask_periods(
 
 
 def get_applicable_weekmask_period(
-    exchange_calendar: ExchangeCalendar, date: pd.Timestamp
+    periods: tuple[WeekmaskPeriod, ...], date: pd.Timestamp
 ) -> WeekmaskPeriod:
     """
     Return the applicable weekmask period for the exchange calendar at the given date.
@@ -242,8 +241,8 @@ def get_applicable_weekmask_period(
 
     Parameters
     ----------
-    exchange_calendar : ExchangeCalendar
-        The exchange calendar to get the weekmask from.
+    periods : tuple[WeekmaskPeriod,...]
+        The weekmask periods to search.
     date : pd.Timestamp
         The date for which to get the applicable weekmask period.
 
@@ -252,8 +251,6 @@ def get_applicable_weekmask_period(
     WeekmaskPeriod
         The WeekmaskPeriod that applies to the given date.
     """
-    periods = get_weekmask_periods(exchange_calendar)
-
     for period in periods:
         if (period.start_date is None or date >= period.start_date) and (
             period.end_date is None or date <= period.end_date
