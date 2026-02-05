@@ -2,7 +2,7 @@ from datetime import time
 
 import pandas as pd
 import pytest
-from exchange_calendars import get_calendar, ExchangeCalendar
+from exchange_calendars import ExchangeCalendar, get_calendar
 from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.exchange_calendar import (
     HolidayCalendar as ExchangeCalendarsHolidayCalendar,
@@ -11,24 +11,24 @@ from exchange_calendars.exchange_calendar_xlon import ChristmasEve, NewYearsEveP
 from exchange_calendars.pandas_extensions.holiday import Holiday
 from pytz import timezone
 
+import tests.util
 from exchange_calendars_extensions.core.holiday_calendar import (
-    get_holiday_calendar_from_timestamps,
-    get_holiday_calendar_from_day_of_week,
-    merge_calendars,
-    get_holidays_calendar,
-    get_special_closes_calendar,
-    get_special_opens_calendar,
-    get_weekend_days_calendar,
-    get_monthly_expiry_rules,
-    get_quadruple_witching_rules,
-    get_last_day_of_month_rules,
-    roll_one_day_same_month,
     AdjustedHolidayCalendar,
     RollFn,
+    get_days_calendar,
+    get_holiday_calendar_from_day_of_week,
+    get_holiday_calendar_from_timestamps,
+    get_holidays_calendar,
+    get_last_day_of_month_rules,
+    get_monthly_expiry_rules,
+    get_quadruple_witching_rules,
+    get_special_closes_calendar,
+    get_special_opens_calendar,
+    merge_calendars,
+    roll_one_day_same_month,
 )
 from exchange_calendars_extensions.core.util import WeekmaskPeriod
 from tests.util import date2args, roll_backward, roll_forward
-import tests.util
 
 SPECIAL_OPEN = "special open"
 SPECIAL_CLOSE = "special close"
@@ -801,7 +801,7 @@ class TestHolidayCalendars:
             weekmask = "1111010"
 
         calendar = TestCalendar()
-        weekend_days_calendar = get_weekend_days_calendar(calendar)
+        weekend_days_calendar = get_days_calendar(calendar, mask="0")
         weekend_days = weekend_days_calendar.holidays(
             start=pd.Timestamp("2020-01-01"),
             end=pd.Timestamp("2020-01-31"),
