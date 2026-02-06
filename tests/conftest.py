@@ -1,6 +1,6 @@
 # conftest.py
 import multiprocessing
-from typing import Callable
+from collections.abc import Callable
 
 import pytest
 

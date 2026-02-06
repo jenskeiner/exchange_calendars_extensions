@@ -7,12 +7,13 @@ name = "exchange-calendars-extensions"
 dynamic = ["version"]
 description = "Extensions of the exchange-calendars package"
 license = "Apache-2.0"
-authors = [{name = "Jens Keiner", email="jens.keiner@gmail.com"}]
+license-files = ["LICENSE"]
+authors = [{ name = "Jens Keiner", email = "jens.keiner@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.10"
 keywords = ["exchange", "calendar", "trading", "holidays"]
 classifiers = [
-	"Development Status :: 4 - Beta",
+    "Development Status :: 4 - Beta",
     "License :: OSI Approved :: Apache Software License",
     "Intended Audience :: Developers",
     "Intended Audience :: Financial and Insurance Industry",
@@ -43,28 +44,31 @@ repository = "https://github.com/jenskeiner/exchange_calendars_extensions/"
 documentation = "https://github.com/jenskeiner/exchange_calendars_extensions/tree/main/docs/"
 issues = "https://github.com/jenskeiner/exchange_calendars_extensions/issues"
 
+[dependency-groups]
+dev = [
+    "pytest>=9,<10",
+    "pytest-mock>=3,<4",
+    "pytest-cov>=7,<8",
+]
 
 [tool.hatch.version]
 source = "env-plus"
 variable = "PACKAGE_VERSION"
 
 [tool.hatch.build.targets.sdist]
+include = [
+    "src/exchange_calendars_extensions/**",
+    "tests/**",
+]
 exclude = [
-  ".github",
-  ".pre-commit-config.yaml",
+    ".github",
+    ".pre-commit-config.yaml",
 ]
 
 [tool.hatch.build.targets.wheel]
 sources = ["src"]
 only-include = ["src/exchange_calendars_extensions"]
 
-[dependency-groups]
-dev = [
-    "pytest>=9,<10",
-    "pytest-mock>=3,<4",
-    "pytest-cov>=7,<8",
-    "pre-commit>=4,<5",
-]
-
 [tool.pytest.ini_options]
 addopts = "--cov=src/exchange_calendars_extensions --cov-report=term-missing"
+testpaths = ["tests"]

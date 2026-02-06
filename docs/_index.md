@@ -9,15 +9,15 @@ menu:
       weight: 0
 ---
 # Introduction
-The `exchange-calendars-extensions` Python package transparently adds some features to the `exchange-calendars` package. 
+The `exchange-calendars-extensions` Python package transparently adds some features to the `exchange-calendars` package.
 It can be used without any changes to existing code that already uses [`exchange-calendars`](https://example.com).
 
 ## System requirements
 The package requires Python 3.8 or later.
 
 ## Installation
-The package is available on [PyPI](https://pypi.org/project/exchange-calendars-extensions/) and can be installed via 
-[pip](https://pip.pypa.io/en/stable/) or any other suitable package/dependency management tool, e.g. 
+The package is available on [PyPI](https://pypi.org/project/exchange-calendars-extensions/) and can be installed via
+[pip](https://pip.pypa.io/en/stable/) or any other suitable package/dependency management tool, e.g.
 [Poetry](https://python-poetry.org/).
 
 {{< tabs tabTotal="2" tabID1="installing-with-pip" tabID2="installing-with-poetry" tabName1="With pip" tabName2="With Poetry">}}

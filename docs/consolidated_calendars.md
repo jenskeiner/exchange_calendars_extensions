@@ -36,7 +36,7 @@ will output
 2020-12-28     Weekend Boxing Day
 dtype: object
 ```
-Note that the ad-hoc holiday on 2020-05-08 (Queen Elizabeth II 75th anniversary) is included together with all regular 
+Note that the ad-hoc holiday on 2020-05-08 (Queen Elizabeth II 75th anniversary) is included together with all regular
 holidays during the period.
 
 In contrast, the standard calendar only includes regular holidays:
@@ -85,7 +85,7 @@ dtype: object
 which includes an ad-hoc special close day on 2018-03-01.
 
 {{% note %}}
-Depending on the exchange, the consolidated calendars for special open/close days may aggregate days with different 
+Depending on the exchange, the consolidated calendars for special open/close days may aggregate days with different
 open/close times into a single calendar. It is currently not possible to recover the open/close time for a day from a
 consolidated calendar.
 {{% /note %}}
@@ -110,5 +110,5 @@ which gives
 dtype: object
 ```
 
-This list contains regular special close days on Sundays where the exchange closes at 15:40 local time, as well as 
+This list contains regular special close days on Sundays where the exchange closes at 15:40 local time, as well as
 regular special close days during Passover festivities where the exchange closes at 14:15 local time.

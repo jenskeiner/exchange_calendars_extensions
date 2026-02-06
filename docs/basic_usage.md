@@ -41,7 +41,7 @@ assert isinstance(calendar, ecx.ExchangeCalendarExtensions)
 ```
 
 {{% note %}}
-The class `ecx.ExtendedExchangeCalendar` is an abstract base class that inherits from `ec.ExchangeCalendar` and the 
+The class `ecx.ExtendedExchangeCalendar` is an abstract base class that inherits from `ec.ExchangeCalendar` and the
 protocol class `ecx.ExchangeCalendarExtensions` which defines the extended properties.
 {{% /note %}}
 
