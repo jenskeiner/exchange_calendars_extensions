@@ -1,4 +1,5 @@
 from datetime import time
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import pytest
@@ -9,7 +10,7 @@ from exchange_calendars.exchange_calendar import (
 )
 from exchange_calendars.exchange_calendar_xlon import ChristmasEve, NewYearsEvePost2000
 from exchange_calendars.pandas_extensions.holiday import Holiday
-from pytz import timezone
+from pandas.api.types import pandas_dtype
 
 import tests.util
 from exchange_calendars_extensions.core.holiday_calendar import (
@@ -441,7 +442,7 @@ class TestAdjustedHolidayCalendar:
         # Holiday should not be included when the requested date range only covers the original date, although the
         # unadjusted date falls within.
         assert calendar.holidays(start=day, end=day, return_name=True).equals(
-            pd.Series([], dtype="object", index=pd.DatetimeIndex([]))
+            pd.Series([], dtype=pandas_dtype("str"), index=pd.DatetimeIndex([]))
         )
 
 
@@ -565,7 +566,7 @@ class TestHolidayCalendars:
         class TestCalendar(ExchangeCalendar):
             regular_early_close = time(12, 30)
             name = "TEST"
-            tz = timezone("Europe/London")
+            tz = ZoneInfo("Europe/London")
             open_times = ((None, time(8)),)
             close_times = ((None, time(16, 30)),)
 
@@ -681,7 +682,7 @@ class TestHolidayCalendars:
         class TestCalendar(ExchangeCalendar):
             regular_late_open = time(10, 30)
             name = "TEST"
-            tz = timezone("Europe/London")
+            tz = ZoneInfo("Europe/London")
             open_times = ((None, time(8)),)
             close_times = ((None, time(16, 30)),)
 
@@ -796,7 +797,7 @@ class TestHolidayCalendars:
     def test_get_weekend_days_calendar(self):
         class TestCalendar(ExchangeCalendar):
             name = "TEST"
-            tz = timezone("Europe/London")
+            tz = ZoneInfo("Europe/London")
             open_times = ((None, time(8)),)
             close_times = ((None, time(16, 30)),)
             weekmask = "1111010"
