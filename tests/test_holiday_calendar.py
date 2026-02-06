@@ -10,7 +10,7 @@ from exchange_calendars.exchange_calendar import (
 )
 from exchange_calendars.exchange_calendar_xlon import ChristmasEve, NewYearsEvePost2000
 from exchange_calendars.pandas_extensions.holiday import Holiday
-from pytz import timezone
+from pandas.api.types import pandas_dtype
 
 import tests.util
 from exchange_calendars_extensions.core.holiday_calendar import (
@@ -442,7 +442,7 @@ class TestAdjustedHolidayCalendar:
         # Holiday should not be included when the requested date range only covers the original date, although the
         # unadjusted date falls within.
         assert calendar.holidays(start=day, end=day, return_name=True).equals(
-            pd.Series([], dtype="object", index=pd.DatetimeIndex([]))
+            pd.Series([], dtype=pandas_dtype("str"), index=pd.DatetimeIndex([]))
         )
 
 
