@@ -15,6 +15,7 @@ import tests.util
 from exchange_calendars_extensions.core.holiday_calendar import (
     AdjustedHolidayCalendar,
     RollFn,
+    filter_by_range,
     get_days_calendar,
     get_holiday_calendar_from_day_of_week,
     get_holiday_calendar_from_timestamps,
@@ -440,7 +441,7 @@ class TestAdjustedHolidayCalendar:
         # Holiday should not be included when the requested date range only covers the original date, although the
         # unadjusted date falls within.
         assert calendar.holidays(start=day, end=day, return_name=True).equals(
-            pd.Series([], dtype="object")
+            pd.Series([], dtype="object", index=pd.DatetimeIndex([]))
         )
 
 
@@ -1025,6 +1026,39 @@ class TestHolidayCalendars:
         assert last_day_of_month.compare(expected_last_day_of_month).empty
 
 
+class TestAdjustedHolidayCalendarWithRangeBoundary:
+    """Test AdjustedHolidayCalendar behavior at range boundaries."""
+
+    @pytest.mark.parametrize("return_name", [True, False])
+    def test_unadjusted_holiday_outside_range(self, return_name: bool):
+        """Test that a holiday adjusted to fall on the end date of the target range is included when the unadjusted
+        holiday is outside the range."""
+        # Create a calendar where the last day of January (31st) falls on a  non-business day (weekend),
+        # so it gets adjusted to the 30th. When querying for dates with end=pd.Timestamp("2026-01-30"), the 30th should
+        # be included.
+
+        from exchange_calendars_extensions.core.holiday_calendar import (
+            AdjustedHolidayCalendar,
+            get_last_day_of_month_rules,
+        )
+
+        calendar = AdjustedHolidayCalendar(
+            rules=get_last_day_of_month_rules(name="last trading day"),
+            other=HolidayCalendar(rules=[]),
+            weekmask_periods=(
+                WeekmaskPeriod(start_date=None, end_date=None, weekmask="1111100"),
+            ),
+        )
+
+        result = calendar.holidays(
+            start=pd.Timestamp("2026-01-30"),
+            end=pd.Timestamp("2026-01-30"),
+            return_name=return_name,
+        )
+
+        assert pd.Timestamp("2026-01-30") in (result.index if return_name else result)
+
+
 class TestAdjustedHolidayCalendarWithMultipleWeekmaskPeriods:
     """Test AdjustedHolidayCalendar with multiple weekmask periods."""
 
@@ -1140,3 +1174,87 @@ class TestAdjustedHolidayCalendarWithMultipleWeekmaskPeriods:
         assert len(result) == 1
         # Jan 5 (conflict) -> Jan 6 (Sat, weekend) -> Jan 7 (Sun, weekend) -> Jan 8 (Mon, open)
         assert result[0] == pd.Timestamp("2024-01-13")
+
+
+class TestFilterByRange:
+    """Tests for the filter_by_range function."""
+
+    @pytest.fixture()
+    def sample_index(self) -> pd.DatetimeIndex:
+        return pd.DatetimeIndex(
+            [
+                pd.Timestamp("2024-01-01"),
+                pd.Timestamp("2024-01-02"),
+                pd.Timestamp("2024-01-03"),
+                pd.Timestamp("2024-01-04"),
+                pd.Timestamp("2024-01-05"),
+            ]
+        )
+
+    @pytest.fixture()
+    def sample_series(self, sample_index: pd.DatetimeIndex) -> pd.Series:
+        return pd.Series(["a", "b", "c", "d", "e"], index=sample_index)
+
+    # --- DatetimeIndex tests ---
+
+    def test_index_both_bounds(self, sample_index: pd.DatetimeIndex):
+        result = filter_by_range(
+            sample_index, pd.Timestamp("2024-01-02"), pd.Timestamp("2024-01-04")
+        )
+        expected = pd.DatetimeIndex(
+            [
+                pd.Timestamp("2024-01-02"),
+                pd.Timestamp("2024-01-03"),
+                pd.Timestamp("2024-01-04"),
+            ]
+        )
+        assert result.equals(expected)
+
+    def test_index_start_none(self, sample_index: pd.DatetimeIndex):
+        result = filter_by_range(sample_index, None, pd.Timestamp("2024-01-03"))
+        expected = pd.DatetimeIndex(
+            [
+                pd.Timestamp("2024-01-01"),
+                pd.Timestamp("2024-01-02"),
+                pd.Timestamp("2024-01-03"),
+            ]
+        )
+        assert result.equals(expected)
+
+    def test_index_end_none(self, sample_index: pd.DatetimeIndex):
+        result = filter_by_range(sample_index, pd.Timestamp("2024-01-03"), None)
+        expected = pd.DatetimeIndex(
+            [
+                pd.Timestamp("2024-01-03"),
+                pd.Timestamp("2024-01-04"),
+                pd.Timestamp("2024-01-05"),
+            ]
+        )
+        assert result.equals(expected)
+
+    def test_index_both_none(self, sample_index: pd.DatetimeIndex):
+        result = filter_by_range(sample_index, None, None)
+        assert result.equals(sample_index)
+
+    # --- Series tests ---
+
+    def test_series_both_bounds(self, sample_series: pd.Series):
+        result = filter_by_range(
+            sample_series, pd.Timestamp("2024-01-02"), pd.Timestamp("2024-01-04")
+        )
+        expected = sample_series.iloc[1:4]
+        assert result.equals(expected)
+
+    def test_series_start_none(self, sample_series: pd.Series):
+        result = filter_by_range(sample_series, None, pd.Timestamp("2024-01-03"))
+        expected = sample_series.iloc[:3]
+        assert result.equals(expected)
+
+    def test_series_end_none(self, sample_series: pd.Series):
+        result = filter_by_range(sample_series, pd.Timestamp("2024-01-03"), None)
+        expected = sample_series.iloc[2:]
+        assert result.equals(expected)
+
+    def test_series_both_none(self, sample_series: pd.Series):
+        result = filter_by_range(sample_series, None, None)
+        assert result.equals(sample_series)
