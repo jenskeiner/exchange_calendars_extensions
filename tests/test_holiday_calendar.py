@@ -1,4 +1,5 @@
 from datetime import time
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import pytest
@@ -565,7 +566,7 @@ class TestHolidayCalendars:
         class TestCalendar(ExchangeCalendar):
             regular_early_close = time(12, 30)
             name = "TEST"
-            tz = timezone("Europe/London")
+            tz = ZoneInfo("Europe/London")
             open_times = ((None, time(8)),)
             close_times = ((None, time(16, 30)),)
 
@@ -681,7 +682,7 @@ class TestHolidayCalendars:
         class TestCalendar(ExchangeCalendar):
             regular_late_open = time(10, 30)
             name = "TEST"
-            tz = timezone("Europe/London")
+            tz = ZoneInfo("Europe/London")
             open_times = ((None, time(8)),)
             close_times = ((None, time(16, 30)),)
 
@@ -796,7 +797,7 @@ class TestHolidayCalendars:
     def test_get_weekend_days_calendar(self):
         class TestCalendar(ExchangeCalendar):
             name = "TEST"
-            tz = timezone("Europe/London")
+            tz = ZoneInfo("Europe/London")
             open_times = ((None, time(8)),)
             close_times = ((None, time(16, 30)),)
             weekmask = "1111010"

@@ -2,6 +2,7 @@ import datetime
 from collections import OrderedDict
 from collections.abc import Iterable
 from datetime import time
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import pytest
@@ -9,7 +10,6 @@ from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars_extensions.api.changes import DayMeta
 from pandas.tseries.holiday import next_monday
-from pytz import timezone
 
 HOLIDAY_0 = "Holiday 0"
 SPECIAL_OPEN_0 = "Special Open 0"
@@ -86,7 +86,7 @@ def add_test_calendar_and_apply_extensions(
         name = "TEST"
 
         # Timezone.
-        tz = timezone("CET")
+        tz = ZoneInfo("CET")
 
         # Holidays.
         @property
@@ -3420,7 +3420,7 @@ def test_get_meta_tz_aware():
 
     c = ec.get_calendar("TEST")
 
-    assert c.tz == timezone("CET")
+    assert c.tz == ZoneInfo("CET")
 
     assert c.meta() == OrderedDict([(day_1, meta_1), (day_2, meta_2)])
 
