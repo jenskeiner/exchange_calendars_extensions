@@ -187,7 +187,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "exchange-calendars", specifier = ">=4.0.1,<5" },
-    { name = "exchange-calendars-extensions-api", directory = "../exchange_calendars_extensions_api" },
+    { name = "exchange-calendars-extensions-api", specifier = ">=0.5.0,<1" },
     { name = "pydantic", marker = "python_full_version < '3.13'", specifier = ">=2,<3" },
     { name = "pydantic", marker = "python_full_version == '3.13.*'", specifier = ">=2.8.0,<3" },
     { name = "pydantic", marker = "python_full_version >= '3.14'", specifier = ">=2.12.0,<3" },
@@ -203,28 +203,17 @@ dev = [
 
 [[package]]
 name = "exchange-calendars-extensions-api"
-source = { directory = "../exchange_calendars_extensions_api" }
+version = "0.5.1"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "pandas", specifier = ">=1,<4" },
-    { name = "pydantic", marker = "python_full_version < '3.13'", specifier = ">=2,<3" },
-    { name = "pydantic", marker = "python_full_version == '3.13.*'", specifier = ">=2.8.0,<3" },
-    { name = "pydantic", marker = "python_full_version >= '3.14'", specifier = ">=2.12.0,<3" },
-    { name = "typing-extensions", specifier = ">=4,<5" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pre-commit", specifier = ">=4,<5" },
-    { name = "pytest", specifier = ">=9,<10" },
-    { name = "pytest-cov", specifier = ">=7,<8" },
+sdist = { url = "https://files.pythonhosted.org/packages/e8/6a/6dbee8f65a7c227768d515c13ebd210c36e5446a5062002de3825e713a84/exchange_calendars_extensions_api-0.5.1.tar.gz", hash = "sha256:b7668bbe15f281adb42eb70e7ea4cac34c55f2bbf772b137eea99b53710de3cc", size = 15263, upload-time = "2026-02-06T22:10:13.548Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/33/5e/f03003c23a17125a57e801c3fa433fedfc19baad74b7a5723765acffa490/exchange_calendars_extensions_api-0.5.1-py3-none-any.whl", hash = "sha256:56d7e9a4016fc2ef419523e9210574c9b6e4fbaa938e11a658649143ff8603aa", size = 11704, upload-time = "2026-02-06T22:10:12.471Z" },
 ]
 
 [[package]]
