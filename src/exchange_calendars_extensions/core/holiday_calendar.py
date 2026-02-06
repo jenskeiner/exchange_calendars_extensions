@@ -157,6 +157,83 @@ def roll_one_day_same_month(d: pd.Timestamp) -> pd.Timestamp | None:
     return d
 
 
+# A function that takes a date range and returns a possibly modified (expanded) range.
+PreGrowFn = Callable[
+    [pd.Timestamp | None, pd.Timestamp | None],
+    tuple[pd.Timestamp | None, pd.Timestamp | None],
+]
+
+
+def pre_grow_end_of_month(
+    start: pd.Timestamp, end: pd.Timestamp
+) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """
+    Returns the given date range expanded to the last day of the month of the end date.
+
+    Only the end date is modified, if needed. The start date always remains the same. For example, if the input range
+    is [2026-01-15, 2026-02-23], then the returned range will be [2026-01-15, 2026-02-28].
+
+    Rationale: The expansion up to the month end is required when determining special days like expiry days or the last
+    trading day in a month which are rolled backwards relative to other holidays/special days and weekend days, so that
+    these special days are taken into account if the requested date range from a holiday calendar only includes a
+    period of time whee these days may be rolled to, but which excludes the original unrolled day.
+
+    For example, the last trading day in a month, say January 2026, is determined by an offset that initialy returns the
+    last calendar day of the month (2026-01-31) and then rolls the day forward until reaching the first business day
+    (2026-01-30). If the corresponding calendar is queried for the single-day range [2026-01-30, 2026,01,30], the result
+    should include the last trading day that has been rolled to 2026-01-30 from 2026-01-31. That is why the underlying
+    unadjusted days must be queried with the expanded range [2026-01-30, 2026-01-31], or the result would be empty.
+
+    For quarterly and monthly expiry days, it would be enough to expand the range up to the unadjusted days which are
+    always strictly before the month end, but expanding to the month end or further does not change the result.
+
+
+    Parameters
+    ----------
+    start : pd.Timestamp
+        The start date.
+    end : pd.Timestamp
+        The end date.
+
+    Returns
+    -------
+    tuple[pd.Timestamp, pd.Timestamp]
+        The expanded date range.
+    """
+    return start, end + pd.offsets.MonthEnd(0) if end is not None else end
+
+
+def filter_by_range(
+    data: pd.Series | pd.DatetimeIndex,
+    start: pd.Timestamp | None,
+    end: pd.Timestamp | None,
+) -> pd.Series | pd.DatetimeIndex:
+    """
+    Filter a Series or DatetimeIndex to only include dates within the given range.
+
+    Parameters
+    ----------
+    data : pd.Series | pd.DatetimeIndex
+        The Series or DatetimeIndex to filter.
+    start : pd.Timestamp | None
+        The start of the range (inclusive). If None, no lower bound is applied.
+    end : pd.Timestamp | None
+        The end of the range (inclusive). If None, no upper bound is applied.
+
+    Returns
+    -------
+    pd.Series | pd.DatetimeIndex
+        The filtered data, with the same type as the input.
+    """
+    if start is None and end is None:
+        return data
+    dates = data.index if isinstance(data, pd.Series) else data
+    mask = dates >= start if start is not None else True
+    if end is not None:
+        mask = mask & (dates <= end)
+    return data[mask]
+
+
 class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
     def __init__(
         self,
@@ -164,17 +241,24 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
         other: ExchangeCalendarsHolidayCalendar,
         weekmask_periods: tuple[WeekmaskPeriod, ...],
         roll_fn: RollFn = lambda d: d - pd.Timedelta(days=1),
+        pre_grow_fn: PreGrowFn = pre_grow_end_of_month,
     ) -> None:
         super().__init__(rules=rules)
         self._other = other
         self._weekmask_periods = weekmask_periods
         self._roll_fn = roll_fn
+        self._pre_grow_fn = pre_grow_fn
 
     def holidays(self, start=None, end=None, return_name=False):
-        # Get the holidays from the parent class.
         start = Timestamp(start) if start is not None else None
         end = Timestamp(end) if end is not None else None
 
+        return filter_by_range(
+            self._holidays(*self._pre_grow_fn(start, end), return_name), start, end
+        )
+
+    def _holidays(self, start=None, end=None, return_name=False):
+        # Get unadjusted holidays.
         holidays = super().holidays(start=start, end=end, return_name=return_name)
 
         # Get the holidays from the other calendar.
@@ -204,25 +288,11 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
         if return_name:
             # Return a series, filter out dates that are None.
             return pd.Series(
-                {
-                    d: n
-                    for d, n in zip(holidays_dates, holidays.values)
-                    if d is not None
-                    and (start is None or d >= start)
-                    and (end is None or d <= end)
-                }
+                {d: n for d, n in zip(holidays_dates, holidays.values) if d is not None}
             )
         else:
             # Return index, filter out dates that are None.
-            return pd.DatetimeIndex(
-                [
-                    d
-                    for d in holidays_dates
-                    if d is not None
-                    and (start is None or d >= start)
-                    and (end is None or d <= end)
-                ]
-            )
+            return pd.DatetimeIndex([d for d in holidays_dates if d is not None])
 
 
 _ta = TypeAdapter(DateLike, config=ConfigDict(arbitrary_types_allowed=True))
