@@ -43,7 +43,7 @@ from exchange_calendars_extensions.core.util import (
 )
 
 # Timdelta that represents a day minus the smallest increment of time.
-ONE_DAY_MINUS_EPS = pd.Timedelta(1, "d") - pd.Timedelta(1, "ns")
+ONE_DAY_MINUS_EPS = pd.Timedelta(1, "D") - pd.Timedelta(1, "ns")
 
 
 class HolidayCalendar(ExchangeCalendarsHolidayCalendar):
