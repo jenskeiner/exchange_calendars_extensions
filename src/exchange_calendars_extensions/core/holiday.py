@@ -195,6 +195,7 @@ class DayOfWeekPeriodicHoliday(Holiday):
 
         # Create a pandas DateTimeIndex with the dates of the holidays.
         dates = pd.date_range(start=first, end=last, freq=timedelta(days=7))
+        dates.freq = None
 
         # Return the dates.
         return dates

@@ -1060,6 +1060,32 @@ class TestAdjustedHolidayCalendarWithRangeBoundary:
         assert pd.Timestamp("2026-01-30") in (result.index if return_name else result)
 
 
+class TestTimestampMaxEdgeCases:
+    def test_weekend_calendar_near_max_timestamp(self):
+        """Test that weekend calendar with periodic days doesn't overflow near pd.Timestamp.max.
+
+        This tests the fix in DayOfWeekPeriodicHoliday._dates where pd.date_range with
+        a frequency set would overflow when the range extends near pd.Timestamp.max.
+        The fix sets dates.freq = None to prevent operations that use the frequency.
+
+        The fix is critical because weekend calendars merge multiple DayOfWeekPeriodicHoliday
+        instances (for Saturday and Sunday), and when these have frequencies set, pandas
+        operations may try to extend beyond pd.Timestamp.max.
+        """
+        calendar = get_calendar("XLON")
+        weekend_days_calendar = get_days_calendar(calendar, mask="0")
+
+        # Query near pd.Timestamp.max - this should not raise OutOfBoundsDatetime
+        # Without the fix, the merge of periodic day ranges with frequency would overflow
+        result = weekend_days_calendar.holidays(
+            start=pd.Timestamp("2262-03-01"),
+            end=pd.Timestamp.max,
+        )
+
+        # Should return valid results (verify no exception was raised)
+        assert isinstance(result, pd.DatetimeIndex)
+
+
 class TestAdjustedHolidayCalendarWithMultipleWeekmaskPeriods:
     """Test AdjustedHolidayCalendar with multiple weekmask periods."""
 

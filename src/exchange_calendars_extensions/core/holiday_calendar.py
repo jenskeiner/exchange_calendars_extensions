@@ -200,7 +200,13 @@ def pre_grow_end_of_month(
     tuple[pd.Timestamp, pd.Timestamp]
         The expanded date range.
     """
-    return start, end + pd.offsets.MonthEnd(0) if end is not None else end
+    if end is not None:
+        try:
+            end = end + pd.offsets.MonthEnd()
+        except pd.errors.OutOfBoundsDatetime as _:
+            pass
+
+    return start, end
 
 
 def filter_by_range(
