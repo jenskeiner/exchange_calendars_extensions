@@ -1060,6 +1060,82 @@ class TestAdjustedHolidayCalendarWithRangeBoundary:
         assert pd.Timestamp("2026-01-30") in (result.index if return_name else result)
 
 
+class TestTimestampMaxEdgeCases:
+    """Test calendar queries near pd.Timestamp.max that previously caused overflows."""
+
+    def test_last_day_of_month_calendar_at_max_timestamp(self):
+        """Test that querying last day of month calendar near pd.Timestamp.max doesn't overflow.
+
+        This tests the fix in pre_grow_end_of_month where adding MonthEnd offset to
+        a date near pd.Timestamp.max would raise OutOfBoundsDatetime. The fix catches
+        this exception and returns the end date unchanged.
+
+        Using 2262-04-30 which is the last valid day before MonthEnd would overflow.
+        """
+        from exchange_calendars_extensions.core.holiday_calendar import (
+            AdjustedHolidayCalendar,
+            get_last_day_of_month_rules,
+        )
+
+        calendar = AdjustedHolidayCalendar(
+            rules=get_last_day_of_month_rules(name="last trading day"),
+            other=HolidayCalendar(rules=[]),
+            weekmask_periods=(
+                WeekmaskPeriod(start_date=None, end_date=None, weekmask="1111100"),
+            ),
+        )
+
+        # Use the last day of the last month that doesn't overflow when adding MonthEnd
+        # 2262-04-30 is the last day that won't overflow, since MonthEnd(0) would stay at 04-30
+        # but MonthEnd() from 05-01 would overflow
+        end_date = pd.Timestamp("2262-04-30")
+
+        # Querying at the edge should not raise OutOfBoundsDatetime
+        # Without the fix, pre_grow_end_of_month would fail when trying to add MonthEnd()
+        result = calendar.holidays(
+            start=pd.Timestamp("2262-04-01"),
+            end=end_date,
+            return_name=False,
+        )
+
+        # Should return some valid results (at minimum, verify no exception was raised)
+        assert isinstance(result, pd.DatetimeIndex)
+
+        # Now test with a date that WOULD overflow with MonthEnd without the fix
+        # 2262-05-01 + MonthEnd() would overflow
+        end_date_near_max = pd.Timestamp("2262-05-01")
+        result2 = calendar.holidays(
+            start=pd.Timestamp("2262-05-01"),
+            end=end_date_near_max,
+            return_name=False,
+        )
+        assert isinstance(result2, pd.DatetimeIndex)
+
+    def test_weekend_calendar_near_max_timestamp(self):
+        """Test that weekend calendar with periodic days doesn't overflow near pd.Timestamp.max.
+
+        This tests the fix in DayOfWeekPeriodicHoliday._dates where pd.date_range with
+        a frequency set would overflow when the range extends near pd.Timestamp.max.
+        The fix sets dates.freq = None to prevent operations that use the frequency.
+
+        The fix is critical because weekend calendars merge multiple DayOfWeekPeriodicHoliday
+        instances (for Saturday and Sunday), and when these have frequencies set, pandas
+        operations may try to extend beyond pd.Timestamp.max.
+        """
+        calendar = get_calendar("XLON")
+        weekend_days_calendar = get_days_calendar(calendar, mask="0")
+
+        # Query near pd.Timestamp.max - this should not raise OutOfBoundsDatetime
+        # Without the fix, the merge of periodic day ranges with frequency would overflow
+        result = weekend_days_calendar.holidays(
+            start=pd.Timestamp("2262-03-01"),
+            end=pd.Timestamp.max,
+        )
+
+        # Should return valid results (verify no exception was raised)
+        assert isinstance(result, pd.DatetimeIndex)
+
+
 class TestAdjustedHolidayCalendarWithMultipleWeekmaskPeriods:
     """Test AdjustedHolidayCalendar with multiple weekmask periods."""
 
