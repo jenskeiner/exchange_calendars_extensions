@@ -1,8 +1,14 @@
 # conftest.py
 import multiprocessing
 from collections.abc import Callable
+from typing import cast
+from collections.abc import Generator
 
+import exchange_calendars as ec
 import pytest
+
+from exchange_calendars_extensions.core import ExtendedExchangeCalendar
+from tests.synthetic_calendar import add_test_calendar
 
 
 def run_test_in_separate_process(test_function: Callable) -> Callable:
@@ -33,7 +39,7 @@ def run_test_in_separate_process(test_function: Callable) -> Callable:
 def pytest_configure(config):
     # Add the isolated marker.
     config.addinivalue_line(
-        "markers", "isolated: mark test to run in a separate process"
+        "markers", "isolated: mark test to run in a separate interpreter process"
     )
 
 
@@ -45,3 +51,9 @@ def pytest_pyfunc_call(pyfuncitem):
         pyfuncitem.obj = run_test_in_separate_process(original_func)
 
     yield
+
+
+@pytest.fixture
+def test_calendar() -> Generator[ExtendedExchangeCalendar]:
+    add_test_calendar()
+    yield cast(ExtendedExchangeCalendar, ec.get_calendar("TEST"))

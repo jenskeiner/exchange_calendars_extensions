@@ -3,11 +3,14 @@ import pytest
 from exchange_calendars import get_calendar
 
 from exchange_calendars_extensions.core.util import (
-    get_applicable_weekmask_period,
+    Weekmask,
+    WeekmaskPeriod,
+    find_interval,
     get_day_of_week_name,
     get_month_name,
     get_weekmask_periods,
     last_day_in_month,
+    set_weekday,
     third_day_of_week_in_month,
 )
 
@@ -348,7 +351,7 @@ class TestUtils:
         periods = get_weekmask_periods(calendar)
 
         assert len(periods) == 1
-        assert periods[0].weekmask == "1111100"
+        assert periods[0].weekmask == WEEKMASK_DEFAULT
         assert periods[0].start_date is None
         assert periods[0].end_date is None
 
@@ -362,7 +365,7 @@ class TestUtils:
         assert periods[0].start_date is None
         assert periods[0].end_date == pd.Timestamp("2026-01-04")
 
-        assert periods[1].weekmask == "1111100"
+        assert periods[1].weekmask == WEEKMASK_DEFAULT
         assert periods[1].start_date == pd.Timestamp("2026-01-05")
         assert periods[1].end_date is None
 
@@ -375,7 +378,7 @@ class TestUtils:
         assert len(periods) == 5
 
         # First: default from beginning until first special weekmask
-        assert periods[0].weekmask == "1111100"
+        assert periods[0].weekmask == WEEKMASK_DEFAULT
         assert periods[0].start_date is None
         assert periods[0].end_date == pd.Timestamp("2024-01-14")
 
@@ -385,7 +388,7 @@ class TestUtils:
         assert periods[1].end_date == pd.Timestamp("2024-01-21")
 
         # Third: default gap between special weekmasks
-        assert periods[2].weekmask == "1111100"
+        assert periods[2].weekmask == WEEKMASK_DEFAULT
         assert periods[2].start_date == pd.Timestamp("2024-01-22")
         assert periods[2].end_date == pd.Timestamp("2025-01-26")
 
@@ -395,34 +398,396 @@ class TestUtils:
         assert periods[3].end_date == pd.Timestamp("2025-02-02")
 
         # Fifth: default from second special weekmask end onwards
-        assert periods[4].weekmask == "1111100"
+        assert periods[4].weekmask == WEEKMASK_DEFAULT
         assert periods[4].start_date == pd.Timestamp("2025-02-03")
         assert periods[4].end_date is None
 
-    def test_get_applicable_weekmask_period(self):
-        """Test get_applicable_weekmask_period returns WeekmaskPeriod."""
-        calendar = get_calendar("XTAE")
-
-        # During special weekmask period
-        period = get_applicable_weekmask_period(
-            get_weekmask_periods(calendar), pd.Timestamp("2024-06-15")
+    def test_find_interval_with_none_start_date(self):
+        """Test find_interval with None as the first start_date."""
+        intervals = (
+            (None, "value1"),
+            (pd.Timestamp("2020-01-01"), "value2"),
+            (pd.Timestamp("2021-01-01"), "value3"),
         )
-        assert period.weekmask == "1111001"
-        assert period.start_date is None
-        assert period.end_date == pd.Timestamp("2026-01-04")
 
-        # Last day of special weekmask
-        period = get_applicable_weekmask_period(
-            get_weekmask_periods(calendar), pd.Timestamp("2026-01-04")
-        )
-        assert period.weekmask == "1111001"
-        assert period.start_date is None
-        assert period.end_date == pd.Timestamp("2026-01-04")
+        # Before first explicit date
+        start, value = find_interval(intervals, pd.Timestamp("2019-06-15"))
+        assert start is None
+        assert value == "value1"
 
-        # First day of regular weekmask
-        period = get_applicable_weekmask_period(
-            get_weekmask_periods(calendar), pd.Timestamp("2026-06-15")
+        # Exactly on first explicit date
+        start, value = find_interval(intervals, pd.Timestamp("2020-01-01"))
+        assert start == pd.Timestamp("2020-01-01")
+        assert value == "value2"
+
+    def test_find_interval_with_multiple_intervals(self):
+        """Test find_interval with multiple intervals."""
+        intervals = (
+            (None, "early"),
+            (pd.Timestamp("2020-01-01"), "middle1"),
+            (pd.Timestamp("2021-01-01"), "middle2"),
+            (pd.Timestamp("2022-01-01"), "late"),
         )
-        assert period.weekmask == "1111100"
-        assert period.start_date == pd.Timestamp("2026-01-05")
-        assert period.end_date is None
+
+        # Test each interval
+        assert find_interval(intervals, pd.Timestamp("2019-06-15")) == (None, "early")
+        assert find_interval(intervals, pd.Timestamp("2020-06-15")) == (
+            pd.Timestamp("2020-01-01"),
+            "middle1",
+        )
+        assert find_interval(intervals, pd.Timestamp("2021-06-15")) == (
+            pd.Timestamp("2021-01-01"),
+            "middle2",
+        )
+        assert find_interval(intervals, pd.Timestamp("2022-06-15")) == (
+            pd.Timestamp("2022-01-01"),
+            "late",
+        )
+
+    def test_find_interval_edge_cases(self):
+        """Test find_interval edge cases."""
+        intervals = (
+            (None, "value1"),
+            (pd.Timestamp("2020-01-01"), "value2"),
+        )
+
+        # Timestamp just before boundary
+        start, value = find_interval(intervals, pd.Timestamp("2019-12-31"))
+        assert start is None
+        assert value == "value1"
+
+        # Timestamp on boundary
+        start, value = find_interval(intervals, pd.Timestamp("2020-01-01"))
+        assert start == pd.Timestamp("2020-01-01")
+        assert value == "value2"
+
+    def test_find_interval_empty_intervals_raises(self):
+        """Test find_interval raises ValueError for empty intervals."""
+        with pytest.raises(ValueError, match="intervals must not be empty"):
+            find_interval((), pd.Timestamp("2020-01-01"))
+
+
+WEEKMASK_DEFAULT: Weekmask = Weekmask("1111100")
+WEEKMASK_ALT_1: Weekmask = Weekmask("0001111")
+WEEKMASK_ALT_2: Weekmask = Weekmask("1110000")
+
+SATURDAY_TS = pd.Timestamp("2024-01-13")
+MONDAY_TS = pd.Timestamp("2024-01-15")
+
+TESTDATA = [
+    (True, SATURDAY_TS, "1111110"),
+    (False, MONDAY_TS, "0111100"),
+]
+
+PERIOD_START_DEFAULT_TS = pd.Timestamp("2024-01-01")
+PERIOD_END_DEFAULT_TS = pd.Timestamp("2024-01-31")
+
+
+class TestSetWeekday:
+    """Exhaustive tests for set_weekday covering all branches."""
+
+    # -- Empty input --
+
+    def test_empty_periods(self):
+        """Empty periods tuple returns empty tuple."""
+        result = set_weekday((), pd.Timestamp("2024-01-15"), True)
+        assert result == ()
+
+    # -- Period does not contain the date --
+
+    @pytest.mark.parametrize("weekday", [False, True])
+    def test_date_before_period(self, weekday: bool):
+        """Date before period's start_date leaves period unchanged."""
+        p = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=pd.Timestamp("2024-02-01"),
+            end_date=pd.Timestamp("2024-02-28"),
+        )
+        result = set_weekday((p,), pd.Timestamp("2024-01-15"), weekday)
+        assert result == (p,)
+
+    @pytest.mark.parametrize("weekday", [False, True])
+    def test_date_after_period(self, weekday: bool):
+        """Date after period's end_date leaves period unchanged."""
+        p = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=pd.Timestamp("2024-01-01"),
+            end_date=pd.Timestamp("2024-01-31"),
+        )
+        result = set_weekday((p,), pd.Timestamp("2024-02-15"), weekday)
+        assert result == (p,)
+
+    # -- Period contains the date but weekmask already matches --
+
+    @pytest.mark.parametrize(
+        "weekday,date",
+        [(False, pd.Timestamp("2024-01-13")), (True, pd.Timestamp("2024-01-15"))],
+    )
+    def test_day_already_set(self, weekday: bool, date: pd.Timestamp):
+        """Date is a weekday (bit=1) and weekday=True; no change needed."""
+        # 2024-01-15 is Monday (dayofweek=0), weekmask[0]='1' in DEFAULT_WEEKMASK
+        p = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=pd.Timestamp("2024-01-01"),
+            end_date=pd.Timestamp("2024-01-31"),
+        )
+        result = set_weekday((p,), date, weekday)
+        assert result == (p,)
+
+    # -- Split: date in the middle of a bounded period (all 3 sub-periods non-empty) --
+
+    @pytest.mark.parametrize("period_start", [PERIOD_START_DEFAULT_TS, None])
+    @pytest.mark.parametrize("period_end", [PERIOD_END_DEFAULT_TS, None])
+    @pytest.mark.parametrize(
+        "weekday,date,weekmask",
+        TESTDATA,
+    )
+    def test_split_middle_of_period(
+        self,
+        period_start: pd.Timestamp | None,
+        period_end: pd.Timestamp | None,
+        weekday: bool,
+        date: pd.Timestamp,
+        weekmask: Weekmask,
+    ):
+        """Setting weekday=False for a day that is currently 1, date in middle of bounded period."""
+        # 2024-01-15 is Monday (dayofweek=0), weekmask[0]='1' in DEFAULT_WEEKMASK
+        p = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=period_start,
+            end_date=period_end,
+        )
+        result = set_weekday((p,), date, weekday)
+        assert len(result) == 3
+        # p0: before the date
+        assert result[0].start_date == period_start
+        assert result[0].end_date == date + pd.Timedelta(days=-1)
+        assert result[0].weekmask == WEEKMASK_DEFAULT
+        # p1: the date itself
+        assert result[1].start_date == date
+        assert result[1].end_date == date
+        assert result[1].weekmask == weekmask
+        # p2: after the date
+        assert result[2].start_date == date + pd.Timedelta(days=1)
+        assert result[2].end_date == period_end
+        assert result[2].weekmask == WEEKMASK_DEFAULT
+
+    # -- Split: date == start_date of bounded period (p0 becomes empty) --
+
+    @pytest.mark.parametrize("period_end", [PERIOD_END_DEFAULT_TS, None])
+    @pytest.mark.parametrize(
+        "weekday,date,weekmask",
+        TESTDATA,
+    )
+    def test_split_at_start_of_period(
+        self,
+        period_end: pd.Timestamp | None,
+        weekday: bool,
+        date: pd.Timestamp,
+        weekmask: Weekmask,
+    ):
+        """Date equals start_date: p0 is empty and filtered out, only p1 and p2 remain."""
+        p = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=date,
+            end_date=period_end,
+        )
+        # 2024-01-15 is Monday, weekmask[0]='1', set to False to trigger split
+        result = set_weekday((p,), date, weekday)
+        assert len(result) == 2
+        # p1: the date itself
+        assert result[0].start_date == date
+        assert result[0].end_date == date
+        assert result[0].weekmask == weekmask
+        # p2: after the date
+        assert result[1].start_date == date + pd.Timedelta(days=1)
+        assert result[1].end_date == period_end
+        assert result[1].weekmask == WEEKMASK_DEFAULT
+
+    # -- Split: date == end_date of bounded period (p2 becomes empty) --
+
+    @pytest.mark.parametrize("period_start", [PERIOD_START_DEFAULT_TS, None])
+    @pytest.mark.parametrize(
+        "weekday,date,weekmask",
+        TESTDATA,
+    )
+    def test_split_at_end_of_period(
+        self,
+        period_start: pd.Timestamp | None,
+        weekday: bool,
+        date: pd.Timestamp,
+        weekmask: Weekmask,
+    ):
+        """Date equals end_date: p2 is empty and filtered out, only p0 and p1 remain."""
+        p = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=period_start,
+            end_date=date,
+        )
+        # 2024-01-15 is Monday, weekmask[0]='1', set to False to trigger split
+        result = set_weekday((p,), date, weekday)
+        assert len(result) == 2
+        # p0: before the date
+        assert result[0].start_date == period_start
+        assert result[0].end_date == date + pd.Timedelta(days=-1)
+        assert result[0].weekmask == WEEKMASK_DEFAULT
+        # p1: the date itself
+        assert result[1].start_date == date
+        assert result[1].end_date == date
+        assert result[1].weekmask == weekmask
+
+    # -- Split: single-day period where date == start_date == end_date (p0 and p2 both empty) --
+
+    @pytest.mark.parametrize(
+        "weekday,date,weekmask",
+        TESTDATA,
+    )
+    def test_split_single_day_period(
+        self, weekday: bool, date: pd.Timestamp, weekmask: Weekmask
+    ):
+        """Period is a single day equal to the date: p0 and p2 are empty, only p1 remains."""
+        p = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=date,
+            end_date=date,
+        )
+        # 2024-01-15 is Monday, weekmask[0]='1', set to False
+        result = set_weekday((p,), date, weekday)
+        assert len(result) == 1
+        assert result[0].start_date == date
+        assert result[0].end_date == date
+        assert result[0].weekmask == weekmask
+
+    # -- Multiple periods: only the matching one is split --
+
+    @pytest.mark.parametrize("period_start", [PERIOD_START_DEFAULT_TS, None])
+    @pytest.mark.parametrize("period_end", [PERIOD_END_DEFAULT_TS, None])
+    @pytest.mark.parametrize(
+        "weekday,date,weekmask",
+        TESTDATA,
+    )
+    def test_multiple_periods_only_matching_split(
+        self,
+        period_start: pd.Timestamp | None,
+        period_end: pd.Timestamp | None,
+        weekday: bool,
+        date: pd.Timestamp,
+        weekmask: Weekmask,
+    ):
+        """With multiple periods, only the one containing the date is split."""
+        split1 = pd.Timestamp("2024-01-07")
+        split2 = pd.Timestamp("2024-01-23")
+        p1 = WeekmaskPeriod(
+            weekmask=WEEKMASK_ALT_1,
+            start_date=period_start,
+            end_date=split1,
+        )
+        p2 = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=split1 + pd.Timedelta(days=1),
+            end_date=split2,
+        )
+        p3 = WeekmaskPeriod(
+            weekmask=WEEKMASK_ALT_2,
+            start_date=split2 + pd.Timedelta(days=1),
+            end_date=period_end,
+        )
+        # 2024-01-22 is Monday, in p2
+        result = set_weekday((p1, p2, p3), date, weekday)
+        assert len(result) == 5
+        # p1 unchanged
+        assert result[0] == p1
+        # p2 split into 3
+        assert result[1].start_date == p2.start_date
+        assert result[1].end_date == date + pd.Timedelta(days=-1)
+        assert result[1].weekmask == WEEKMASK_DEFAULT
+        assert result[2].start_date == date
+        assert result[2].end_date == date
+        assert result[2].weekmask == weekmask
+        assert result[3].start_date == date + pd.Timedelta(days=1)
+        assert result[3].end_date == split2
+        assert result[3].weekmask == WEEKMASK_DEFAULT
+        assert result[4] == p3
+
+    @pytest.mark.parametrize("period_start", [PERIOD_START_DEFAULT_TS, None])
+    @pytest.mark.parametrize("period_end", [PERIOD_END_DEFAULT_TS, None])
+    @pytest.mark.parametrize(
+        "weekday,date,weekmask",
+        TESTDATA,
+    )
+    def test_periods_optimized(
+        self,
+        period_start: pd.Timestamp | None,
+        period_end: pd.Timestamp | None,
+        weekday: bool,
+        date: pd.Timestamp,
+        weekmask: Weekmask,
+    ):
+        """With multiple periods, only the one containing the date is split."""
+        split1 = pd.Timestamp("2024-01-07")
+        split2 = pd.Timestamp("2024-01-23")
+        p1 = WeekmaskPeriod(
+            weekmask=WEEKMASK_ALT_1,
+            start_date=period_start,
+            end_date=split1,
+        )
+        p2 = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=split1 + pd.Timedelta(days=1),
+            end_date=split2,
+        )
+        p3 = WeekmaskPeriod(
+            weekmask=WEEKMASK_ALT_2,
+            start_date=split2 + pd.Timedelta(days=1),
+            end_date=period_end,
+        )
+        # 2024-01-22 is Monday, in p2
+        result = set_weekday((p1, p2, p3), date, weekday)
+        assert len(result) == 5
+        # p1 unchanged
+        assert result[0] == p1
+        # p2 split into 3
+        assert result[1].start_date == p2.start_date
+        assert result[1].end_date == date + pd.Timedelta(days=-1)
+        assert result[1].weekmask == WEEKMASK_DEFAULT
+        assert result[2].start_date == date
+        assert result[2].end_date == date
+        assert result[2].weekmask == weekmask
+        assert result[3].start_date == date + pd.Timedelta(days=1)
+        assert result[3].end_date == split2
+        assert result[3].weekmask == WEEKMASK_DEFAULT
+        assert result[4] == p3
+
+        # Revert the change.
+        result = set_weekday(result, date, not weekday)
+
+        # Original intervals should be recovered.
+        assert result == (p1, p2, p3)
+
+    @pytest.mark.parametrize("period_start", [PERIOD_START_DEFAULT_TS, None])
+    @pytest.mark.parametrize("period_end", [PERIOD_END_DEFAULT_TS, None])
+    @pytest.mark.parametrize(
+        "weekday,date,weekmask",
+        TESTDATA,
+    )
+    def test_multiple_periods_none_matching(
+        self,
+        period_start: pd.Timestamp | None,
+        period_end: pd.Timestamp | None,
+        weekday: bool,
+        date: pd.Timestamp,
+        weekmask: Weekmask,
+    ):
+        """With multiple periods, none containing the date means all unchanged."""
+        p1 = WeekmaskPeriod(
+            weekmask=WEEKMASK_DEFAULT,
+            start_date=period_start,
+            end_date=date + pd.Timedelta(days=-1),
+        )
+        p2 = WeekmaskPeriod(
+            weekmask=WEEKMASK_ALT_1,
+            start_date=date + pd.Timedelta(days=1),
+            end_date=period_end,
+        )
+        result = set_weekday((p1, p2), date, weekday)
+        assert result == (p1, p2)

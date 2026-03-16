@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
-from datetime import datetime, date
+from datetime import date, datetime
 
 import pandas as pd
 from pandas._libs.tslibs import localize_pydatetime
 from pandas._libs.tslibs.offsets import Easter, apply_wraps
 
 from exchange_calendars_extensions.core.util import (
-    get_month_name,
     get_day_of_week_name,
-    third_day_of_week_in_month,
+    get_month_name,
     last_day_in_month,
+    third_day_of_week_in_month,
 )
 
 
@@ -62,12 +62,10 @@ class AbstractHolidayOffset(Easter, ABC):
     def is_on_offset(self, dt):
         if self.normalize and not AbstractHolidayOffset._is_normalized(dt):
             return False
-        return date(dt.year, dt.month, dt.day) == self.holiday(dt.year).to_pydate()
+        return dt.date() == self.holiday(dt.year)
 
 
-def get_third_day_of_week_in_month_offset_class(
-    day_of_week: int, month: int
-) -> type[AbstractHolidayOffset]:
+def get_third_day_of_week_in_month_offset_class(day_of_week: int, month: int) -> type:
     """
     Return a new class that represents an offset that, when applied to the first day of a year, results in the third
     given day of the week in the given month.
@@ -84,11 +82,11 @@ def get_third_day_of_week_in_month_offset_class(
 
     Returns
     -------
-    Type[AbstractHolidayOffset]
+    type
         A new class that represents the offset.
     """
 
-    def holiday(self, year) -> date:
+    def holiday(_self, year) -> date:
         """
         Return a function that returns the third instance of the given day of the week in the given month and year.
         """
@@ -100,17 +98,14 @@ def get_third_day_of_week_in_month_offset_class(
     # Get name of month.
     month_name = get_month_name(month)
 
-    # Create the new class.
-    offset = type(
+    # Create and return new class.
+    return type(
         f"MonthlyExpiry{month_name}{day_of_week_name}Offset",
         (AbstractHolidayOffset,),
         {
             "holiday": holiday,
         },
     )
-
-    # Return the new class.
-    return offset
 
 
 # A dictionary of dictionaries that maps day of week and month to corresponding offset class as returned by
@@ -135,7 +130,7 @@ ThirdDayOfWeekInMonthOffsetClasses = {
 }
 
 
-def get_last_day_of_month_offset_class(month: int) -> type[AbstractHolidayOffset]:
+def get_last_day_of_month_offset_class(month: int) -> type:
     """
     Return a new class that represents an offset that, when applied to the first day of a year, results in the last
     day of the given month.
@@ -147,11 +142,11 @@ def get_last_day_of_month_offset_class(month: int) -> type[AbstractHolidayOffset
 
     Returns
     -------
-    Type[AbstractHolidayOffset]
+    type
         A new class that represents the offset.
     """
 
-    def holiday(self, year) -> date:
+    def holiday(_self, year) -> date:
         """
         Return a function that returns the last day of the month for a given year.
         """
@@ -160,17 +155,14 @@ def get_last_day_of_month_offset_class(month: int) -> type[AbstractHolidayOffset
     # Get name of month.
     month_name = get_month_name(month)
 
-    # Create the new class.
-    offset = type(
+    # Create and return new class.
+    return type(
         f"LastDayOfMonth{month_name}Offset",
         (AbstractHolidayOffset,),
         {
             "holiday": holiday,
         },
     )
-
-    # Return the new class.
-    return offset
 
 
 # A dictionary that maps month to corresponding offset class as returned by get_last_day_of_month_offset_class. Used

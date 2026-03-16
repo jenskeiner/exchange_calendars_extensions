@@ -10,10 +10,10 @@ updates:
     schedule:
       interval: "monthly"
     cooldown:
-      default-days: 7
+      default-days: 10
   - package-ecosystem: "uv" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "monthly"
     cooldown:
-      default-days: 7
+      default-days: 10

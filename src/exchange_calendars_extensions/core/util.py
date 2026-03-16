@@ -1,9 +1,21 @@
+import re
+from bisect import bisect_right
+from collections.abc import Sequence
 from datetime import date, timedelta
-from typing import Annotated
+from functools import cached_property
+from typing import Annotated, TypeVar
 
 import pandas as pd
 from exchange_calendars import ExchangeCalendar
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints
+from pydantic_core import core_schema
+
+from exchange_calendars_extensions.core import ChangeSet, DayChange
+
+T = TypeVar("T")
+
+
+Interval = tuple[pd.Timestamp | None, T]
 
 
 def get_month_name(month: int) -> str:
@@ -124,10 +136,47 @@ def last_day_in_month(month: int, year: int) -> date:
 
 
 # Specifies which days of the week are trading days, Mon - Sun, e.g. "1111100".
-Weekmask = Annotated[
+Weekmask2 = Annotated[
     str,
     StringConstraints(pattern=r"^[01]{7}$"),
 ]
+
+WEEKMASK_PATTERN = r"^[01]{7}$"
+
+
+class Weekmask(str):
+    @classmethod
+    def __get_pydantic_core_schema__(cls, _source_type, _handler):
+        return core_schema.no_info_plain_validator_function(
+            cls._validate,  # Single source of truth
+            serialization=core_schema.to_string_ser_schema(),
+        )
+
+    @classmethod
+    def _validate(cls, v):
+        """Validate and convert to a normalized Date."""
+        if isinstance(v, cls):
+            return v
+
+        if not re.match(WEEKMASK_PATTERN, v):
+            raise ValueError(f"Invalid weekmask: {v}")
+
+        return cls(v)
+
+    @classmethod
+    def for_day(cls, day: int) -> "Weekmask":
+        return cls("0" * day + "1" + "0" * (7 - day))
+
+    def contains(self, day: int) -> bool:
+        return self[day] == "1"
+
+    def set(self, day: int, value: bool) -> "Weekmask":
+        return Weekmask(self[:day] + ("1" if value else "0") + self[day + 1 :])
+
+    def bitwise_and(self, other: "Weekmask") -> "Weekmask":
+        return Weekmask(
+            "".join("1" if x == "1" and y == "1" else "0" for x, y in zip(self, other))
+        )
 
 
 class WeekmaskPeriod(BaseModel):
@@ -149,11 +198,86 @@ class WeekmaskPeriod(BaseModel):
     start_date: pd.Timestamp | None = None
     end_date: pd.Timestamp | None = None
 
+    def contains(self, ts: pd.Timestamp) -> bool:
+        return (self.start_date is None or self.start_date <= ts) and (
+            self.end_date is None or ts <= self.end_date
+        )
+
+    def empty(self) -> bool:
+        return (
+            self.start_date is not None
+            and self.end_date is not None
+            and self.start_date > self.end_date
+        )
+
+    def mask(self) -> Weekmask:
+        # Return a weekmask representing the days of the week occurring in the period from start_date to end_date.
+        # For example, if start_date is a Monday and end_date is the following Wednesday, the mask should be "1110000".
+        if self.start_date is None or self.end_date is None:
+            return Weekmask("1111111")
+
+        mask_bits = ["0"] * 7
+        current = self.start_date
+        while current <= self.end_date:
+            if mask_bits[current.dayofweek] == "1":
+                break  # All days already set.
+            mask_bits[current.dayofweek] = "1"
+            current += pd.Timedelta(days=1)
+
+        return Weekmask("".join(mask_bits))
+
+    @cached_property
+    def length(self) -> int | None:
+        if self.start_date is None or self.end_date is None:
+            # Return None, meaning infinity.
+            return None
+        return (self.end_date - self.start_date).days + 1
+
+    @classmethod
+    def sort(
+        cls, wp1: "WeekmaskPeriod", wp2: "WeekmaskPeriod"
+    ) -> tuple["WeekmaskPeriod", "WeekmaskPeriod"]:
+        return (
+            (wp1, wp2)
+            if wp1.length is None
+            or (wp2.length is not None and wp1.length >= wp2.length)
+            else (wp2, wp1)
+        )
+
+    def is_compatible_with(self, other: "WeekmaskPeriod") -> bool:
+        a, b = self.sort(self, other)
+        mask = b.mask()
+        return a.weekmask.bitwise_and(mask) == b.weekmask.bitwise_and(mask)
+
+    def merge(self, other: "WeekmaskPeriod") -> "WeekmaskPeriod":
+        a, b = self.sort(self, other)
+        return WeekmaskPeriod(
+            weekmask=a.weekmask,
+            start_date=a.start_date
+            if (
+                a.start_date is None
+                or (b.start_date is not None and a.start_date <= b.start_date)
+            )
+            else b.start_date,
+            end_date=a.end_date
+            if (
+                a.end_date is None
+                or (b.end_date is not None and b.end_date <= a.end_date)
+            )
+            else b.end_date,
+        )
+
+
+def _not_none(x):
+    if x is None:
+        raise ValueError(f"{x!r} is None")
+    return x
+
 
 class SpecialWeekmaskPeriod(WeekmaskPeriod):
     """A special weekmask period. Must have an end date."""
 
-    end_date: pd.Timestamp
+    end_date: Annotated[pd.Timestamp | None, AfterValidator(_not_none)]
 
 
 def get_weekmask_periods(
@@ -180,7 +304,7 @@ def get_weekmask_periods(
         exchange_calendar, "special_weekmasks", None
     )  # Assumed to be sorted and non-overlapping.
 
-    default_weekmask = exchange_calendar.weekmask
+    default_weekmask = Weekmask(exchange_calendar.weekmask)
 
     if not special_weekmasks:
         return (WeekmaskPeriod(weekmask=default_weekmask),)
@@ -230,32 +354,103 @@ def get_weekmask_periods(
     return tuple(periods)
 
 
-def get_applicable_weekmask_period(
-    periods: tuple[WeekmaskPeriod, ...], date: pd.Timestamp
-) -> WeekmaskPeriod:
+def find_interval(
+    intervals: tuple[Interval[T], ...], timestamp: pd.Timestamp
+) -> Interval[T]:
     """
-    Return the applicable weekmask period for the exchange calendar at the given date.
+    Find the interval containing the given timestamp using binary search.
 
-    This is a convenience wrapper around get_weekmask_periods that finds the specific
-    WeekmaskPeriod that applies to the given date.
+    The intervals form a partition of time with no gaps. Each interval is
+    a tuple of (start_date, value) where start_date is inclusive and the
+    interval extends to (but does not include) the next interval's start_date.
+    The first interval has None as start_date, representing (-infinity, ...).
 
     Parameters
     ----------
-    periods : tuple[WeekmaskPeriod,...]
-        The weekmask periods to search.
-    date : pd.Timestamp
-        The date for which to get the applicable weekmask period.
+    intervals : tuple[Interval[T], ...]
+        A tuple of (start_date, value) tuples sorted by start_date in ascending
+        order, with the first start_date being None.
+    timestamp : pd.Timestamp
+        The timestamp to locate within the intervals.
 
     Returns
     -------
-    WeekmaskPeriod
-        The WeekmaskPeriod that applies to the given date.
+    Interval[T]
+        The (start_date, value) tuple for the interval containing the timestamp.
     """
-    for period in periods:
-        if (period.start_date is None or date >= period.start_date) and (
-            period.end_date is None or date <= period.end_date
-        ):
-            return period
+    if not intervals:
+        raise ValueError("intervals must not be empty")
 
-    # This should never happen if periods cover all dates
-    raise ValueError(f"No weekmask period found for date {date}")
+    # Extract start dates, replacing None with a sentinel far in the past
+    # Using pd.Timestamp.min as the sentinel for binary search
+    start_dates = [pd.Timestamp.min if d is None else d for d, _ in intervals]
+
+    # Find insertion point: first index where start_date > timestamp
+    # The interval we want is at idx - 1 (or len - 1 if idx == len)
+    idx = bisect_right(start_dates, timestamp)
+
+    if idx == 0:
+        # Timestamp is before all intervals (only possible if first interval
+        # doesn't start with None, which violates the invariant)
+        raise ValueError(f"Timestamp {timestamp} is before all intervals")
+
+    return intervals[idx - 1]
+
+
+def _optimize_periods(
+    periods: Sequence[WeekmaskPeriod],
+) -> Sequence[WeekmaskPeriod]:
+    if not periods:
+        return periods
+
+    result: list[WeekmaskPeriod] = []
+    current = periods[0]
+
+    for next_period in periods[1:]:
+        if (
+            # current.weekmask == next_period.weekmask
+            current.is_compatible_with(next_period)
+            and current.end_date is not None
+            and next_period.start_date is not None
+            and current.end_date + pd.Timedelta(days=1) == next_period.start_date
+        ):
+            current = current.merge(next_period)
+        else:
+            result.append(current)
+            current = next_period
+
+    result.append(current)
+    return tuple(result)
+
+
+def set_weekday(
+    periods: Sequence[WeekmaskPeriod], ts: pd.Timestamp, weekday: bool
+) -> tuple[WeekmaskPeriod, ...]:
+    result = []
+    for p in periods:
+        if not p.contains(ts) or (weekday ^ (not p.weekmask.contains(ts.dayofweek))):
+            # Interval already good.
+            result.append(p)
+        else:
+            # Split into three intervals.
+            p0 = WeekmaskPeriod(
+                start_date=p.start_date,
+                end_date=ts + pd.Timedelta(days=-1),
+                weekmask=p.weekmask,
+            )
+            p1 = WeekmaskPeriod(
+                start_date=ts,
+                end_date=ts,
+                weekmask=p.weekmask.set(ts.dayofweek, weekday),
+            )
+            p2 = WeekmaskPeriod(
+                start_date=ts + pd.Timedelta(days=1),
+                end_date=p.end_date,
+                weekmask=p.weekmask,
+            )
+            result.extend([x for x in [p0, p1, p2] if not x.empty()])
+    return tuple(_optimize_periods(result))
+
+
+def copy_changeset(cs: ChangeSet):
+    return {k: DayChange.model_validate(v.model_dump()) for k, v in cs.items()}
