@@ -1,6 +1,6 @@
 import datetime as dt
 import importlib.metadata
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import exchange_calendars as ec
 import pandas as pd
@@ -43,7 +43,7 @@ from tests.synthetic_calendar import (
 _EC_VERSION: tuple[int, ...] = tuple(
     int(x) for x in importlib.metadata.version("exchange-calendars").split(".")
 )
-_EC_VERSION_THRESHOLD: tuple[int, ...] = tuple()  # (4, 13, 2) ?
+_EC_VERSION_THRESHOLD: tuple[int, ...] = ()  # (4, 13, 2) ?
 
 # Skip some tests until https://github.com/gerrymanoim/exchange_calendars/pull/553 is resolved.
 _skip_below_threshold = pytest.mark.skipif(
@@ -483,6 +483,10 @@ def assert_in_regular_special_days(
             assert cal.holidays(start=date, end=date, return_name=True).empty
 
 
+def assert_series_equal(s: Any, data: dict):
+    assert isinstance(s, pd.Series) and s.compare(pd.Series(data)).empty
+
+
 @pytest.mark.parametrize("weekend_day", [False, True, MISSING])
 @pytest.mark.parametrize("set_name", ["set", "inherit", "none"])
 @pytest.mark.parametrize(
@@ -547,14 +551,22 @@ def test_set_holiday(
     set_name: Literal["set", "inherit", "none"],
     test_calendar,
 ):
+    def get_assigned_and_expected_name() -> tuple[str | None | MISSING, str | None]:
+        if set_name == "set":
+            return name, name
+        elif set_name == "none":
+            return None, None
+        else:
+            return MISSING, name_orig
+
+    assigned_name, expected_name = get_assigned_and_expected_name()
+
     ecx.change_day(
         exchange="TEST",
         date=date,
         action=DayChange(
             spec=NonBusinessDaySpec(weekend_day=weekend_day, holiday=True),
-            name=(
-                name if set_name == "set" else (None if set_name == "none" else MISSING)
-            ),
+            name=assigned_name,
         ),
     )
 
@@ -562,38 +574,17 @@ def test_set_holiday(
         ExtendedExchangeCalendar, ec.get_calendar("TEST")
     )
 
-    # Expected name of the new holiday.
-    expected_name = (
-        name if set_name == "set" else (None if set_name == "none" else name_orig)
-    )
-
     # Holiday should be in regular holidays.
     assert c.regular_holidays is not None
     s = c.regular_holidays.holidays(start=date, end=date, return_name=True)
-    assert isinstance(s, pd.Series) and (
-        s.compare(
-            pd.Series(
-                {
-                    date: expected_name,
-                }
-            )
-        ).empty
-    )
+    assert_series_equal(s, {date: expected_name})
 
     # Holiday should not be in ad-hoc holidays.
     assert date not in c.adhoc_holidays
 
     # Holiday should be in combined holidays calendar.
     s = c.holidays_all.holidays(start=date, end=date, return_name=True)
-    assert isinstance(s, pd.Series) and (
-        s.compare(
-            pd.Series(
-                {
-                    date: expected_name,
-                }
-            )
-        ).empty
-    )
+    assert_series_equal(s, {date: expected_name})
 
     # Holiday should not be in special opens or closes.
     assert_not_in_special_sessions(date, c, "special open")
@@ -617,28 +608,12 @@ def test_set_holiday(
 
     if weekend_day is MISSING and weekend_day_orig or weekend_day is True:
         s = c.weekend_days.holidays(start=date, end=date, return_name=True)
-        assert isinstance(s, pd.Series) and (
-            s.compare(
-                pd.Series(
-                    {
-                        date: None,
-                    }
-                )
-            ).empty
-        )
+        assert_series_equal(s, {date: None})
         assert c.week_days.holidays(start=date, end=date, return_name=True).empty
     else:
         assert c.weekend_days.holidays(start=date, end=date, return_name=True).empty
         s = c.week_days.holidays(start=date, end=date, return_name=True)
-        assert isinstance(s, pd.Series) and (
-            s.compare(
-                pd.Series(
-                    {
-                        date: None,
-                    }
-                )
-            ).empty
-        )
+        assert_series_equal(s, {date: None})
 
     # Check if custom business day rolls over day.
     assert date < c.day.rollforward(date)
@@ -710,15 +685,7 @@ def test_set_weekend_day(
         assert c.regular_holidays is not None
         s = c.regular_holidays.holidays(start=date, end=date, return_name=True)
         # Day should be in regular holidays.
-        assert isinstance(s, pd.Series) and (
-            s.compare(
-                pd.Series(
-                    {
-                        date: expected_name,
-                    }
-                )
-            ).empty
-        )
+        assert_series_equal(s, {date: expected_name})
     else:
         assert (
             c.regular_holidays is not None
@@ -732,15 +699,7 @@ def test_set_weekend_day(
     if holiday is MISSING and (regular_holiday_orig or ad_hoc_holiday_orig):
         # Day should be in combined holidays calendar.
         s = c.holidays_all.holidays(start=date, end=date, return_name=True)
-        assert isinstance(s, pd.Series) and (
-            s.compare(
-                pd.Series(
-                    {
-                        date: None if ad_hoc_holiday_orig else expected_name,
-                    }
-                )
-            ).empty
-        )
+        assert_series_equal(s, {date: None if ad_hoc_holiday_orig else expected_name})
     else:
         assert c.holidays_all.holidays(start=date, end=date, return_name=True).empty
 
@@ -766,19 +725,144 @@ def test_set_weekend_day(
 
     # Day should be in weekend days, but not in week days.
     s = c.weekend_days.holidays(start=date, end=date, return_name=True)
-    assert isinstance(s, pd.Series) and (
-        s.compare(
-            pd.Series(
-                {
-                    date: None,
-                }
-            )
-        ).empty
-    )
+    assert_series_equal(s, {date: None})
     assert c.week_days.holidays(start=date, end=date, return_name=True).empty
 
     # Check if custom business day rolls over day.
     assert date < c.day.rollforward(date)
+
+
+def check_regular_special_session(
+    session_type: SpecialSessionType,
+    calendar: ExtendedExchangeCalendar,
+    date: DateLike,
+) -> tuple[Literal["regular", "adhoc", "normal"], dt.time, str | None]:
+    prop_regular = (
+        calendar.special_opens
+        if session_type == "special open"
+        else calendar.special_closes
+    )
+    prop_ahhoc = (
+        calendar.special_opens_adhoc
+        if session_type == "special open"
+        else calendar.special_closes_adhoc
+    )
+    assert isinstance(prop_regular, list)
+    assert all(
+        isinstance(item, tuple)
+        and len(item) == 2
+        and isinstance(item[0], dt.time)
+        and isinstance(item[1], HolidayCalendar)
+        for item in prop_regular
+    )
+
+    # Tuple containing the time and name pairs of any special sessions that match the date. If non-empty, this
+    # should contain exactly one element.
+    sessions_regular = tuple(
+        (t, cal.holidays(start=date, end=date, return_name=True).iloc[0])
+        for t, cal in prop_regular
+        if not cal.holidays(start=date, end=date, return_name=True).empty
+    )
+
+    assert len(sessions_regular) <= 1
+
+    sessions_adhoc = tuple(t for t, dates in prop_ahhoc if date in dates)
+
+    assert len(sessions_adhoc) <= 1
+
+    assert len(sessions_regular) + len(sessions_adhoc) <= 1
+
+    if len(sessions_regular) > 0:
+        return "regular", sessions_regular[0][0], sessions_regular[0][1]
+    elif len(sessions_adhoc) > 0:
+        return "adhoc", sessions_adhoc[0], None
+    return (
+        "normal",
+        OPEN_REGULAR if session_type == "special open" else CLOSE_REGULAR,
+        None,
+    )
+
+
+def get_assigned_and_expected_name(
+    set_name: Literal["set", "none", "inherit"], name: str, name_orig: str | None
+) -> tuple[str | None | MISSING, str | None]:
+    if set_name == "set":
+        return name, name
+    elif set_name == "none":
+        return None, None
+    else:
+        return MISSING, name_orig
+
+
+def assert_in_special_sessions(
+    *,
+    session_type: SpecialSessionType,
+    calendar: ExtendedExchangeCalendar,
+    date: DateLike,
+    name_orig: str | None,
+    assigned_name: str | None | MISSING,
+    expected_name: str | None,
+    expected_time: dt.time,
+    orig: tuple[Literal["regular", "adhoc", "normal"], dt.time, str | None],
+):
+    prop_adhoc = (
+        calendar.special_opens_adhoc
+        if session_type == "special open"
+        else calendar.special_closes_adhoc
+    )
+    if (
+        orig[0] == "regular"
+        and orig[1] == expected_time
+        and (assigned_name is MISSING or assigned_name == orig[2])
+    ):
+        # Day should be in regular special sessions with expected open/close time.
+        assert_in_regular_special_days(
+            calendar, date, expected_time, name_orig, session_type
+        )
+    elif (
+        orig[0] == "adhoc"
+        and orig[1] == expected_time
+        and (assigned_name is MISSING or assigned_name is None)
+    ):
+        # Day should be in ad-hoc special opens with expected open time.
+        entry = [(t, dates) for t, dates in prop_adhoc if t == expected_time]
+        assert len(entry) == 1
+        _, dates = entry[0]
+        assert date in dates
+    else:
+        # Day should be in regular special opens with expected open time.
+        assert_in_regular_special_days(
+            calendar, date, expected_time, expected_name, session_type
+        )
+
+
+def assert_not_in_holidays(calendar: ExtendedExchangeCalendar, date: DateLike) -> None:
+    # Day should not be in regular holidays.
+    assert (
+        calendar.regular_holidays is not None
+        and calendar.regular_holidays.holidays(
+            start=date, end=date, return_name=True
+        ).empty
+    )
+
+    # Day should not be in ad-hoc holidays.
+    assert date not in calendar.adhoc_holidays
+
+    # Day should not be in combined holidays calendar.
+    assert calendar.holidays_all.holidays(start=date, end=date, return_name=True).empty
+
+
+def get_expected_session_time(
+    side: Literal["open", "close"],
+    assigned_time: dt.time | Literal["regular"] | MISSING,
+    original_time: dt.time,
+) -> dt.time:
+    if assigned_time is MISSING:
+        return original_time
+    elif assigned_time == "regular":
+        return OPEN_REGULAR if side == "open" else CLOSE_REGULAR
+    else:
+        return assigned_time
 
 
 def _make_param_test_set_business_day(
@@ -877,48 +961,16 @@ def test_set_business_day(
 
     c = test_calendar
 
-    special_open_regular0 = tuple(
-        (t, cal.holidays(start=date, end=date, return_name=True).iloc[0])
-        for t, cal in c.special_opens
-        if not cal.holidays(start=date, end=date, return_name=True).empty
-    )
-    special_open_regular: tuple[dt.time, str | None] | None = (
-        special_open_regular0[0] if len(special_open_regular0) > 0 else None
+    assigned_name, expected_name = get_assigned_and_expected_name(
+        set_name, name, name_orig
     )
 
-    special_open_adhoc0 = tuple(
-        t for t, dates in c.special_opens_adhoc if date in dates
+    original_open: tuple[Literal["regular", "adhoc", "normal"], dt.time, str | None] = (
+        check_regular_special_session("special open", c, date)
     )
-    special_open_adhoc: dt.time | None = (
-        special_open_adhoc0[0] if len(special_open_adhoc0) > 0 else None
-    )
-
-    special_close_regular0 = tuple(
-        (t, cal.holidays(start=date, end=date, return_name=True).iloc[0])
-        for t, cal in c.special_closes
-        if not cal.holidays(start=date, end=date, return_name=True).empty
-    )
-    special_close_regular: tuple[dt.time, str | None] | None = (
-        special_close_regular0[0] if len(special_close_regular0) > 0 else None
-    )
-
-    special_close_adhoc0 = tuple(
-        t for t, dates in c.special_closes_adhoc if date in dates
-    )
-    special_close_adhoc: dt.time | None = (
-        special_close_adhoc0[0] if len(special_close_adhoc0) > 0 else None
-    )
-
-    open_time_orig: dt.time = (
-        special_open_regular[0]
-        if special_open_regular
-        else (special_open_adhoc if special_open_adhoc else OPEN_REGULAR)
-    )
-    close_time_orig: dt.time = (
-        special_close_regular[0]
-        if special_close_regular
-        else (special_close_adhoc if special_close_adhoc else CLOSE_REGULAR)
-    )
+    original_close: tuple[
+        Literal["regular", "adhoc", "normal"], dt.time, str | None
+    ] = check_regular_special_session("special close", c, date)
 
     monthly_expiry_orig: bool | None = (
         not c.monthly_expiries.holidays(start=date, end=date, return_name=True).empty
@@ -929,10 +981,6 @@ def test_set_business_day(
         not c.quarterly_expiries.holidays(start=date, end=date, return_name=True).empty
         if c.quarterly_expiries
         else None
-    )
-
-    assigned_name: str | None | MISSING = (
-        name if set_name == "set" else (None if set_name == "none" else MISSING)
     )
 
     ecx.change_day(
@@ -948,33 +996,11 @@ def test_set_business_day(
         ExtendedExchangeCalendar, ec.get_calendar("TEST")
     )
 
-    # Expected name of the modified day.
-    expected_name = (
-        name if set_name == "set" else (None if set_name == "none" else name_orig)
-    )
+    # Day should not be in holidays.
+    assert_not_in_holidays(c, date)
 
-    # Day should not be in regular holidays.
-    assert (
-        c.regular_holidays is not None
-        and c.regular_holidays.holidays(start=date, end=date, return_name=True).empty
-    )
-
-    # Day should not be in ad-hoc holidays.
-    assert date not in c.adhoc_holidays
-
-    # Day should not be in combined holidays calendar.
-    assert c.holidays_all.holidays(start=date, end=date, return_name=True).empty
-
-    open_time_expected: dt.time = (
-        open_time_orig
-        if open is MISSING
-        else (OPEN_REGULAR if open == "regular" else open)
-    )
-    close_time_expected: dt.time = (
-        close_time_orig
-        if close is MISSING
-        else (CLOSE_REGULAR if close == "regular" else close)
-    )
+    open_time_expected = get_expected_session_time("open", open, original_open[1])
+    close_time_expected = get_expected_session_time("close", close, original_close[1])
 
     if open_time_expected == OPEN_REGULAR and close_time_expected == CLOSE_REGULAR:
         # Regular session. Day should not be in special opens or closes.
@@ -983,74 +1009,31 @@ def test_set_business_day(
     else:
         if open_time_expected != OPEN_REGULAR:
             # Day should be in special opens.
-
-            if (
-                special_open_regular
-                and special_open_regular[0] == open_time_expected
-                and (
-                    assigned_name is MISSING or assigned_name == special_open_regular[1]
-                )
-            ):
-                # Day should be in regular special opens with expected open time.
-                assert_in_regular_special_days(
-                    c, date, open_time_expected, name_orig, "special open"
-                )
-            elif (
-                special_open_adhoc
-                and special_open_adhoc == open_time_expected
-                and (assigned_name is MISSING or assigned_name is None)
-            ):
-                # Day should be in ad-hoc special opens with expected open time.
-                entry = [
-                    (t, dates)
-                    for t, dates in c.special_opens_adhoc
-                    if t == open_time_expected
-                ]
-                assert len(entry) == 1
-                t, dates = entry[0]
-                assert date in dates
-            else:
-                # Day should be in regular special opens with expected open time.
-                assert_in_regular_special_days(
-                    c, date, open_time_expected, expected_name, "special open"
-                )
+            assert_in_special_sessions(
+                session_type="special open",
+                calendar=c,
+                date=date,
+                name_orig=name_orig,
+                assigned_name=assigned_name,
+                expected_name=expected_name,
+                expected_time=open_time_expected,
+                orig=original_open,
+            )
         else:
             assert_not_in_special_sessions(date, c, "special open")
 
         if close_time_expected != CLOSE_REGULAR:
             # Day should be in special closes.
-
-            if (
-                special_close_regular
-                and special_close_regular[0] == close_time_expected
-                and (
-                    assigned_name is MISSING
-                    or assigned_name == special_close_regular[1]
-                )
-            ):
-                # Day should be in regular special closes with expected close time.
-                assert_in_regular_special_days(
-                    c, date, close_time_expected, name_orig, "special close"
-                )
-            elif (
-                special_close_adhoc
-                and special_close_adhoc == close_time_expected
-                and (assigned_name is MISSING or assigned_name is None)
-            ):
-                # Day should be in ad-hoc special opens with expected open time.
-                entry = [
-                    (t, dates)
-                    for t, dates in c.special_closes_adhoc
-                    if t == close_time_expected
-                ]
-                assert len(entry) == 1
-                t, dates = entry[0]
-                assert date in dates
-            else:
-                # Day should be in regular special closes with expected close time.
-                assert_in_regular_special_days(
-                    c, date, close_time_expected, expected_name, "special close"
-                )
+            assert_in_special_sessions(
+                session_type="special close",
+                calendar=c,
+                date=date,
+                name_orig=name_orig,
+                assigned_name=assigned_name,
+                expected_name=expected_name,
+                expected_time=close_time_expected,
+                orig=original_close,
+            )
         else:
             assert_not_in_special_sessions(date, c, "special close")
 
@@ -1071,15 +1054,7 @@ def test_set_business_day(
 
     # Day should be in week days.
     s = c.week_days.holidays(start=date, end=date, return_name=True)
-    assert isinstance(s, pd.Series) and (
-        s.compare(
-            pd.Series(
-                {
-                    date: None,
-                }
-            )
-        ).empty
-    )
+    assert_series_equal(s, {date: None})
 
     # Check if custom business day does not roll over day.
     assert date == c.day.rollforward(date)

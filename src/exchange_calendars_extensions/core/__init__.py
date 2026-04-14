@@ -37,7 +37,7 @@ from .util import copy_changeset
 # Dictionary that maps from exchange key to ConsolidatedChangeSet. Contains all changesets to apply when creating a new
 # calendar instance. This dictionary should only ever contain non-empty changesets. If a changeset becomes empty, the
 # corresponding entry should just be removed.
-_changesets: dict[str, ConsolidatedChangeSet] = dict()
+_changesets: dict[str, ConsolidatedChangeSet] = {}
 
 
 WeekDayInt = Annotated[int, Field(ge=0, le=6)]
@@ -341,12 +341,12 @@ def _change_calendar(
         case "replace":
             return consolidate(changes)
         case "update":
-            result = {k: v for k, v in changes0.items()}
+            result = dict(changes0)
             for k, v in changes.items():
                 result[k] = v
             return consolidate(result)
         case "merge":
-            result = {k: v for k, v in changes0.items()}
+            result = dict(changes0)
             for k, v in changes.items():
                 if k not in result:
                     result[k] = v

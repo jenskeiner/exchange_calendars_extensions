@@ -100,81 +100,57 @@ def create_test_calendar_class(
 
         @property
         def special_closes(self):
-            return (
-                list(
-                    map(
-                        lambda x: (
-                            x[0],
-                            HolidayCalendar(
-                                [
-                                    Holiday(
-                                        name=f"Special Close {i}",
-                                        month=ts.month,
-                                        day=ts.day,
-                                        observance=next_monday,
-                                    )
-                                    for i, ts in enumerate(x[1])
-                                ]
-                            ),
-                        ),
-                        special_closes,
-                    )
+            return [
+                (
+                    x[0],
+                    HolidayCalendar(
+                        [
+                            Holiday(
+                                name=f"Special Close {i}",
+                                month=ts.month,
+                                day=ts.day,
+                                observance=next_monday,
+                            )
+                            for i, ts in enumerate(x[1])
+                        ]
+                    ),
                 )
-                if special_closes
-                else []
-            )
+                for x in special_closes or []
+            ]
 
         @property
         def special_closes_adhoc(self):
-            return (
-                list(
-                    map(
-                        lambda x: (x[0], pd.DatetimeIndex(ensure_list(x[1]))),
-                        adhoc_special_closes,
-                    )
-                )
-                if adhoc_special_closes
-                else []
-            )
+            return [
+                (x[0], pd.DatetimeIndex(ensure_list(x[1])))
+                for x in adhoc_special_closes or []
+            ]
 
         @property
         def special_opens(self):
-            return (
-                list(
-                    map(
-                        lambda x: (
-                            x[0],
-                            HolidayCalendar(
-                                [
-                                    Holiday(
-                                        name=f"Special Open {i}",
-                                        month=ts.month,
-                                        day=ts.day,
-                                        observance=next_monday,
-                                    )
-                                    for i, ts in enumerate(x[1])
-                                ]
-                            ),
-                        ),
-                        special_opens,
-                    )
+            return [
+                (
+                    x[0],
+                    HolidayCalendar(
+                        [
+                            Holiday(
+                                name=f"Special Open {i}",
+                                month=ts.month,
+                                day=ts.day,
+                                observance=next_monday,
+                            )
+                            for i, ts in enumerate(x[1])
+                        ]
+                    ),
                 )
-                if special_opens
-                else []
-            )
+                for x in special_opens or []
+            ]
 
         @property
         def special_opens_adhoc(self):
-            return (
-                list(
-                    map(
-                        lambda x: (x[0], pd.DatetimeIndex(ensure_list(x[1]))),
-                        adhoc_special_opens,
-                    )
-                )
-                if adhoc_special_opens
-                else []
-            )
+            return [
+                (x[0], pd.DatetimeIndex(ensure_list(x[1])))
+                for x in adhoc_special_opens or []
+            ]
 
         # Weekmask.
         @property

@@ -1224,7 +1224,7 @@ def extend_class(
 
     def __init__(self, *args, **kwargs):
         # Initialize custom tags storage.
-        self._custom_tags: dict[pd.Timestamp, set[str]] = dict()
+        self._custom_tags: dict[pd.Timestamp, set[str]] = {}
 
         # Save adjusted properties. Initialize with copies of the original properties.
 
@@ -1313,7 +1313,7 @@ def extend_class(
                     # Do not change tags.
                     pass
                 else:
-                    self._custom_tags[date] = {x for x in change.tags}
+                    self._custom_tags[date] = set(change.tags)
 
                 if change.spec:
                     if isinstance(change.spec, NonBusinessDaySpec):
@@ -1401,24 +1401,22 @@ def extend_class(
                         prev_close, prev_close_type, prev_close_name = find_close()
 
                         # Determine the session times.
-                        open_time = (
-                            prev_open
-                            if change.spec.open is MISSING
-                            else (
+                        if change.spec.open is MISSING:
+                            open_time = prev_open
+                        else:
+                            open_time = (
                                 regular_open
                                 if change.spec.open == "regular"
                                 else change.spec.open
                             )
-                        )
-                        close_time = (
-                            prev_close
-                            if change.spec.close is MISSING
-                            else (
+                        if change.spec.close is MISSING:
+                            close_time = prev_close
+                        else:
+                            close_time = (
                                 regular_close
                                 if change.spec.close == "regular"
                                 else change.spec.close
                             )
-                        )
 
                         # Ensure day is not in holidays, special opens, or special closes.
                         a.regular_holidays, a.adhoc_holidays = remove_holiday(

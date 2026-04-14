@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 from collections import OrderedDict
 from typing import Annotated, Literal
@@ -29,8 +31,8 @@ class NonBusinessDaySpec(BaseDaySpec):
         return self
 
     def merge(
-        self, other: "NonBusinessDaySpec" | "BusinessDaySpec"
-    ) -> Self | "BusinessDaySpec":
+        self, other: NonBusinessDaySpec | BusinessDaySpec
+    ) -> Self | BusinessDaySpec:
         if not isinstance(other, NonBusinessDaySpec):
             return other  # Cannot merge business day spec with non-business day spec.
         self.weekend_day = (
@@ -46,8 +48,8 @@ class BusinessDaySpec(BaseDaySpec):
     close: TimeLike | Literal["regular"] | MISSING = MISSING
 
     def merge(
-        self, other: "NonBusinessDaySpec" | "BusinessDaySpec"
-    ) -> Self | "NonBusinessDaySpec":
+        self, other: NonBusinessDaySpec | BusinessDaySpec
+    ) -> Self | NonBusinessDaySpec:
         if not isinstance(other, BusinessDaySpec):
             return other  # Cannot merge business day spec with non-business day spec.
         self.open = self.open if other.open is MISSING else other.open
@@ -73,18 +75,14 @@ class DayChange(BaseModel):
     name: str | None | MISSING = MISSING
     tags: set[str] | MISSING = MISSING
 
-    def merge(self, other: "DayChange") -> Self:
+    def merge(self, other: DayChange) -> Self:
         self.name = self.name if other.name is MISSING else other.name
-        self.spec = (
-            self.spec
-            if other.spec is MISSING
-            else (other.spec if self.spec is MISSING else self.spec.merge(other.spec))
-        )
-        self.tags = (
-            self.tags
-            if other.tags is MISSING
-            else (other.tags if self.tags is MISSING else self.tags | other.tags)
-        )
+        if other.spec is not MISSING:
+            self.spec = (
+                other.spec if self.spec is MISSING else self.spec.merge(other.spec)
+            )
+        if other.tags is not MISSING:
+            self.tags = other.tags if self.tags is MISSING else self.tags | other.tags
         return self
 
 

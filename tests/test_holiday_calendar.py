@@ -469,28 +469,36 @@ class TestHolidayCalendars:
         holidays = calendar.holidays(
             start=pd.Timestamp("2019-01-01"), end=pd.Timestamp("2019-01-31")
         )
-        assert pd.Timestamp("2019-01-07") in holidays.values
-        assert pd.Timestamp("2019-01-14") in holidays.values
-        assert pd.Timestamp("2019-01-21") in holidays.values
-        assert pd.Timestamp("2019-01-28") in holidays.values
-        assert pd.Timestamp("2019-01-01") not in holidays.values
-        assert pd.Timestamp("2019-01-02") not in holidays.values
-        assert pd.Timestamp("2019-01-03") not in holidays.values
-        assert pd.Timestamp("2019-01-04") not in holidays.values
-        assert pd.Timestamp("2019-01-05") not in holidays.values
-        assert pd.Timestamp("2019-01-06") not in holidays.values
-        assert pd.Timestamp("2019-01-08") not in holidays.values
-        assert pd.Timestamp("2019-01-09") not in holidays.values
-        assert pd.Timestamp("2019-01-10") not in holidays.values
-        assert pd.Timestamp("2019-01-11") not in holidays.values
-        assert pd.Timestamp("2019-01-12") not in holidays.values
-        assert pd.Timestamp("2019-01-13") not in holidays.values
-        assert pd.Timestamp("2019-01-15") not in holidays.values
-        assert pd.Timestamp("2019-01-16") not in holidays.values
-        assert pd.Timestamp("2019-01-17") not in holidays.values
-        assert pd.Timestamp("2019-01-18") not in holidays.values
-        assert pd.Timestamp("2019-01-19") not in holidays.values
-        assert pd.Timestamp("2019-01-20") not in holidays.values
+
+        for x in (
+            pd.Timestamp("2019-01-07"),
+            pd.Timestamp("2019-01-14"),
+            pd.Timestamp("2019-01-21"),
+            pd.Timestamp("2019-01-28"),
+        ):
+            assert x in holidays.values
+
+        for x in (
+            pd.Timestamp("2019-01-01"),
+            pd.Timestamp("2019-01-02"),
+            pd.Timestamp("2019-01-03"),
+            pd.Timestamp("2019-01-04"),
+            pd.Timestamp("2019-01-05"),
+            pd.Timestamp("2019-01-06"),
+            pd.Timestamp("2019-01-08"),
+            pd.Timestamp("2019-01-09"),
+            pd.Timestamp("2019-01-10"),
+            pd.Timestamp("2019-01-11"),
+            pd.Timestamp("2019-01-12"),
+            pd.Timestamp("2019-01-13"),
+            pd.Timestamp("2019-01-15"),
+            pd.Timestamp("2019-01-16"),
+            pd.Timestamp("2019-01-17"),
+            pd.Timestamp("2019-01-18"),
+            pd.Timestamp("2019-01-19"),
+            pd.Timestamp("2019-01-20"),
+        ):
+            assert x not in holidays.values
 
     def test_merge_calendars(self):
         calendar1 = get_holiday_calendar_from_timestamps(
@@ -501,32 +509,39 @@ class TestHolidayCalendars:
         holidays = calendar.holidays(
             start=pd.Timestamp("2019-01-01"), end=pd.Timestamp("2019-01-31")
         )
-        assert pd.Timestamp("2019-01-01") in holidays.values
-        assert pd.Timestamp("2019-01-02") in holidays.values
-        assert pd.Timestamp("2019-01-07") in holidays.values
-        assert pd.Timestamp("2019-01-14") in holidays.values
-        assert pd.Timestamp("2019-01-21") in holidays.values
-        assert pd.Timestamp("2019-01-28") in holidays.values
-        assert pd.Timestamp("2019-01-03") not in holidays.values
-        assert pd.Timestamp("2019-01-04") not in holidays.values
-        assert pd.Timestamp("2019-01-05") not in holidays.values
-        assert pd.Timestamp("2019-01-06") not in holidays.values
-        assert pd.Timestamp("2019-01-08") not in holidays.values
-        assert pd.Timestamp("2019-01-09") not in holidays.values
-        assert pd.Timestamp("2019-01-10") not in holidays.values
-        assert pd.Timestamp("2019-01-11") not in holidays.values
-        assert pd.Timestamp("2019-01-12") not in holidays.values
-        assert pd.Timestamp("2019-01-13") not in holidays.values
-        assert pd.Timestamp("2019-01-15") not in holidays.values
-        assert pd.Timestamp("2019-01-16") not in holidays.values
-        assert pd.Timestamp("2019-01-17") not in holidays.values
-        assert pd.Timestamp("2019-01-18") not in holidays.values
-        assert pd.Timestamp("2019-01-19") not in holidays.values
-        assert pd.Timestamp("2019-01-20") not in holidays.values
-        assert pd.Timestamp("2019-01-22") not in holidays.values
-        assert pd.Timestamp("2019-01-23") not in holidays.values
-        assert pd.Timestamp("2019-01-24") not in holidays.values
-        assert pd.Timestamp("2019-01-25") not in holidays.values
+        for x in (
+            pd.Timestamp("2019-01-01"),
+            pd.Timestamp("2019-01-02"),
+            pd.Timestamp("2019-01-07"),
+            pd.Timestamp("2019-01-14"),
+            pd.Timestamp("2019-01-21"),
+            pd.Timestamp("2019-01-28"),
+        ):
+            assert x in holidays.values
+
+        for x in (
+            pd.Timestamp("2019-01-03"),
+            pd.Timestamp("2019-01-04"),
+            pd.Timestamp("2019-01-05"),
+            pd.Timestamp("2019-01-06"),
+            pd.Timestamp("2019-01-08"),
+            pd.Timestamp("2019-01-09"),
+            pd.Timestamp("2019-01-10"),
+            pd.Timestamp("2019-01-11"),
+            pd.Timestamp("2019-01-12"),
+            pd.Timestamp("2019-01-13"),
+            pd.Timestamp("2019-01-15"),
+            pd.Timestamp("2019-01-16"),
+            pd.Timestamp("2019-01-17"),
+            pd.Timestamp("2019-01-18"),
+            pd.Timestamp("2019-01-19"),
+            pd.Timestamp("2019-01-20"),
+            pd.Timestamp("2019-01-22"),
+            pd.Timestamp("2019-01-23"),
+            pd.Timestamp("2019-01-24"),
+            pd.Timestamp("2019-01-25"),
+        ):
+            assert x not in holidays.values
 
     def test_merge_calendars_with_overlapping_holidays(self):
         calendar1 = get_holiday_calendar_from_timestamps(

@@ -525,7 +525,6 @@ class TestSetWeekday:
     )
     def test_day_already_set(self, weekday: bool, date: pd.Timestamp):
         """Date is a weekday (bit=1) and weekday=True; no change needed."""
-        # 2024-01-15 is Monday (dayofweek=0), weekmask[0]='1' in DEFAULT_WEEKMASK
         p = WeekmaskPeriod(
             weekmask=WEEKMASK_DEFAULT,
             start_date=pd.Timestamp("2024-01-01"),
@@ -551,7 +550,6 @@ class TestSetWeekday:
         weekmask: Weekmask,
     ):
         """Setting weekday=False for a day that is currently 1, date in middle of bounded period."""
-        # 2024-01-15 is Monday (dayofweek=0), weekmask[0]='1' in DEFAULT_WEEKMASK
         p = WeekmaskPeriod(
             weekmask=WEEKMASK_DEFAULT,
             start_date=period_start,
