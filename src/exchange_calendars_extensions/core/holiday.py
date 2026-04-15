@@ -3,7 +3,6 @@ from datetime import timedelta, tzinfo
 
 import pandas as pd
 from exchange_calendars.pandas_extensions.holiday import Holiday
-from pandas import DatetimeIndex, Series
 
 from exchange_calendars_extensions.core.offset import (
     LastDayOfMonthOffsetClasses,
@@ -12,7 +11,8 @@ from exchange_calendars_extensions.core.offset import (
 
 
 def get_monthly_expiry_holiday(
-    name: str,
+    *,
+    name: str | None,
     day_of_week: int,
     month: int,
     observance: Callable[[pd.Timestamp], pd.Timestamp] | None = None,
@@ -49,7 +49,7 @@ def get_monthly_expiry_holiday(
         A new Holiday object as specified.
     """
     return Holiday(
-        name,
+        name=name,
         month=1,
         day=1,
         offset=ThirdDayOfWeekInMonthOffsetClasses[day_of_week][month](),
@@ -61,7 +61,8 @@ def get_monthly_expiry_holiday(
 
 
 def get_last_day_of_month_holiday(
-    name: str,
+    *,
+    name: str | None,
     month: int,
     observance: Callable[[pd.Timestamp], pd.Timestamp] | None = None,
     start_date: pd.Timestamp | None = None,
@@ -94,7 +95,7 @@ def get_last_day_of_month_holiday(
         A new Holiday object as specified.
     """
     return Holiday(
-        name,
+        name=name,
         month=1,
         day=1,
         offset=LastDayOfMonthOffsetClasses[month](),
@@ -112,7 +113,7 @@ class DayOfWeekPeriodicHoliday(Holiday):
 
     def __init__(
         self,
-        name: str,
+        name: str | None,
         day_of_week: int,
         start_date: pd.Timestamp | None = None,
         end_date: pd.Timestamp | None = None,
@@ -140,7 +141,7 @@ class DayOfWeekPeriodicHoliday(Holiday):
         """
         # Super constructor.
         super().__init__(
-            name,
+            name=name,
             year=None,
             month=None,
             day=None,
@@ -200,7 +201,7 @@ class DayOfWeekPeriodicHoliday(Holiday):
         # Return the dates.
         return dates
 
-    def dates(self, start_date, end_date, return_name=False) -> DatetimeIndex | Series:
+    def dates(self, start_date, end_date, return_name=False):
         # Get DateTimeIndex with the dates of the holidays.
         dates = self._dates(start_date, end_date)
 

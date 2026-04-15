@@ -1,4 +1,5 @@
 from datetime import time
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -29,15 +30,9 @@ from exchange_calendars_extensions.core.holiday_calendar import (
     merge_calendars,
     roll_one_day_same_month,
 )
-from exchange_calendars_extensions.core.util import WeekmaskPeriod
+from exchange_calendars_extensions.core.util import Weekmask, WeekmaskPeriod
 from tests.util import date2args, roll_backward, roll_forward
 
-SPECIAL_OPEN = "special open"
-SPECIAL_CLOSE = "special close"
-QUARTERLY_EXPIRY = "quarterly expiry"
-MONTHLY_EXPIRY = "monthly expiry"
-LAST_DAY_OF_MONTH = "last day of month"
-WEEKEND_DAY = "weekend day"
 HOLIDAY = "Holiday"
 OTHER_HOLIDAY = "Other Holiday"
 
@@ -94,7 +89,7 @@ class TestAdjustedHolidayCalendar:
     )
     def test_weekmask(
         self,
-        weekmask: str,
+        weekmask: Weekmask,
         day: str,
         day_adjusted: str,
         roll_fn: RollFn,
@@ -103,16 +98,16 @@ class TestAdjustedHolidayCalendar:
         """Test that the weekmask is applied correctly when adjusting the holidays."""
 
         # Unadjusted holiday.
-        day = pd.Timestamp(day)
+        day_ts = pd.Timestamp(day)
 
         # Adjusted holiday.
-        day_adjusted = pd.Timestamp(day_adjusted)
+        day_adjusted_ts = pd.Timestamp(day_adjusted)
 
         # Calendar containing just the single holiday, the given weekmask, and using the given roll function. The other
         # calendar is empty.
         calendar = AdjustedHolidayCalendar(
             rules=[
-                Holiday(name=HOLIDAY, **date2args(day)),
+                Holiday(name=HOLIDAY, **date2args(day_ts)),
             ],
             other=ExchangeCalendarsHolidayCalendar([]),
             weekmask_periods=(WeekmaskPeriod(weekmask=weekmask),),
@@ -120,22 +115,26 @@ class TestAdjustedHolidayCalendar:
         )
 
         # Check that holiday is adjusted to the expected day.
-        assert calendar.holidays(return_name=return_name).equals(
-            pd.Series(
-                [
-                    HOLIDAY,
-                ],
-                index=[
-                    day_adjusted,
-                ],
+        x = calendar.holidays(return_name=return_name)
+        if return_name:
+            assert isinstance(x, pd.Series) and x.equals(
+                pd.Series(
+                    [
+                        HOLIDAY,
+                    ],
+                    index=[
+                        day_adjusted_ts,
+                    ],
+                )
             )
-            if return_name
-            else pd.DatetimeIndex(
-                [
-                    day_adjusted,
-                ]
+        else:
+            assert isinstance(x, pd.DatetimeIndex) and x.equals(
+                pd.DatetimeIndex(
+                    [
+                        day_adjusted_ts,
+                    ]
+                )
             )
-        )
 
     @pytest.mark.parametrize(
         "return_name", [False, True], ids=["return_name=False", "return_name=True"]
@@ -192,46 +191,50 @@ class TestAdjustedHolidayCalendar:
         """Test that the other given calendar is applied correctly when adjusting the holidays."""
 
         # Unadjusted holiday.
-        day = pd.Timestamp(day)
+        day_ts = pd.Timestamp(day)
 
         # Adjusted holiday.
-        day_adjusted = pd.Timestamp(day_adjusted)
+        day_adjusted_ts = pd.Timestamp(day_adjusted)
 
         # Holiday in other calendar.
-        day_other = pd.Timestamp(day_other)
+        day_other_ts = pd.Timestamp(day_other)
 
         # Calendar containing the single holiday, and another holiday in the other given calendar. The weekmask covers
         # all days of the week, so it should not have any impact on adjustments. Also uses the given roll function.
         calendar = AdjustedHolidayCalendar(
             rules=[
-                Holiday(name=HOLIDAY, **date2args(day)),
+                Holiday(name=HOLIDAY, **date2args(day_ts)),
             ],
             other=ExchangeCalendarsHolidayCalendar(
                 rules=[
-                    Holiday(name=HOLIDAY, **date2args(day_other)),
+                    Holiday(name=HOLIDAY, **date2args(day_other_ts)),
                 ]
             ),
-            weekmask_periods=(WeekmaskPeriod(weekmask="1111111"),),
+            weekmask_periods=(WeekmaskPeriod(weekmask=Weekmask("1111111")),),
             roll_fn=roll_fn,
         )
 
         # Test that the holidays are adjusted correctly.
-        assert calendar.holidays(return_name=return_name).equals(
-            pd.Series(
-                [
-                    HOLIDAY,
-                ],
-                index=[
-                    day_adjusted,
-                ],
+        x = calendar.holidays(return_name=return_name)
+        if return_name:
+            assert isinstance(x, pd.Series) and x.equals(
+                pd.Series(
+                    [
+                        HOLIDAY,
+                    ],
+                    index=[
+                        day_adjusted_ts,
+                    ],
+                )
             )
-            if return_name
-            else pd.DatetimeIndex(
-                [
-                    day_adjusted,
-                ]
+        else:
+            isinstance(x, pd.DatetimeIndex) and x.equals(
+                pd.DatetimeIndex(
+                    [
+                        day_adjusted_ts,
+                    ]
+                )
             )
-        )
 
     def test_multiple_adjustments_and_roll_fn(self, mocker):
         """Test that the roll function is called multiple times when necessary."""
@@ -263,12 +266,13 @@ class TestAdjustedHolidayCalendar:
                     Holiday(name="Other Holiday 2", **date2args(mon)),  # Monday.
                 ]
             ),
-            weekmask_periods=(WeekmaskPeriod(weekmask="1111100"),),
+            weekmask_periods=(WeekmaskPeriod(weekmask=Weekmask("1111100")),),
             roll_fn=spy_roll_fn,
         )
 
-        # Check if the holiday is adjusted correctly. It should be rolled back to the previous Thrusday.
-        assert calendar.holidays().equals(
+        # Check if the holiday is adjusted correctly. It should be rolled back to the previous Thursday.
+        x = calendar.holidays()
+        assert isinstance(x, pd.DatetimeIndex) and x.equals(
             pd.DatetimeIndex(
                 [
                     thu,
@@ -308,12 +312,13 @@ class TestAdjustedHolidayCalendar:
                     Holiday(name=HOLIDAY, **date2args(day)),
                 ]
             ),
-            weekmask_periods=WeekmaskPeriod(weekmask="1111111"),
+            weekmask_periods=(WeekmaskPeriod(weekmask=Weekmask("1111111")),),
             roll_fn=mock_roll_fn,
         )
 
         # Check if holiday gets dropped due to the roll function returning None.
-        assert calendar.holidays().equals(pd.DatetimeIndex([]))
+        x = calendar.holidays()
+        assert isinstance(x, pd.DatetimeIndex) and x.empty
 
         # Should have rolled a single time.
         mock_roll_fn.assert_called_once_with(day)
@@ -336,7 +341,7 @@ class TestAdjustedHolidayCalendar:
                 Holiday(name=HOLIDAY, **date2args(day)),  # Same day as holiday above.
             ],
             other=ExchangeCalendarsHolidayCalendar([]),
-            weekmask_periods=(WeekmaskPeriod(weekmask="1111111"),),
+            weekmask_periods=(WeekmaskPeriod(weekmask=Weekmask("1111111")),),
             roll_fn=roll_fn,
         )
 
@@ -381,7 +386,7 @@ class TestAdjustedHolidayCalendar:
                     Holiday(name=HOLIDAY, **date2args(day_after)),
                 ]
             ),
-            weekmask_periods=(WeekmaskPeriod(weekmask="1111111"),),
+            weekmask_periods=(WeekmaskPeriod(weekmask=Weekmask("1111111")),),
             roll_fn=roll_backward,
         )
 
@@ -420,7 +425,7 @@ class TestAdjustedHolidayCalendar:
                     Holiday(name=HOLIDAY, **date2args(day)),
                 ]
             ),
-            weekmask_periods=(WeekmaskPeriod(weekmask="1111111"),),
+            weekmask_periods=(WeekmaskPeriod(weekmask=Weekmask("1111111")),),
             roll_fn=roll_fn,
         )
 
@@ -453,74 +458,90 @@ class TestHolidayCalendars:
         holidays = calendar.holidays(
             start=pd.Timestamp("2019-01-01"), end=pd.Timestamp("2019-01-31")
         )
-        assert pd.Timestamp("2019-01-01") in holidays
-        assert pd.Timestamp("2019-01-02") in holidays
-        assert pd.Timestamp("2019-01-03") not in holidays
-        assert pd.Timestamp("2019-01-04") not in holidays
+        assert isinstance(holidays, pd.DatetimeIndex)
+        assert pd.Timestamp("2019-01-01") in holidays.values
+        assert pd.Timestamp("2019-01-02") in holidays.values
+        assert pd.Timestamp("2019-01-03") not in holidays.values
+        assert pd.Timestamp("2019-01-04") not in holidays.values
 
     def test_get_holiday_calendar_from_day_of_week(self):
-        calendar = get_holiday_calendar_from_day_of_week(0)
+        calendar = get_holiday_calendar_from_day_of_week(day_of_week=0)
         holidays = calendar.holidays(
             start=pd.Timestamp("2019-01-01"), end=pd.Timestamp("2019-01-31")
         )
-        assert pd.Timestamp("2019-01-07") in holidays
-        assert pd.Timestamp("2019-01-14") in holidays
-        assert pd.Timestamp("2019-01-21") in holidays
-        assert pd.Timestamp("2019-01-28") in holidays
-        assert pd.Timestamp("2019-01-01") not in holidays
-        assert pd.Timestamp("2019-01-02") not in holidays
-        assert pd.Timestamp("2019-01-03") not in holidays
-        assert pd.Timestamp("2019-01-04") not in holidays
-        assert pd.Timestamp("2019-01-05") not in holidays
-        assert pd.Timestamp("2019-01-06") not in holidays
-        assert pd.Timestamp("2019-01-08") not in holidays
-        assert pd.Timestamp("2019-01-09") not in holidays
-        assert pd.Timestamp("2019-01-10") not in holidays
-        assert pd.Timestamp("2019-01-11") not in holidays
-        assert pd.Timestamp("2019-01-12") not in holidays
-        assert pd.Timestamp("2019-01-13") not in holidays
-        assert pd.Timestamp("2019-01-15") not in holidays
-        assert pd.Timestamp("2019-01-16") not in holidays
-        assert pd.Timestamp("2019-01-17") not in holidays
-        assert pd.Timestamp("2019-01-18") not in holidays
-        assert pd.Timestamp("2019-01-19") not in holidays
-        assert pd.Timestamp("2019-01-20") not in holidays
+
+        for x in (
+            pd.Timestamp("2019-01-07"),
+            pd.Timestamp("2019-01-14"),
+            pd.Timestamp("2019-01-21"),
+            pd.Timestamp("2019-01-28"),
+        ):
+            assert x in holidays.values
+
+        for x in (
+            pd.Timestamp("2019-01-01"),
+            pd.Timestamp("2019-01-02"),
+            pd.Timestamp("2019-01-03"),
+            pd.Timestamp("2019-01-04"),
+            pd.Timestamp("2019-01-05"),
+            pd.Timestamp("2019-01-06"),
+            pd.Timestamp("2019-01-08"),
+            pd.Timestamp("2019-01-09"),
+            pd.Timestamp("2019-01-10"),
+            pd.Timestamp("2019-01-11"),
+            pd.Timestamp("2019-01-12"),
+            pd.Timestamp("2019-01-13"),
+            pd.Timestamp("2019-01-15"),
+            pd.Timestamp("2019-01-16"),
+            pd.Timestamp("2019-01-17"),
+            pd.Timestamp("2019-01-18"),
+            pd.Timestamp("2019-01-19"),
+            pd.Timestamp("2019-01-20"),
+        ):
+            assert x not in holidays.values
 
     def test_merge_calendars(self):
         calendar1 = get_holiday_calendar_from_timestamps(
             [pd.Timestamp("2019-01-01"), pd.Timestamp("2019-01-02")]
         )
-        calendar2 = get_holiday_calendar_from_day_of_week(0)
+        calendar2 = get_holiday_calendar_from_day_of_week(day_of_week=0)
         calendar = merge_calendars((calendar1, calendar2))
         holidays = calendar.holidays(
             start=pd.Timestamp("2019-01-01"), end=pd.Timestamp("2019-01-31")
         )
-        assert pd.Timestamp("2019-01-01") in holidays
-        assert pd.Timestamp("2019-01-02") in holidays
-        assert pd.Timestamp("2019-01-07") in holidays
-        assert pd.Timestamp("2019-01-14") in holidays
-        assert pd.Timestamp("2019-01-21") in holidays
-        assert pd.Timestamp("2019-01-28") in holidays
-        assert pd.Timestamp("2019-01-03") not in holidays
-        assert pd.Timestamp("2019-01-04") not in holidays
-        assert pd.Timestamp("2019-01-05") not in holidays
-        assert pd.Timestamp("2019-01-06") not in holidays
-        assert pd.Timestamp("2019-01-08") not in holidays
-        assert pd.Timestamp("2019-01-09") not in holidays
-        assert pd.Timestamp("2019-01-10") not in holidays
-        assert pd.Timestamp("2019-01-11") not in holidays
-        assert pd.Timestamp("2019-01-12") not in holidays
-        assert pd.Timestamp("2019-01-13") not in holidays
-        assert pd.Timestamp("2019-01-15") not in holidays
-        assert pd.Timestamp("2019-01-16") not in holidays
-        assert pd.Timestamp("2019-01-17") not in holidays
-        assert pd.Timestamp("2019-01-18") not in holidays
-        assert pd.Timestamp("2019-01-19") not in holidays
-        assert pd.Timestamp("2019-01-20") not in holidays
-        assert pd.Timestamp("2019-01-22") not in holidays
-        assert pd.Timestamp("2019-01-23") not in holidays
-        assert pd.Timestamp("2019-01-24") not in holidays
-        assert pd.Timestamp("2019-01-25") not in holidays
+        for x in (
+            pd.Timestamp("2019-01-01"),
+            pd.Timestamp("2019-01-02"),
+            pd.Timestamp("2019-01-07"),
+            pd.Timestamp("2019-01-14"),
+            pd.Timestamp("2019-01-21"),
+            pd.Timestamp("2019-01-28"),
+        ):
+            assert x in holidays.values
+
+        for x in (
+            pd.Timestamp("2019-01-03"),
+            pd.Timestamp("2019-01-04"),
+            pd.Timestamp("2019-01-05"),
+            pd.Timestamp("2019-01-06"),
+            pd.Timestamp("2019-01-08"),
+            pd.Timestamp("2019-01-09"),
+            pd.Timestamp("2019-01-10"),
+            pd.Timestamp("2019-01-11"),
+            pd.Timestamp("2019-01-12"),
+            pd.Timestamp("2019-01-13"),
+            pd.Timestamp("2019-01-15"),
+            pd.Timestamp("2019-01-16"),
+            pd.Timestamp("2019-01-17"),
+            pd.Timestamp("2019-01-18"),
+            pd.Timestamp("2019-01-19"),
+            pd.Timestamp("2019-01-20"),
+            pd.Timestamp("2019-01-22"),
+            pd.Timestamp("2019-01-23"),
+            pd.Timestamp("2019-01-24"),
+            pd.Timestamp("2019-01-25"),
+        ):
+            assert x not in holidays.values
 
     def test_merge_calendars_with_overlapping_holidays(self):
         calendar1 = get_holiday_calendar_from_timestamps(
@@ -534,10 +555,10 @@ class TestHolidayCalendars:
             start=pd.Timestamp("2019-01-01"), end=pd.Timestamp("2019-01-31")
         )
         assert len(holidays) == 3
-        assert pd.Timestamp("2019-01-01") in holidays
-        assert pd.Timestamp("2019-01-02") in holidays
-        assert pd.Timestamp("2019-01-03") in holidays
-        assert pd.Timestamp("2019-01-04") not in holidays
+        assert pd.Timestamp("2019-01-01") in holidays.values
+        assert pd.Timestamp("2019-01-02") in holidays.values
+        assert pd.Timestamp("2019-01-03") in holidays.values
+        assert pd.Timestamp("2019-01-04") not in holidays.values
 
     def test_get_holidays_calendar(self):
         calendar = get_calendar("XLON")
@@ -552,7 +573,7 @@ class TestHolidayCalendars:
                 pd.Timestamp("2020-01-01"): "New Year's Day",
                 pd.Timestamp("2020-04-10"): "Good Friday",
                 pd.Timestamp("2020-04-13"): "Easter Monday",
-                pd.Timestamp("2020-05-08"): "ad-hoc holiday",
+                pd.Timestamp("2020-05-08"): None,
                 pd.Timestamp("2020-05-25"): "Spring Bank Holiday",
                 pd.Timestamp("2020-08-31"): "Summer Bank Holiday",
                 pd.Timestamp("2020-12-25"): "Christmas",
@@ -560,7 +581,10 @@ class TestHolidayCalendars:
                 pd.Timestamp("2020-12-28"): "Weekend Boxing Day",
             }
         )
-        assert holidays.compare(expected_holidays).empty
+        assert (
+            isinstance(holidays, pd.Series)
+            and holidays.compare(expected_holidays).empty
+        )
 
     def test_get_special_closes_calendar(self):
         class TestCalendar(ExchangeCalendar):
@@ -579,7 +603,7 @@ class TestHolidayCalendars:
                 return []
 
             @property
-            def special_closes(self):
+            def special_closes(self) -> list[tuple[time, int | HolidayCalendar]]:
                 return [
                     (
                         self.regular_early_close,
@@ -618,65 +642,68 @@ class TestHolidayCalendars:
         )
         expected_special_closes = pd.Series(
             {
-                pd.Timestamp("2020-01-06"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-01-08"): "ad-hoc special close",
-                pd.Timestamp("2020-01-13"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-01-20"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-01-27"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-02-03"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-02-10"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-02-17"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-02-24"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-03-02"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-03-09"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-03-16"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-03-23"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-03-30"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-04-06"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-04-13"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-04-20"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-04-27"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-05-04"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-05-11"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-05-18"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-05-25"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-06-01"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-06-08"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-06-15"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-06-22"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-06-29"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-07-06"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-07-13"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-07-20"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-07-27"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-08-03"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-08-10"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-08-12"): "ad-hoc special close",
-                pd.Timestamp("2020-08-17"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-08-24"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-08-31"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-09-07"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-09-14"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-09-21"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-09-28"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-10-05"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-10-12"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-10-19"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-10-26"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-11-02"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-11-09"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-11-16"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-11-23"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-11-30"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-12-07"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-12-14"): SPECIAL_CLOSE,
-                pd.Timestamp("2020-12-21"): SPECIAL_CLOSE,
+                pd.Timestamp("2020-01-06"): None,
+                pd.Timestamp("2020-01-08"): None,
+                pd.Timestamp("2020-01-13"): None,
+                pd.Timestamp("2020-01-20"): None,
+                pd.Timestamp("2020-01-27"): None,
+                pd.Timestamp("2020-02-03"): None,
+                pd.Timestamp("2020-02-10"): None,
+                pd.Timestamp("2020-02-17"): None,
+                pd.Timestamp("2020-02-24"): None,
+                pd.Timestamp("2020-03-02"): None,
+                pd.Timestamp("2020-03-09"): None,
+                pd.Timestamp("2020-03-16"): None,
+                pd.Timestamp("2020-03-23"): None,
+                pd.Timestamp("2020-03-30"): None,
+                pd.Timestamp("2020-04-06"): None,
+                pd.Timestamp("2020-04-13"): None,
+                pd.Timestamp("2020-04-20"): None,
+                pd.Timestamp("2020-04-27"): None,
+                pd.Timestamp("2020-05-04"): None,
+                pd.Timestamp("2020-05-11"): None,
+                pd.Timestamp("2020-05-18"): None,
+                pd.Timestamp("2020-05-25"): None,
+                pd.Timestamp("2020-06-01"): None,
+                pd.Timestamp("2020-06-08"): None,
+                pd.Timestamp("2020-06-15"): None,
+                pd.Timestamp("2020-06-22"): None,
+                pd.Timestamp("2020-06-29"): None,
+                pd.Timestamp("2020-07-06"): None,
+                pd.Timestamp("2020-07-13"): None,
+                pd.Timestamp("2020-07-20"): None,
+                pd.Timestamp("2020-07-27"): None,
+                pd.Timestamp("2020-08-03"): None,
+                pd.Timestamp("2020-08-10"): None,
+                pd.Timestamp("2020-08-12"): None,
+                pd.Timestamp("2020-08-17"): None,
+                pd.Timestamp("2020-08-24"): None,
+                pd.Timestamp("2020-08-31"): None,
+                pd.Timestamp("2020-09-07"): None,
+                pd.Timestamp("2020-09-14"): None,
+                pd.Timestamp("2020-09-21"): None,
+                pd.Timestamp("2020-09-28"): None,
+                pd.Timestamp("2020-10-05"): None,
+                pd.Timestamp("2020-10-12"): None,
+                pd.Timestamp("2020-10-19"): None,
+                pd.Timestamp("2020-10-26"): None,
+                pd.Timestamp("2020-11-02"): None,
+                pd.Timestamp("2020-11-09"): None,
+                pd.Timestamp("2020-11-16"): None,
+                pd.Timestamp("2020-11-23"): None,
+                pd.Timestamp("2020-11-30"): None,
+                pd.Timestamp("2020-12-07"): None,
+                pd.Timestamp("2020-12-14"): None,
+                pd.Timestamp("2020-12-21"): None,
                 pd.Timestamp("2020-12-24"): "Christmas Eve",
-                pd.Timestamp("2020-12-28"): SPECIAL_CLOSE,
+                pd.Timestamp("2020-12-28"): None,
                 pd.Timestamp("2020-12-31"): "New Year's Eve",
             }
         )
-        assert special_closes.compare(expected_special_closes).empty
+        assert (
+            isinstance(special_closes, pd.Series)
+            and special_closes.compare(expected_special_closes).empty
+        )
 
     def test_get_special_opens_calendar(self):
         class TestCalendar(ExchangeCalendar):
@@ -695,7 +722,7 @@ class TestHolidayCalendars:
                 return []
 
             @property
-            def special_opens(self):
+            def special_opens(self) -> list[tuple[time, int | HolidayCalendar]]:
                 return [
                     (
                         self.regular_late_open,
@@ -734,96 +761,156 @@ class TestHolidayCalendars:
         )
         expected_special_opens = pd.Series(
             {
-                pd.Timestamp("2020-01-06"): SPECIAL_OPEN,
-                pd.Timestamp("2020-01-08"): "ad-hoc special open",
-                pd.Timestamp("2020-01-13"): SPECIAL_OPEN,
-                pd.Timestamp("2020-01-20"): SPECIAL_OPEN,
-                pd.Timestamp("2020-01-27"): SPECIAL_OPEN,
-                pd.Timestamp("2020-02-03"): SPECIAL_OPEN,
-                pd.Timestamp("2020-02-10"): SPECIAL_OPEN,
-                pd.Timestamp("2020-02-17"): SPECIAL_OPEN,
-                pd.Timestamp("2020-02-24"): SPECIAL_OPEN,
-                pd.Timestamp("2020-03-02"): SPECIAL_OPEN,
-                pd.Timestamp("2020-03-09"): SPECIAL_OPEN,
-                pd.Timestamp("2020-03-16"): SPECIAL_OPEN,
-                pd.Timestamp("2020-03-23"): SPECIAL_OPEN,
-                pd.Timestamp("2020-03-30"): SPECIAL_OPEN,
-                pd.Timestamp("2020-04-06"): SPECIAL_OPEN,
-                pd.Timestamp("2020-04-13"): SPECIAL_OPEN,
-                pd.Timestamp("2020-04-20"): SPECIAL_OPEN,
-                pd.Timestamp("2020-04-27"): SPECIAL_OPEN,
-                pd.Timestamp("2020-05-04"): SPECIAL_OPEN,
-                pd.Timestamp("2020-05-11"): SPECIAL_OPEN,
-                pd.Timestamp("2020-05-18"): SPECIAL_OPEN,
-                pd.Timestamp("2020-05-25"): SPECIAL_OPEN,
-                pd.Timestamp("2020-06-01"): SPECIAL_OPEN,
-                pd.Timestamp("2020-06-08"): SPECIAL_OPEN,
-                pd.Timestamp("2020-06-15"): SPECIAL_OPEN,
-                pd.Timestamp("2020-06-22"): SPECIAL_OPEN,
-                pd.Timestamp("2020-06-29"): SPECIAL_OPEN,
-                pd.Timestamp("2020-07-06"): SPECIAL_OPEN,
-                pd.Timestamp("2020-07-13"): SPECIAL_OPEN,
-                pd.Timestamp("2020-07-20"): SPECIAL_OPEN,
-                pd.Timestamp("2020-07-27"): SPECIAL_OPEN,
-                pd.Timestamp("2020-08-03"): SPECIAL_OPEN,
-                pd.Timestamp("2020-08-10"): SPECIAL_OPEN,
-                pd.Timestamp("2020-08-12"): "ad-hoc special open",
-                pd.Timestamp("2020-08-17"): SPECIAL_OPEN,
-                pd.Timestamp("2020-08-24"): SPECIAL_OPEN,
-                pd.Timestamp("2020-08-31"): SPECIAL_OPEN,
-                pd.Timestamp("2020-09-07"): SPECIAL_OPEN,
-                pd.Timestamp("2020-09-14"): SPECIAL_OPEN,
-                pd.Timestamp("2020-09-21"): SPECIAL_OPEN,
-                pd.Timestamp("2020-09-28"): SPECIAL_OPEN,
-                pd.Timestamp("2020-10-05"): SPECIAL_OPEN,
-                pd.Timestamp("2020-10-12"): SPECIAL_OPEN,
-                pd.Timestamp("2020-10-19"): SPECIAL_OPEN,
-                pd.Timestamp("2020-10-26"): SPECIAL_OPEN,
-                pd.Timestamp("2020-11-02"): SPECIAL_OPEN,
-                pd.Timestamp("2020-11-09"): SPECIAL_OPEN,
-                pd.Timestamp("2020-11-16"): SPECIAL_OPEN,
-                pd.Timestamp("2020-11-23"): SPECIAL_OPEN,
-                pd.Timestamp("2020-11-30"): SPECIAL_OPEN,
-                pd.Timestamp("2020-12-07"): SPECIAL_OPEN,
-                pd.Timestamp("2020-12-14"): SPECIAL_OPEN,
-                pd.Timestamp("2020-12-21"): SPECIAL_OPEN,
+                pd.Timestamp("2020-01-06"): None,
+                pd.Timestamp("2020-01-08"): None,
+                pd.Timestamp("2020-01-13"): None,
+                pd.Timestamp("2020-01-20"): None,
+                pd.Timestamp("2020-01-27"): None,
+                pd.Timestamp("2020-02-03"): None,
+                pd.Timestamp("2020-02-10"): None,
+                pd.Timestamp("2020-02-17"): None,
+                pd.Timestamp("2020-02-24"): None,
+                pd.Timestamp("2020-03-02"): None,
+                pd.Timestamp("2020-03-09"): None,
+                pd.Timestamp("2020-03-16"): None,
+                pd.Timestamp("2020-03-23"): None,
+                pd.Timestamp("2020-03-30"): None,
+                pd.Timestamp("2020-04-06"): None,
+                pd.Timestamp("2020-04-13"): None,
+                pd.Timestamp("2020-04-20"): None,
+                pd.Timestamp("2020-04-27"): None,
+                pd.Timestamp("2020-05-04"): None,
+                pd.Timestamp("2020-05-11"): None,
+                pd.Timestamp("2020-05-18"): None,
+                pd.Timestamp("2020-05-25"): None,
+                pd.Timestamp("2020-06-01"): None,
+                pd.Timestamp("2020-06-08"): None,
+                pd.Timestamp("2020-06-15"): None,
+                pd.Timestamp("2020-06-22"): None,
+                pd.Timestamp("2020-06-29"): None,
+                pd.Timestamp("2020-07-06"): None,
+                pd.Timestamp("2020-07-13"): None,
+                pd.Timestamp("2020-07-20"): None,
+                pd.Timestamp("2020-07-27"): None,
+                pd.Timestamp("2020-08-03"): None,
+                pd.Timestamp("2020-08-10"): None,
+                pd.Timestamp("2020-08-12"): None,
+                pd.Timestamp("2020-08-17"): None,
+                pd.Timestamp("2020-08-24"): None,
+                pd.Timestamp("2020-08-31"): None,
+                pd.Timestamp("2020-09-07"): None,
+                pd.Timestamp("2020-09-14"): None,
+                pd.Timestamp("2020-09-21"): None,
+                pd.Timestamp("2020-09-28"): None,
+                pd.Timestamp("2020-10-05"): None,
+                pd.Timestamp("2020-10-12"): None,
+                pd.Timestamp("2020-10-19"): None,
+                pd.Timestamp("2020-10-26"): None,
+                pd.Timestamp("2020-11-02"): None,
+                pd.Timestamp("2020-11-09"): None,
+                pd.Timestamp("2020-11-16"): None,
+                pd.Timestamp("2020-11-23"): None,
+                pd.Timestamp("2020-11-30"): None,
+                pd.Timestamp("2020-12-07"): None,
+                pd.Timestamp("2020-12-14"): None,
+                pd.Timestamp("2020-12-21"): None,
                 pd.Timestamp("2020-12-24"): "Christmas Eve",
-                pd.Timestamp("2020-12-28"): SPECIAL_OPEN,
+                pd.Timestamp("2020-12-28"): None,
                 pd.Timestamp("2020-12-31"): "New Year's Eve",
             }
         )
-        assert special_opens.compare(expected_special_opens).empty
+        assert (
+            isinstance(special_opens, pd.Series)
+            and special_opens.compare(expected_special_opens).empty
+        )
 
-    def test_get_weekend_days_calendar(self):
-        class TestCalendar(ExchangeCalendar):
-            name = "TEST"
-            tz = ZoneInfo("Europe/London")
-            open_times = ((None, time(8)),)
-            close_times = ((None, time(16, 30)),)
-            weekmask = "1111010"
-
-        calendar = TestCalendar()
-        weekend_days_calendar = get_days_calendar(calendar, mask="0")
-        weekend_days = weekend_days_calendar.holidays(
-            start=pd.Timestamp("2020-01-01"),
-            end=pd.Timestamp("2020-01-31"),
+    @pytest.mark.parametrize("mask", ["0", "1"])
+    @pytest.mark.parametrize(
+        "weekmask, start, end",
+        [
+            ("1111010", "2020-01-01", "2020-01-31"),
+        ],
+    )
+    def test_get_days_calendar(
+        self, weekmask: str, mask: Literal["0", "1"], start: str, end: str
+    ):
+        calendar = get_days_calendar(
+            (
+                WeekmaskPeriod(
+                    start_date=None, end_date=None, weekmask=Weekmask(weekmask)
+                ),
+            ),
+            mask=mask,
+        )
+        days = calendar.holidays(
+            start=pd.Timestamp(start),
+            end=pd.Timestamp(end),
             return_name=True,
         )
-        expected_weekend_days = pd.Series(
-            {
-                pd.Timestamp("2020-01-03"): WEEKEND_DAY,
-                pd.Timestamp("2020-01-05"): WEEKEND_DAY,
-                pd.Timestamp("2020-01-10"): WEEKEND_DAY,
-                pd.Timestamp("2020-01-12"): WEEKEND_DAY,
-                pd.Timestamp("2020-01-17"): WEEKEND_DAY,
-                pd.Timestamp("2020-01-19"): WEEKEND_DAY,
-                pd.Timestamp("2020-01-24"): WEEKEND_DAY,
-                pd.Timestamp("2020-01-26"): WEEKEND_DAY,
-                pd.Timestamp("2020-01-31"): WEEKEND_DAY,
-            }
+        dates: pd.DatetimeIndex = pd.date_range(start, end)
+
+        days_expected = pd.Series(
+            data=None,
+            index=dates[
+                dates.to_series().dt.dayofweek.map(lambda d: weekmask[d] == mask).values
+            ],
         )
 
-        assert weekend_days.compare(expected_weekend_days).empty
+        assert isinstance(days, pd.Series) and days.compare(days_expected).empty
+
+    @pytest.mark.parametrize("mask", ["0", "1"])
+    @pytest.mark.parametrize(
+        "weekmask1, weekmask2, split, start, end",
+        [
+            ("1111010", "1111100", "2020-01-15", "2020-01-01", "2020-01-31"),
+        ],
+    )
+    def test_get_days_calendar_two_periods(
+        self,
+        weekmask1: str,
+        weekmask2: str,
+        split: str,
+        mask: Literal["0", "1"],
+        start: str,
+        end: str,
+    ):
+        split_date = pd.Timestamp(split)
+        calendar = get_days_calendar(
+            (
+                WeekmaskPeriod(
+                    start_date=None, end_date=split_date, weekmask=Weekmask(weekmask1)
+                ),
+                WeekmaskPeriod(
+                    start_date=split_date + pd.Timedelta(days=1),
+                    end_date=None,
+                    weekmask=Weekmask(weekmask2),
+                ),
+            ),
+            mask=mask,
+        )
+        days = calendar.holidays(
+            start=pd.Timestamp(start),
+            end=pd.Timestamp(end),
+            return_name=True,
+        )
+        label = None
+        dates = pd.date_range(start, end)
+        dates1 = dates[dates <= split_date]
+        dates2 = dates[dates > split_date]
+        days_expected = pd.concat(
+            [
+                pd.Series(
+                    data=label,
+                    index=dates1[dates1.dayofweek.map(lambda d: weekmask1[d] == mask)],
+                ),
+                pd.Series(
+                    label,
+                    index=dates2[dates2.dayofweek.map(lambda d: weekmask2[d] == mask)],
+                ),
+            ]
+        )
+
+        assert isinstance(days, pd.Series) and days.compare(days_expected).empty
 
     def test_get_monthly_expiry_calendar(self):
         # Test plain vanilla calendar without any special days or close days that may fall onto the same days as monthly
@@ -839,18 +926,21 @@ class TestHolidayCalendars:
         )
         expected_monthly_expiry = pd.Series(
             {
-                pd.Timestamp("2020-01-17"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-02-21"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-04-17"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-05-15"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-07-17"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-08-21"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-10-16"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-11-20"): MONTHLY_EXPIRY,
+                pd.Timestamp("2020-01-17"): None,
+                pd.Timestamp("2020-02-21"): None,
+                pd.Timestamp("2020-04-17"): None,
+                pd.Timestamp("2020-05-15"): None,
+                pd.Timestamp("2020-07-17"): None,
+                pd.Timestamp("2020-08-21"): None,
+                pd.Timestamp("2020-10-16"): None,
+                pd.Timestamp("2020-11-20"): None,
             }
         )
 
-        assert monthly_expiry.compare(expected_monthly_expiry).empty
+        assert (
+            isinstance(monthly_expiry, pd.Series)
+            and monthly_expiry.compare(expected_monthly_expiry).empty
+        )
 
         # Test calendar with identity observance.
         monthly_expiry_calendar = HolidayCalendar(
@@ -863,23 +953,26 @@ class TestHolidayCalendars:
         )
         expected_monthly_expiry = pd.Series(
             {
-                pd.Timestamp("2020-01-17"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-02-21"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-04-17"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-05-15"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-07-17"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-08-21"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-10-16"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-11-20"): MONTHLY_EXPIRY,
+                pd.Timestamp("2020-01-17"): None,
+                pd.Timestamp("2020-02-21"): None,
+                pd.Timestamp("2020-04-17"): None,
+                pd.Timestamp("2020-05-15"): None,
+                pd.Timestamp("2020-07-17"): None,
+                pd.Timestamp("2020-08-21"): None,
+                pd.Timestamp("2020-10-16"): None,
+                pd.Timestamp("2020-11-20"): None,
             }
         )
 
-        assert monthly_expiry.compare(expected_monthly_expiry).empty
+        assert (
+            isinstance(monthly_expiry, pd.Series)
+            and monthly_expiry.compare(expected_monthly_expiry).empty
+        )
 
         # Test calendar with an observance that moves the holiday to the previous day.
         monthly_expiry_calendar = HolidayCalendar(
             rules=get_monthly_expiry_rules(
-                day_of_week=4, observance=lambda x: x - pd.Timedelta(days=1)
+                day_of_week=4, observance=lambda x: x + pd.Timedelta(days=-1)
             )
         )
         monthly_expiry = monthly_expiry_calendar.holidays(
@@ -889,18 +982,21 @@ class TestHolidayCalendars:
         )
         expected_monthly_expiry = pd.Series(
             {
-                pd.Timestamp("2020-01-16"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-02-20"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-04-16"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-05-14"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-07-16"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-08-20"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-10-15"): MONTHLY_EXPIRY,
-                pd.Timestamp("2020-11-19"): MONTHLY_EXPIRY,
+                pd.Timestamp("2020-01-16"): None,
+                pd.Timestamp("2020-02-20"): None,
+                pd.Timestamp("2020-04-16"): None,
+                pd.Timestamp("2020-05-14"): None,
+                pd.Timestamp("2020-07-16"): None,
+                pd.Timestamp("2020-08-20"): None,
+                pd.Timestamp("2020-10-15"): None,
+                pd.Timestamp("2020-11-19"): None,
             }
         )
 
-        assert monthly_expiry.compare(expected_monthly_expiry).empty
+        assert (
+            isinstance(monthly_expiry, pd.Series)
+            and monthly_expiry.compare(expected_monthly_expiry).empty
+        )
 
     def test_get_quadruple_witching_calendar(self):
         # Test plain vanilla calendar without any special days or close days that may fall onto the same days as quarterly
@@ -915,14 +1011,17 @@ class TestHolidayCalendars:
         )
         expected_quarterly_expiry = pd.Series(
             {
-                pd.Timestamp("2020-03-20"): QUARTERLY_EXPIRY,
-                pd.Timestamp("2020-06-19"): QUARTERLY_EXPIRY,
-                pd.Timestamp("2020-09-18"): QUARTERLY_EXPIRY,
-                pd.Timestamp("2020-12-18"): QUARTERLY_EXPIRY,
+                pd.Timestamp("2020-03-20"): None,
+                pd.Timestamp("2020-06-19"): None,
+                pd.Timestamp("2020-09-18"): None,
+                pd.Timestamp("2020-12-18"): None,
             }
         )
 
-        assert quarterly_expiry.compare(expected_quarterly_expiry).empty
+        assert (
+            isinstance(quarterly_expiry, pd.Series)
+            and quarterly_expiry.compare(expected_quarterly_expiry).empty
+        )
 
         # Test calendar with identity observance.
         quarterly_expiry_calendar = HolidayCalendar(
@@ -935,19 +1034,22 @@ class TestHolidayCalendars:
         )
         expected_quarterly_expiry = pd.Series(
             {
-                pd.Timestamp("2020-03-20"): QUARTERLY_EXPIRY,
-                pd.Timestamp("2020-06-19"): QUARTERLY_EXPIRY,
-                pd.Timestamp("2020-09-18"): QUARTERLY_EXPIRY,
-                pd.Timestamp("2020-12-18"): QUARTERLY_EXPIRY,
+                pd.Timestamp("2020-03-20"): None,
+                pd.Timestamp("2020-06-19"): None,
+                pd.Timestamp("2020-09-18"): None,
+                pd.Timestamp("2020-12-18"): None,
             }
         )
 
-        assert quarterly_expiry.compare(expected_quarterly_expiry).empty
+        assert (
+            isinstance(quarterly_expiry, pd.Series)
+            and quarterly_expiry.compare(expected_quarterly_expiry).empty
+        )
 
         # Test calendar with an observance that moves the holiday to the previous day.
         quarterly_expiry_calendar = HolidayCalendar(
             rules=get_quadruple_witching_rules(
-                day_of_week=4, observance=lambda x: x - pd.Timedelta(days=1)
+                day_of_week=4, observance=lambda x: x + pd.Timedelta(days=-1)
             )
         )
         quarterly_expiry = quarterly_expiry_calendar.holidays(
@@ -957,20 +1059,23 @@ class TestHolidayCalendars:
         )
         expected_quarterly_expiry = pd.Series(
             {
-                pd.Timestamp("2020-03-19"): QUARTERLY_EXPIRY,
-                pd.Timestamp("2020-06-18"): QUARTERLY_EXPIRY,
-                pd.Timestamp("2020-09-17"): QUARTERLY_EXPIRY,
-                pd.Timestamp("2020-12-17"): QUARTERLY_EXPIRY,
+                pd.Timestamp("2020-03-19"): None,
+                pd.Timestamp("2020-06-18"): None,
+                pd.Timestamp("2020-09-17"): None,
+                pd.Timestamp("2020-12-17"): None,
             }
         )
 
-        assert quarterly_expiry.compare(expected_quarterly_expiry).empty
+        assert (
+            isinstance(quarterly_expiry, pd.Series)
+            and quarterly_expiry.compare(expected_quarterly_expiry).empty
+        )
 
     def test_get_last_day_of_month_calendar(self):
         # Test plain vanilla calendar that ignores any special days or close days, even weekends, that may fall onto the
         # same days.
         last_day_of_month_calendar = HolidayCalendar(
-            rules=get_last_day_of_month_rules(name=LAST_DAY_OF_MONTH)
+            rules=get_last_day_of_month_rules()
         )
         last_day_of_month = last_day_of_month_calendar.holidays(
             start=pd.Timestamp("2020-01-01"),
@@ -979,27 +1084,30 @@ class TestHolidayCalendars:
         )
         expected_last_day_of_month = pd.Series(
             {
-                pd.Timestamp("2020-01-31"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-02-29"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-03-31"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-04-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-05-31"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-06-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-07-31"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-08-31"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-09-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-10-31"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-11-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-12-31"): LAST_DAY_OF_MONTH,
+                pd.Timestamp("2020-01-31"): None,
+                pd.Timestamp("2020-02-29"): None,
+                pd.Timestamp("2020-03-31"): None,
+                pd.Timestamp("2020-04-30"): None,
+                pd.Timestamp("2020-05-31"): None,
+                pd.Timestamp("2020-06-30"): None,
+                pd.Timestamp("2020-07-31"): None,
+                pd.Timestamp("2020-08-31"): None,
+                pd.Timestamp("2020-09-30"): None,
+                pd.Timestamp("2020-10-31"): None,
+                pd.Timestamp("2020-11-30"): None,
+                pd.Timestamp("2020-12-31"): None,
             }
         )
 
-        assert last_day_of_month.compare(expected_last_day_of_month).empty
+        assert (
+            isinstance(last_day_of_month, pd.Series)
+            and last_day_of_month.compare(expected_last_day_of_month).empty
+        )
 
         # Test calendar with an observance that moves the holiday to the previous day.
         last_day_of_month_calendar = HolidayCalendar(
             rules=get_last_day_of_month_rules(
-                name=LAST_DAY_OF_MONTH, observance=lambda x: x - pd.Timedelta(days=1)
+                observance=lambda x: x + pd.Timedelta(days=-1)
             )
         )
         last_day_of_month = last_day_of_month_calendar.holidays(
@@ -1009,22 +1117,25 @@ class TestHolidayCalendars:
         )
         expected_last_day_of_month = pd.Series(
             {
-                pd.Timestamp("2020-01-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-02-28"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-03-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-04-29"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-05-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-06-29"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-07-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-08-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-09-29"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-10-30"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-11-29"): LAST_DAY_OF_MONTH,
-                pd.Timestamp("2020-12-30"): LAST_DAY_OF_MONTH,
+                pd.Timestamp("2020-01-30"): None,
+                pd.Timestamp("2020-02-28"): None,
+                pd.Timestamp("2020-03-30"): None,
+                pd.Timestamp("2020-04-29"): None,
+                pd.Timestamp("2020-05-30"): None,
+                pd.Timestamp("2020-06-29"): None,
+                pd.Timestamp("2020-07-30"): None,
+                pd.Timestamp("2020-08-30"): None,
+                pd.Timestamp("2020-09-29"): None,
+                pd.Timestamp("2020-10-30"): None,
+                pd.Timestamp("2020-11-29"): None,
+                pd.Timestamp("2020-12-30"): None,
             }
         )
 
-        assert last_day_of_month.compare(expected_last_day_of_month).empty
+        assert (
+            isinstance(last_day_of_month, pd.Series)
+            and last_day_of_month.compare(expected_last_day_of_month).empty
+        )
 
 
 class TestAdjustedHolidayCalendarWithRangeBoundary:
@@ -1044,10 +1155,12 @@ class TestAdjustedHolidayCalendarWithRangeBoundary:
         )
 
         calendar = AdjustedHolidayCalendar(
-            rules=get_last_day_of_month_rules(name="last trading day"),
+            rules=get_last_day_of_month_rules(),
             other=HolidayCalendar(rules=[]),
             weekmask_periods=(
-                WeekmaskPeriod(start_date=None, end_date=None, weekmask="1111100"),
+                WeekmaskPeriod(
+                    start_date=None, end_date=None, weekmask=Weekmask("1111100")
+                ),
             ),
         )
 
@@ -1057,7 +1170,16 @@ class TestAdjustedHolidayCalendarWithRangeBoundary:
             return_name=return_name,
         )
 
-        assert pd.Timestamp("2026-01-30") in (result.index if return_name else result)
+        if return_name:
+            assert (
+                isinstance(result, pd.Series)
+                and pd.Timestamp("2026-01-30") in result.index
+            )
+        else:
+            assert (
+                isinstance(result, pd.DatetimeIndex)
+                and pd.Timestamp("2026-01-30") in result.values
+            )
 
 
 class TestTimestampMaxEdgeCases:
@@ -1072,8 +1194,14 @@ class TestTimestampMaxEdgeCases:
         instances (for Saturday and Sunday), and when these have frequencies set, pandas
         operations may try to extend beyond pd.Timestamp.max.
         """
-        calendar = get_calendar("XLON")
-        weekend_days_calendar = get_days_calendar(calendar, mask="0")
+        weekend_days_calendar = get_days_calendar(
+            periods=(
+                WeekmaskPeriod(
+                    start_date=None, end_date=None, weekmask=Weekmask("1111100")
+                ),
+            ),
+            mask="0",
+        )
 
         # Query near pd.Timestamp.max - this should not raise OutOfBoundsDatetime
         # Without the fix, the merge of periodic day ranges with frequency would overflow
@@ -1094,7 +1222,7 @@ class TestAdjustedHolidayCalendarWithMultipleWeekmaskPeriods:
         # A single period: Jan 1-31, Mon-Fri open (Sat/Sun weekend)
         periods = (
             WeekmaskPeriod(
-                weekmask="1111100",  # Mon-Fri open
+                weekmask=Weekmask("1111100"),  # Mon-Fri open
                 start_date=pd.Timestamp("2024-01-01"),
                 end_date=pd.Timestamp("2024-01-31"),
             ),
@@ -1120,12 +1248,12 @@ class TestAdjustedHolidayCalendarWithMultipleWeekmaskPeriods:
         # Period 2: Jan 11-31, Mon-Sat open (only Sun weekend)
         periods = (
             WeekmaskPeriod(
-                weekmask="1111100",  # Mon-Fri open
+                weekmask=Weekmask("1111100"),  # Mon-Fri open
                 start_date=pd.Timestamp("2024-01-01"),
                 end_date=pd.Timestamp("2024-01-10"),
             ),
             WeekmaskPeriod(
-                weekmask="1111110",  # Mon-Sat open
+                weekmask=Weekmask("1111110"),  # Mon-Sat open
                 start_date=pd.Timestamp("2024-01-11"),
                 end_date=pd.Timestamp("2024-01-31"),
             ),
@@ -1164,12 +1292,12 @@ class TestAdjustedHolidayCalendarWithMultipleWeekmaskPeriods:
         # Period 2: Jan 11-31, Mon-Sat open (only Sun weekend)
         periods = (
             WeekmaskPeriod(
-                weekmask="1111100",  # Mon-Fri open
+                weekmask=Weekmask("1111100"),  # Mon-Fri open
                 start_date=pd.Timestamp("2024-01-01"),
                 end_date=pd.Timestamp("2024-01-10"),
             ),
             WeekmaskPeriod(
-                weekmask="1111110",  # Mon-Sat open
+                weekmask=Weekmask("1111110"),  # Mon-Sat open
                 start_date=pd.Timestamp("2024-01-11"),
                 end_date=pd.Timestamp("2024-01-31"),
             ),
@@ -1235,7 +1363,7 @@ class TestFilterByRange:
                 pd.Timestamp("2024-01-04"),
             ]
         )
-        assert result.equals(expected)
+        assert isinstance(result, pd.DatetimeIndex) and result.equals(expected)
 
     def test_index_start_none(self, sample_index: pd.DatetimeIndex):
         result = filter_by_range(sample_index, None, pd.Timestamp("2024-01-03"))
@@ -1246,7 +1374,7 @@ class TestFilterByRange:
                 pd.Timestamp("2024-01-03"),
             ]
         )
-        assert result.equals(expected)
+        assert isinstance(result, pd.DatetimeIndex) and result.equals(expected)
 
     def test_index_end_none(self, sample_index: pd.DatetimeIndex):
         result = filter_by_range(sample_index, pd.Timestamp("2024-01-03"), None)
@@ -1257,11 +1385,11 @@ class TestFilterByRange:
                 pd.Timestamp("2024-01-05"),
             ]
         )
-        assert result.equals(expected)
+        assert isinstance(result, pd.DatetimeIndex) and result.equals(expected)
 
     def test_index_both_none(self, sample_index: pd.DatetimeIndex):
         result = filter_by_range(sample_index, None, None)
-        assert result.equals(sample_index)
+        assert isinstance(result, pd.DatetimeIndex) and result.equals(sample_index)
 
     # --- Series tests ---
 

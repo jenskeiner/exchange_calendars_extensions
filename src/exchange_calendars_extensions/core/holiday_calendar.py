@@ -1,11 +1,11 @@
-import datetime
+import datetime as dt
 from abc import ABC
-from collections import OrderedDict
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from copy import copy
 from dataclasses import dataclass, field
-from functools import reduce
+from functools import cached_property, reduce
 from typing import (
+    Any,
     Literal,
     Protocol,
     Union,
@@ -21,17 +21,21 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars.pandas_extensions.holiday import (
     Holiday as ExchangeCalendarsHoliday,
 )
-from exchange_calendars_extensions.api.changes import (
-    ChangeSet,
-    DateLike,
-    DayMeta,
-    DayType,
-    TimestampLike,
+from exchange_calendars.pandas_extensions.offsets import (
+    MultipleWeekmaskCustomBusinessDay,
 )
 from pandas import Timestamp
 from pandas.tseries.holiday import Holiday as PandasHoliday
-from pydantic import ConfigDict, TypeAdapter, validate_call
+from pandas.tseries.offsets import CustomBusinessDay
+from pydantic import ConfigDict, Field, TypeAdapter, validate_call
+from pydantic.experimental.missing_sentinel import MISSING
 
+from exchange_calendars_extensions.core.changes import (
+    BusinessDaySpec,
+    ChangeSet,
+    DayChange,
+    NonBusinessDaySpec,
+)
 from exchange_calendars_extensions.core.holiday import (
     DayOfWeekPeriodicHoliday,
     get_last_day_of_month_holiday,
@@ -39,7 +43,14 @@ from exchange_calendars_extensions.core.holiday import (
 )
 from exchange_calendars_extensions.core.util import (
     WeekmaskPeriod,
+    find_interval,
     get_weekmask_periods,
+    set_weekday,
+)
+
+from .datetime import (
+    DateLike,
+    DateLikeInput,
 )
 
 # Timdelta that represents a day minus the smallest increment of time.
@@ -69,6 +80,7 @@ class HolidayCalendar(ExchangeCalendarsHolidayCalendar):
 
         # Drop duplicates, keeping the first occurrence.
         if return_name:
+            assert isinstance(holidays, pd.Series)
             return holidays[~holidays.index.duplicated()]
         else:
             return holidays.drop_duplicates()
@@ -246,7 +258,7 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
         rules,
         other: ExchangeCalendarsHolidayCalendar,
         weekmask_periods: tuple[WeekmaskPeriod, ...],
-        roll_fn: RollFn = lambda d: d - pd.Timedelta(days=1),
+        roll_fn: RollFn = lambda d: d + pd.Timedelta(days=-1),
         pre_grow_fn: PreGrowFn = pre_grow_end_of_month,
     ) -> None:
         super().__init__(rules=rules)
@@ -305,7 +317,7 @@ _ta = TypeAdapter(DateLike, config=ConfigDict(arbitrary_types_allowed=True))
 
 
 def get_holiday_calendar_from_timestamps(
-    timestamps: list[pd.Timestamp], name: str | None = None
+    timestamps: list[pd.Timestamp],
 ) -> ExchangeCalendarsHolidayCalendar:
     """
     Return a holiday calendar with holidays given by a collection of timestamps.
@@ -327,7 +339,12 @@ def get_holiday_calendar_from_timestamps(
     # Generate list of rules, one for each timestamp.
     rules = [
         Holiday(
-            name, year=ts.year, month=ts.month, day=ts.day, start_date=ts, end_date=ts
+            name=None,
+            year=ts.year,
+            month=ts.month,
+            day=ts.day,
+            start_date=ts,
+            end_date=ts,
         )
         for ts in set(dict.fromkeys(timestamps))
     ]  # As of Python 3.7, dict preserves insertion order.
@@ -336,9 +353,7 @@ def get_holiday_calendar_from_timestamps(
     return ExchangeCalendarsHolidayCalendar(rules=rules)
 
 
-def get_holiday_calendar_from_day_of_week(
-    day_of_week: int, name: str | None = None
-) -> HolidayCalendar:
+def get_holiday_calendar_from_day_of_week(*, day_of_week: int) -> HolidayCalendar:
     """
     Return a holiday calendar with a periodic holiday occurring on each instance of the given day of the week.
 
@@ -350,7 +365,7 @@ def get_holiday_calendar_from_day_of_week(
         The name to use for the holiday, by default None.
     """
     # Generate list of rules. Actually contains only one rule for the given day of the week.
-    rules = [DayOfWeekPeriodicHoliday(name, day_of_week)]
+    rules = [DayOfWeekPeriodicHoliday(None, day_of_week)]
 
     # Return a new HolidayCalendar with the given rules.
     return ExchangeCalendarsHolidayCalendar(rules=rules)
@@ -391,9 +406,7 @@ def get_holidays_calendar(
         A new HolidayCalendar with all holidays from the given EchangeCalendar.
     """
     holiday_calendars = [
-        get_holiday_calendar_from_timestamps(
-            exchange_calendar.adhoc_holidays, name="ad-hoc holiday"
-        ),
+        get_holiday_calendar_from_timestamps(exchange_calendar.adhoc_holidays),
         exchange_calendar.regular_holidays,
     ]
 
@@ -423,9 +436,7 @@ def get_special_opens_calendar(
     # Add ad-hoc special opens.
     for item in exchange_calendar.special_opens_adhoc:
         _, definition = item
-        holiday_calendars.append(
-            get_holiday_calendar_from_timestamps(definition, name="ad-hoc special open")
-        )
+        holiday_calendars.append(get_holiday_calendar_from_timestamps(definition))
 
     # Add regular special open days.
     for item in exchange_calendar.special_opens:
@@ -434,7 +445,7 @@ def get_special_opens_calendar(
             holiday_calendars.append(definition)
         elif isinstance(definition, int):
             holiday_calendars.append(
-                get_holiday_calendar_from_day_of_week(definition, name="special open")
+                get_holiday_calendar_from_day_of_week(day_of_week=definition)
             )
 
     # Merge all calendars by reducing the list of calendars into one, calling the merge method on each pair.
@@ -463,11 +474,7 @@ def get_special_closes_calendar(
     # Add ad-hoc special closes.
     for item in exchange_calendar.special_closes_adhoc:
         _, definition = item
-        holiday_calendars.append(
-            get_holiday_calendar_from_timestamps(
-                definition, name="ad-hoc special close"
-            )
-        )
+        holiday_calendars.append(get_holiday_calendar_from_timestamps(definition))
 
     # Add regular special close days.
     for item in exchange_calendar.special_closes:
@@ -476,7 +483,7 @@ def get_special_closes_calendar(
             holiday_calendars.append(definition)
         elif isinstance(definition, int):
             holiday_calendars.append(
-                get_holiday_calendar_from_day_of_week(definition, name="special close")
+                get_holiday_calendar_from_day_of_week(day_of_week=definition)
             )
 
     # Merge all calendars by reducing the list of calendars into one, calling the merge method on each pair.
@@ -484,7 +491,7 @@ def get_special_closes_calendar(
 
 
 def get_days_calendar(
-    exchange_calendar: ExchangeCalendar,
+    periods: Sequence[WeekmaskPeriod],
     mask: Literal["0", "1"],
 ) -> ExchangeCalendarsHolidayCalendar:
     """
@@ -509,15 +516,13 @@ def get_days_calendar(
     """
     rules: list[Holiday] = []
 
-    weekmask_periods = get_weekmask_periods(exchange_calendar)
-
-    for p in weekmask_periods:
+    for p in periods:
         for day_of_week, v in enumerate(p.weekmask):
             if v == mask:
                 rules.append(
                     DayOfWeekPeriodicHoliday(
-                        "regular day" if mask == "1" else "weekend day",
-                        day_of_week,
+                        name=None,
+                        day_of_week=day_of_week,
                         start_date=p.start_date,
                         end_date=p.end_date,
                     )
@@ -546,7 +551,9 @@ def get_monthly_expiry_rules(
         A list of rules for a calendar with a holiday for each month's expiry, but excluding quarterly expiry days.
     """
     return [
-        get_monthly_expiry_holiday("monthly expiry", day_of_week, month, observance)
+        get_monthly_expiry_holiday(
+            name=None, day_of_week=day_of_week, month=month, observance=observance
+        )
         for month in [1, 2, 4, 5, 7, 8, 10, 11]
     ]
 
@@ -571,13 +578,14 @@ def get_quadruple_witching_rules(
         A list of rules for a calendar with a holiday for each quarterly expiry aka quadruple witching.
     """
     return [
-        get_monthly_expiry_holiday("quarterly expiry", day_of_week, month, observance)
+        get_monthly_expiry_holiday(
+            name=None, day_of_week=day_of_week, month=month, observance=observance
+        )
         for month in [3, 6, 9, 12]
     ]
 
 
 def get_last_day_of_month_rules(
-    name: str | None = "last trading day of month",
     observance: Callable[[pd.Timestamp], pd.Timestamp] | None = None,
 ) -> list[Holiday]:
     """
@@ -585,8 +593,6 @@ def get_last_day_of_month_rules(
 
     Parameters
     ----------
-    name : Optional[str], optional
-        The name to use for the holidays, by default 'last trading day of month'.
     observance : Optional[Callable[[pd.Timestamp], pd.Timestamp]], optional
         The observance function to use, by default None.
 
@@ -596,7 +602,7 @@ def get_last_day_of_month_rules(
         A list of rules for a calendar with a holiday for each last trading day of the month.
     """
     return [
-        get_last_day_of_month_holiday(name, i, observance=observance)
+        get_last_day_of_month_holiday(name=None, month=i, observance=observance)
         for i in range(1, 13)
     ]
 
@@ -694,7 +700,7 @@ class ExchangeCalendarExtensions(Protocol):
     @property
     def last_trading_days_of_months(
         self,
-    ) -> ExchangeCalendarsHolidayCalendar | None:
+    ) -> ExchangeCalendarsHolidayCalendar:
         """
         Return a holiday calendar with a holiday for each last trading day of the month.
 
@@ -708,7 +714,7 @@ class ExchangeCalendarExtensions(Protocol):
     @property
     def last_regular_trading_days_of_months(
         self,
-    ) -> ExchangeCalendarsHolidayCalendar | None:
+    ) -> ExchangeCalendarsHolidayCalendar:
         """
         Return a holiday calendar with a holiday for each last regular trading day of the month.
 
@@ -719,11 +725,34 @@ class ExchangeCalendarExtensions(Protocol):
         """
         ...
 
-    def meta(
+    def tags(
         self,
-        start: TimestampLike | None = None,
-        end: TimestampLike | None = None,
-    ) -> dict[pd.Timestamp, DayMeta]: ...
+        *,
+        tags: set[str] = Field(default_factory=frozenset),
+        start: DateLikeInput | None = None,
+        end: DateLikeInput | None = None,
+        return_tags: bool = False,
+    ) -> pd.DatetimeIndex | pd.Series:
+        """
+        Return a DatetimeIndex or Series of timestamps that have the specified tags.
+
+        Parameters
+        ----------
+        tags : Collection[str]
+            The tags to search for.
+        start : pd.Timestamp
+            The start date of the search.
+        end : pd.Timestamp
+            The end date of the search.
+        return_tags : bool, optional
+            Whether to return the tags as a Series, by default False.
+
+        Returns
+        -------
+        pd.DatetimeIndex | pd.Series
+            A DatetimeIndex or Series of timestamps that have the specified tags.
+        """
+        ...
 
 
 @dataclass
@@ -732,6 +761,10 @@ class AdjustedProperties:
     A dataclass for storing adjusted properties of an exchange calendar.
     """
 
+    open_times: tuple[tuple[pd.Timestamp, Any], ...]
+    close_times: tuple[tuple[pd.Timestamp, Any], ...]
+    weekmasks: tuple[WeekmaskPeriod, ...]
+
     # The regular holidays of the exchange calendar.
     regular_holidays: list[Holiday]
 
@@ -739,16 +772,16 @@ class AdjustedProperties:
     adhoc_holidays: list[pd.Timestamp]
 
     # The special closes of the exchange calendar.
-    special_closes: list[tuple[datetime.time, list[Holiday] | int]]
+    special_closes: list[tuple[dt.time, list[Holiday]]]
 
     # The ad-hoc special closes of the exchange calendar.
-    adhoc_special_closes: list[tuple[datetime.time, pd.DatetimeIndex]]
+    adhoc_special_closes: list[tuple[dt.time, pd.DatetimeIndex]]
 
     # The special opens of the exchange calendar.
-    special_opens: list[tuple[datetime.time, list[Holiday] | int]]
+    special_opens: list[tuple[dt.time, list[Holiday]]]
 
     # The ad-hoc special opens of the exchange calendar.
-    adhoc_special_opens: list[tuple[datetime.time, pd.DatetimeIndex]]
+    adhoc_special_opens: list[tuple[dt.time, pd.DatetimeIndex]]
 
     # The quarterly expiry days of the exchange calendar.
     quarterly_expiries: list[Holiday] = field(default_factory=list)
@@ -763,7 +796,7 @@ class AdjustedProperties:
     last_regular_trading_days_of_months: list[Holiday] = field(default_factory=list)
 
 
-class ExtendedExchangeCalendar(ExchangeCalendar, ExchangeCalendarExtensions, ABC):
+class ExtendedExchangeCalendar(ExchangeCalendarExtensions, ExchangeCalendar, ABC):
     """
     Abstract base class for exchange calendars with extended functionality.
     """
@@ -774,7 +807,7 @@ class ExtendedExchangeCalendar(ExchangeCalendar, ExchangeCalendarExtensions, ABC
 def extend_class(
     cls: type[ExchangeCalendar],
     day_of_week_expiry: int | None = None,
-    changeset_provider: Callable[[], ChangeSet] | None = None,
+    changeset_provider: Callable[[], ChangeSet | None] | None = None,
 ) -> type:
     """
     Extend the given ExchangeCalendar class with additional properties.
@@ -839,6 +872,52 @@ def extend_class(
     adhoc_special_closes_orig = cls.special_closes_adhoc.fget
     special_opens_orig = cls.special_opens.fget
     adhoc_special_opens_orig = cls.special_opens_adhoc.fget
+
+    def get_name(date: pd.Timestamp, instance: ExchangeCalendar) -> str | None:
+        """Return the name of the given day, if present in any calendar, or None otherwise.
+
+        Search through original regular/ad-hoc holidays, special opens, special closes."""
+        # Search regular holidays.
+        regular = regular_holidays_orig(instance)
+        if regular is not None:
+            for rule in regular.rules:
+                if is_holiday(rule, date):
+                    return rule.name
+
+        # Search special closes.
+        specials_closes = special_closes_orig(instance)
+
+        name = None
+
+        if specials_closes is not None:
+            for _, d in specials_closes:
+                if isinstance(d, int):
+                    # Won't change the name.
+                    pass
+                else:
+                    for rule in d.rules:
+                        if is_holiday(rule, date) and rule.name:
+                            name = rule.name
+                            break
+
+        if name:
+            return name
+
+        # Search special opens.
+        specials_opens = special_opens_orig(instance)
+        if specials_opens is not None:
+            for _, d in specials_opens:
+                if isinstance(d, int):
+                    if date.dayofweek == d:
+                        # Won't change the name.
+                        pass
+                else:
+                    for rule in d.rules:
+                        if is_holiday(rule, date):
+                            name = rule.name
+                            break
+
+        return name
 
     def is_holiday(holiday: Holiday, ts: pd.Timestamp) -> bool:
         """
@@ -958,9 +1037,9 @@ def extend_class(
     def add_special_session(
         name: str,
         ts: pd.Timestamp,
-        t: datetime.time,
-        special_sessions: list[tuple[datetime.time, list[Holiday]]],
-    ) -> list[tuple[datetime.time, list[Holiday]]]:
+        t: dt.time,
+        special_sessions: list[tuple[dt.time, list[Holiday]]],
+    ) -> list[tuple[dt.time, list[Holiday]]]:
         """
         Add a special session to the given list of special sessions.
 
@@ -970,7 +1049,7 @@ def extend_class(
             The name of the special session to add.
         ts : pd.Timestamp
             The session's date
-        t : datetime.time
+        t : dt.time
             The special open/close time.
         special_sessions : List[Holiday]
             List of special sessions to add the new session to.
@@ -1032,11 +1111,11 @@ def extend_class(
 
     def remove_special_session(
         ts: pd.Timestamp,
-        regular_special_sessions: list[tuple[datetime.time, list[Holiday]]],
-        adhoc_special_sessions: list[tuple[datetime.time, pd.DatetimeIndex]],
+        regular_special_sessions: list[tuple[dt.time, list[Holiday]]],
+        adhoc_special_sessions: list[tuple[dt.time, pd.DatetimeIndex]],
     ) -> tuple[
-        list[tuple[datetime.time, list[Holiday]]],
-        list[tuple[datetime.time, pd.DatetimeIndex]],
+        list[tuple[dt.time, list[Holiday]]],
+        list[tuple[dt.time, pd.DatetimeIndex]],
     ]:
         """
         Remove any special sessions that coincide with ts.
@@ -1045,19 +1124,22 @@ def extend_class(
         ----------
         ts : pd.Timestamp
             The timestamp to remove.
-        regular_special_sessions : List[Tuple[datetime.time, List[Holiday]]]
+        regular_special_sessions : List[Tuple[dt.time, List[Holiday]]]
             The list of regular special sessions.
-        adhoc_special_sessions : List[Tuple[datetime.time, pd.DatetimeIndex]]
+        adhoc_special_sessions : List[Tuple[dt.time, pd.DatetimeIndex]]
             The list of ad-hoc special sessions.
 
         Returns
         -------
-        Tuple[List[Tuple[datetime.time, List[Holiday]]], List[Tuple[datetime.time, pd.DatetimeIndex]]]
+        Tuple[List[Tuple[dt.time, List[Holiday]]], List[Tuple[dt.time, pd.DatetimeIndex]]]
             The modified lists of regular and ad-hoc special sessions.
         """
         # Loop over all times in regular_special_sessions.
         for _, rules in regular_special_sessions:
             if isinstance(rules, int):
+                # This case should never happen as these types of special sessions are converted into regular holiday
+                # calendars when setting up the extended class.
+
                 # Check if the day of week corresponding to ts is the same as rules.
                 if ts.dayofweek == rules:
                     raise NotImplementedError(
@@ -1082,7 +1164,68 @@ def extend_class(
 
         return regular_special_sessions, adhoc_special_sessions
 
+    @validate_call
+    def tags(
+        self,
+        *,
+        tags: set[str] = Field(default_factory=frozenset),
+        start: DateLikeInput | None = None,
+        end: DateLikeInput | None = None,
+        return_tags: bool = False,
+    ) -> pd.DatetimeIndex | pd.Series:
+        """
+        Return days that have all given tags.
+
+        Parameters
+        ----------
+        tags : Collection[str]
+            The tags to search for. Days must have ALL of these tags to be included.
+        start : pd.Timestamp | None, optional
+            The start of the date range (inclusive). If None, no lower bound is applied.
+        end : pd.Timestamp | None, optional
+            The end of the date range (inclusive). If None, no upper bound is applied.
+        return_tags : bool, optional
+            If True, return a Series mapping dates to their tag sets.
+            If False, return a DatetimeIndex of matching dates.
+
+        Returns
+        -------
+        pd.DatetimeIndex | pd.Series
+            If return_tags is False, returns a DatetimeIndex of dates that have all given tags.
+            If return_tags is True, returns a Series mapping dates to their tag sets.
+        """
+        # Convert tags to a set for efficient comparison
+        required_tags = frozenset(tags)
+
+        # Filter dates that have all required tags and are within the date range
+        matching_dates: dict[pd.Timestamp, set[str]] = {}
+        for date, date_tags in self._custom_tags.items():
+            # Check date range
+            if start is not None and date < start:
+                continue
+            if end is not None and date > end:
+                continue
+            # Check if date has all required tags
+            if required_tags.issubset(date_tags):
+                matching_dates[date] = date_tags
+
+        if return_tags:
+            # Return a Series mapping dates to their tag sets
+            return (
+                pd.Series(matching_dates) if matching_dates else pd.Series(dtype=object)
+            )
+        else:
+            # Return a DatetimeIndex of matching dates
+            return (
+                pd.DatetimeIndex(list(matching_dates.keys()))
+                if matching_dates
+                else pd.DatetimeIndex([])
+            )
+
     def __init__(self, *args, **kwargs):
+        # Initialize custom tags storage.
+        self._custom_tags: dict[pd.Timestamp, set[str]] = {}
+
         # Save adjusted properties. Initialize with copies of the original properties.
 
         regular_holidays = regular_holidays_orig(self)
@@ -1100,7 +1243,9 @@ def extend_class(
             [
                 (
                     t,
-                    [DayOfWeekPeriodicHoliday("special close", d)]
+                    [
+                        DayOfWeekPeriodicHoliday("special close", d)
+                    ]  # Convert weekly special close to rule.
                     if isinstance(d, int)
                     else list(copy(d.rules)),
                 )  # Convert day-of-week to rule, else just copy.
@@ -1118,7 +1263,9 @@ def extend_class(
             [
                 (
                     t,
-                    [DayOfWeekPeriodicHoliday("special open", d)]
+                    [
+                        DayOfWeekPeriodicHoliday("special open", d)
+                    ]  # Convert weekly special open to rule.
                     if isinstance(d, int)
                     else list(copy(d.rules)),
                 )  # Convert day-of-week to rule, else just copy.
@@ -1131,7 +1278,19 @@ def extend_class(
         adhoc_special_opens = (
             list(copy(adhoc_special_opens)) if adhoc_special_opens is not None else []
         )
+
+        open_times = tuple(
+            (d if d is not None else pd.Timestamp.min, t) for d, t in self.open_times
+        )
+
+        close_times = tuple(
+            (d if d is not None else pd.Timestamp.min, t) for d, t in self.close_times
+        )
+
         a = AdjustedProperties(
+            open_times=open_times,
+            close_times=close_times,
+            weekmasks=get_weekmask_periods(self),
             regular_holidays=regular_holidays,
             adhoc_holidays=adhoc_holidays,
             special_closes=special_closes,
@@ -1140,52 +1299,218 @@ def extend_class(
             adhoc_special_opens=adhoc_special_opens,
         )
 
-        # Get changeset from provider, maybe.
         changeset: ChangeSet | None = (
             changeset_provider() if changeset_provider is not None else None
         )
 
-        # Set changeset to None if it is empty.
-        if changeset is not None and len(changeset) <= 0:
-            changeset = None
-
-        if changeset is not None:
-            # Remove all changed days from holidays, special opens, and special closes.
-            for ts in changeset.all_days(include_meta=False):
-                a.regular_holidays, a.adhoc_holidays = remove_holiday(
-                    ts, a.regular_holidays, a.adhoc_holidays
-                )
-                a.special_opens, a.adhoc_special_opens = remove_special_session(
-                    ts, a.special_opens, a.adhoc_special_opens
-                )
-                a.special_closes, a.adhoc_special_closes = remove_special_session(
-                    ts, a.special_closes, a.adhoc_special_closes
-                )
-
-            # Add holiday, special opens, and special closes.
-            for date, props in changeset.add.items():
-                if props.type == DayType.HOLIDAY:
-                    # Add the holiday.
-                    a.regular_holidays.append(
-                        Holiday(
-                            props.name, year=date.year, month=date.month, day=date.day
-                        )
-                    )
-                elif props.type == DayType.SPECIAL_OPEN:
-                    # Add the special open.
-                    a.special_opens = add_special_session(
-                        props.name, date, props.time, a.special_opens
-                    )
-                elif props.type == DayType.SPECIAL_CLOSE:
-                    # Add the special close.
-                    a.special_closes = add_special_session(
-                        props.name, date, props.time, a.special_closes
-                    )
-
         self._adjusted_properties = a
 
-        # Save meta.
-        self._meta = changeset.meta if changeset is not None else {}
+        if changeset is not None:
+            for date, change in changeset.items():
+                assert isinstance(change, DayChange)
+
+                if change.tags is MISSING:
+                    # Do not change tags.
+                    pass
+                else:
+                    self._custom_tags[date] = set(change.tags)
+
+                if change.spec:
+                    if isinstance(change.spec, NonBusinessDaySpec):
+                        regular_holiday_name_change = (
+                            change.spec.holiday is MISSING
+                            and change.name is not MISSING
+                            and not HolidayCalendar(rules=a.regular_holidays)
+                            .holidays(start=date, end=date)
+                            .empty
+                        )
+                        if (
+                            change.spec.holiday is not MISSING
+                            or regular_holiday_name_change
+                        ):
+                            # Ensure day is not in holidays, special opens, or special closes.
+                            a.regular_holidays, a.adhoc_holidays = remove_holiday(
+                                date, a.regular_holidays, a.adhoc_holidays
+                            )
+                        a.special_opens, a.adhoc_special_opens = remove_special_session(
+                            date, a.special_opens, a.adhoc_special_opens
+                        )
+                        a.special_closes, a.adhoc_special_closes = (
+                            remove_special_session(
+                                date, a.special_closes, a.adhoc_special_closes
+                            )
+                        )
+
+                        # NOTE: Don't remove the day from monthly/quarterly expiries and other implied calendars.
+
+                        if change.spec.holiday is True or regular_holiday_name_change:
+                            # Add day to regular holidays.
+                            name: str | None = (
+                                change.name
+                                if change.name is not MISSING
+                                else get_name(date, self)
+                            )
+                            a.regular_holidays.append(
+                                Holiday(
+                                    name,
+                                    year=date.year,
+                                    month=date.month,
+                                    day=date.day,
+                                )
+                            )
+
+                        if change.spec.weekend_day is not MISSING:
+                            a.weekmasks = set_weekday(
+                                a.weekmasks, date, not change.spec.weekend_day
+                            )
+
+                    elif isinstance(change.spec, BusinessDaySpec):
+                        name_prev: str | None = get_name(date, self)
+                        regular_open = find_interval(a.open_times, date)[1]
+                        regular_close = find_interval(a.close_times, date)[1]
+
+                        def find_open() -> tuple[
+                            dt.time, Literal["regular", "ad_hoc"] | None, str | None
+                        ]:
+                            for t, holidays in a.special_opens:
+                                s = HolidayCalendar(rules=holidays).holidays(
+                                    start=date, end=date, return_name=True
+                                )
+                                if not s.empty:
+                                    return t, "regular", s.iloc[0]
+                            for t, index in a.adhoc_special_opens:
+                                if date in index:
+                                    return t, "ad_hoc", None
+                            return regular_open, None, None
+
+                        def find_close() -> tuple[
+                            dt.time, Literal["regular", "ad_hoc"] | None, str | None
+                        ]:
+                            for t, holidays in a.special_closes:
+                                s = HolidayCalendar(rules=holidays).holidays(
+                                    start=date, end=date, return_name=True
+                                )
+                                if not s.empty:
+                                    return t, "regular", s.iloc[0]
+                            for t, index in a.adhoc_special_closes:
+                                if date in index:
+                                    return t, "ad_hoc", None
+                            return regular_close, None, None
+
+                        prev_open, prev_open_type, prev_open_name = find_open()
+                        prev_close, prev_close_type, prev_close_name = find_close()
+
+                        # Determine the session times.
+                        if change.spec.open is MISSING:
+                            open_time = prev_open
+                        else:
+                            open_time = (
+                                regular_open
+                                if change.spec.open == "regular"
+                                else change.spec.open
+                            )
+                        if change.spec.close is MISSING:
+                            close_time = prev_close
+                        else:
+                            close_time = (
+                                regular_close
+                                if change.spec.close == "regular"
+                                else change.spec.close
+                            )
+
+                        # Ensure day is not in holidays, special opens, or special closes.
+                        a.regular_holidays, a.adhoc_holidays = remove_holiday(
+                            date, a.regular_holidays, a.adhoc_holidays
+                        )
+
+                        if open_time != regular_open:
+                            # Special open.
+                            if (
+                                prev_open_type in ("regular", "ad_hoc")
+                                and prev_open == open_time
+                                and (
+                                    change.name is MISSING
+                                    or change.name == prev_open_name
+                                )
+                            ):
+                                # Keep original special open.
+                                pass
+                            else:
+                                if prev_open_type is not None:
+                                    # Remove previous special open.
+                                    a.special_opens, a.adhoc_special_opens = (
+                                        remove_special_session(
+                                            date,
+                                            a.special_opens,
+                                            a.adhoc_special_opens,
+                                        )
+                                    )
+                                # Insert new special open.
+                                a.special_opens = add_special_session(
+                                    change.name
+                                    if change.name is not MISSING
+                                    else name_prev,
+                                    date,
+                                    dt.time.fromisoformat(open_time.isoformat()),
+                                    a.special_opens,
+                                )
+                        elif prev_open_type is not None:
+                            # Remove previous special open.
+                            a.special_opens, a.adhoc_special_opens = (
+                                remove_special_session(
+                                    date,
+                                    a.special_opens,
+                                    a.adhoc_special_opens,
+                                )
+                            )
+
+                        if close_time != regular_close:
+                            # Special close.
+                            if (
+                                prev_close_type in ("regular", "ad_hoc")
+                                and prev_close == close_time
+                                and (
+                                    change.name is MISSING
+                                    or change.name == prev_close_name
+                                )
+                            ):
+                                # Keep original special close.
+                                pass
+                            else:
+                                if prev_close_type is not None:
+                                    # Remove previous special close.
+                                    a.special_closes, a.adhoc_special_closes = (
+                                        remove_special_session(
+                                            date,
+                                            a.special_closes,
+                                            a.adhoc_special_closes,
+                                        )
+                                    )
+                                # Insert new special close.
+                                a.special_closes = add_special_session(
+                                    change.name
+                                    if change.name is not MISSING
+                                    else name_prev,
+                                    date,
+                                    dt.time.fromisoformat(close_time.isoformat()),
+                                    a.special_closes,
+                                )
+                        elif prev_close_type is not None:
+                            # Remove previous special close.
+                            a.special_closes, a.adhoc_special_closes = (
+                                remove_special_session(
+                                    date,
+                                    a.special_closes,
+                                    a.adhoc_special_closes,
+                                )
+                            )
+
+                        # Day must be a week day.
+                        a.weekmasks = set_weekday(a.weekmasks, date, True)
+                    elif change.spec is MISSING:
+                        pass  # Nothing to do.
+                    else:
+                        raise ValueError(f"Unsupported spec type: {type(change.spec)}")
 
         # Call upstream init method.
         init_orig(self, *args, **kwargs)
@@ -1203,39 +1528,12 @@ def extend_class(
             else []
         )
 
-        if changeset is not None:
-            # Remove all changed days from monthly and quarterly expiries.
-            for ts in changeset.all_days(include_meta=False):
-                a.monthly_expiries, _ = remove_holiday(ts, a.monthly_expiries)
-                a.quarterly_expiries, _ = remove_holiday(ts, a.quarterly_expiries)
-
-            # Add monthly and quarterly expiries.
-            for date, props in changeset.add.items():
-                if props.type == DayType.MONTHLY_EXPIRY:
-                    # Add the monthly expiry.
-                    a.monthly_expiries.append(
-                        Holiday(
-                            props.name, year=date.year, month=date.month, day=date.day
-                        )
-                    )
-                elif props.type == DayType.QUARTERLY_EXPIRY:
-                    # Add the quarterly expiry.
-                    a.quarterly_expiries.append(
-                        Holiday(
-                            props.name, year=date.year, month=date.month, day=date.day
-                        )
-                    )
-
         # Set up last trading days of the month.
-        a.last_trading_days_of_months = get_last_day_of_month_rules(
-            "last trading day of month"
-        )
+        a.last_trading_days_of_months = get_last_day_of_month_rules()
 
         # Set up last regular trading days of the month. This can only be done after holidays, special opens,
         # special closes, monthly expiries, and quarterly expiries have been set up.
-        a.last_regular_trading_days_of_months = get_last_day_of_month_rules(
-            "last regular trading day of month"
-        )
+        a.last_regular_trading_days_of_months = get_last_day_of_month_rules()
 
         # Save a calendar with all holidays and another one with all holidays and special business days for later use.
         # These calendars are needed to generate calendars for monthly expiries, quarterly expiries, last trading days
@@ -1299,34 +1597,34 @@ def extend_class(
         return copy(self._adjusted_properties.adhoc_holidays)
 
     @property
-    def special_closes(self) -> list[tuple[datetime.time, HolidayCalendar | int]]:
+    def special_closes(self) -> list[tuple[dt.time, HolidayCalendar | int]]:
         return [
             (t, rules if isinstance(rules, int) else HolidayCalendar(rules=rules))
             for t, rules in self._adjusted_properties.special_closes
         ]
 
     @property
-    def special_closes_adhoc(self) -> list[tuple[datetime.time, pd.DatetimeIndex]]:
+    def special_closes_adhoc(self) -> list[tuple[dt.time, pd.DatetimeIndex]]:
         return copy(self._adjusted_properties.adhoc_special_closes)
 
     @property
-    def special_opens(self) -> list[tuple[datetime.time, HolidayCalendar | int]]:
+    def special_opens(self) -> list[tuple[dt.time, HolidayCalendar | int]]:
         return [
             (t, rules if isinstance(rules, int) else HolidayCalendar(rules=rules))
             for t, rules in self._adjusted_properties.special_opens
         ]
 
     @property
-    def special_opens_adhoc(self) -> list[tuple[datetime.time, pd.DatetimeIndex]]:
+    def special_opens_adhoc(self) -> list[tuple[dt.time, pd.DatetimeIndex]]:
         return copy(self._adjusted_properties.adhoc_special_opens)
 
     @property
     def weekend_days(self) -> HolidayCalendar | None:
-        return get_days_calendar(self, mask="0")
+        return get_days_calendar(self._adjusted_properties.weekmasks, mask="0")
 
     @property
     def week_days(self) -> HolidayCalendar | None:
-        return get_days_calendar(self, mask="1")
+        return get_days_calendar(self._adjusted_properties.weekmasks, mask="1")
 
     @property
     def holidays_all(self) -> HolidayCalendar | None:
@@ -1380,53 +1678,26 @@ def extend_class(
             roll_fn=roll_one_day_same_month,
         )
 
-    @validate_call(config={"arbitrary_types_allowed": True})
-    def meta(
-        self,
-        start: TimestampLike | None = None,
-        end: TimestampLike | None = None,
-    ) -> dict[pd.Timestamp, DayMeta]:
-        # Check that when start and end are both given, they are both timezone-aware or both timezone-naive.
-        if start and end:
-            if bool(start.tz) != bool(end.tz):
-                raise ValueError(
-                    "start and end must both be timezone-aware or both timezone-naive."
-                )
-
-            if start > end:
-                raise ValueError("start must be less than or equal to end.")
-
-        # Get timezone from start or end, if given.
-        tz = (start and start.tz) or (end and end.tz) or None
-
-        # Return a dictionary with all metadata for days in the given range. A day is considered to comprise the full
-        # period between midnight (inclusive) and the next midnight (exclusive). If that period overlaps with the given
-        # range, the day is included in the result.
-        #
-        # Note: The code assumes that ONE_DAY_MINUS_EPS gets applied to timezone-naive timestamps where it corresponds
-        # to (almost) a calendar day. The same may not be true for timezone-aware timestamps when the period includes
-        # e.g. a DST transition.
-        if tz:
-            return OrderedDict(
-                [
-                    (k, v)
-                    for k, v in self._meta.items()
-                    if (
-                        start is None
-                        or (k + ONE_DAY_MINUS_EPS).tz_localize(tz=self.tz) >= start
-                    )
-                    and (end is None or (k.tz_localize(tz=self.tz)) <= end)
-                ]
+    @cached_property
+    def day(self):
+        if len(self._adjusted_properties.weekmasks) == 1:
+            return CustomBusinessDay(
+                holidays=self.adhoc_holidays,
+                calendar=self.regular_holidays,
+                weekmask=self._adjusted_properties.weekmasks[0].weekmask,
+            )
+        elif len(self._adjusted_properties.weekmasks) > 1:
+            return MultipleWeekmaskCustomBusinessDay(
+                holidays=self.adhoc_holidays,
+                calendar=self.regular_holidays,
+                weekmask=self.weekmask,
+                weekmasks=[
+                    (wmp.start_date, wmp.end_date, wmp.weekmask)
+                    for wmp in self._adjusted_properties.weekmasks
+                ],
             )
         else:
-            return OrderedDict(
-                [
-                    (k, v)
-                    for k, v in self._meta.items()
-                    if (start is None or (k + ONE_DAY_MINUS_EPS) >= start)
-                    and (end is None or k <= end)
-                ]
-            )
+            raise ValueError("No weekmasks found.")
 
     # Use type to create a new class.
     extended = type(
@@ -1449,7 +1720,8 @@ def extend_class(
             "quarterly_expiries": quarterly_expiries,
             "last_trading_days_of_months": last_trading_days_of_months,
             "last_regular_trading_days_of_months": last_regular_trading_days_of_months,
-            "meta": meta,
+            "day": day,
+            "tags": tags,
         },
     )
 
