@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-04T13:39:23.422217Z"
+exclude-newer = "2026-04-05T13:29:08.176718Z"
 exclude-newer-span = "P10D"
 
 [[package]]
@@ -159,7 +159,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -190,7 +190,6 @@ name = "exchange-calendars-extensions"
 source = { editable = "." }
 dependencies = [
     { name = "exchange-calendars" },
-    { name = "exchange-calendars-extensions-api" },
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
@@ -205,7 +204,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "exchange-calendars", specifier = ">=4.0.1,<5" },
-    { name = "exchange-calendars-extensions-api", specifier = ">=0.5.0,<1" },
     { name = "pydantic", specifier = ">=2.12.0,<3" },
     { name = "typing-extensions", specifier = ">=4,<5" },
 ]
@@ -215,21 +213,6 @@ dev = [
     { name = "pytest", specifier = ">=9,<10" },
     { name = "pytest-cov", specifier = ">=7,<8" },
     { name = "pytest-mock", specifier = ">=3,<4" },
-]
-
-[[package]]
-name = "exchange-calendars-extensions-api"
-version = "0.5.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "pandas", version = "3.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "pydantic" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/6a/6dbee8f65a7c227768d515c13ebd210c36e5446a5062002de3825e713a84/exchange_calendars_extensions_api-0.5.1.tar.gz", hash = "sha256:b7668bbe15f281adb42eb70e7ea4cac34c55f2bbf772b137eea99b53710de3cc", size = 15263, upload-time = "2026-02-06T22:10:13.548Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/5e/f03003c23a17125a57e801c3fa433fedfc19baad74b7a5723765acffa490/exchange_calendars_extensions_api-0.5.1-py3-none-any.whl", hash = "sha256:56d7e9a4016fc2ef419523e9210574c9b6e4fbaa938e11a658649143ff8603aa", size = 11704, upload-time = "2026-02-06T22:10:12.471Z" },
 ]
 
 [[package]]
