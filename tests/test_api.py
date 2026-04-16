@@ -1,5 +1,4 @@
 import datetime as dt
-import importlib.metadata
 from typing import Any, Literal, cast
 
 import exchange_calendars as ec
@@ -38,17 +37,6 @@ from tests.synthetic_calendar import (
     WEEKEND_DAY_DT,
     add_extended_calendar_class,
     create_test_calendar_class,
-)
-
-_EC_VERSION: tuple[int, ...] = tuple(
-    int(x) for x in importlib.metadata.version("exchange-calendars").split(".")
-)
-_EC_VERSION_THRESHOLD: tuple[int, ...] = ()  # (4, 13, 2) ?
-
-# Skip some tests until https://github.com/gerrymanoim/exchange_calendars/pull/553 is resolved.
-_skip_below_threshold = pytest.mark.skipif(
-    not _EC_VERSION_THRESHOLD or _EC_VERSION <= _EC_VERSION_THRESHOLD,
-    reason=f"requires exchange-calendars >= {'.'.join(str(x) for x in _EC_VERSION_THRESHOLD)}",
 )
 
 MODIFIED_DAY_NAME = "Modified day"
@@ -914,7 +902,6 @@ def _make_param_test_set_business_day(
             WEEKEND_DAY_DT,
             None,
             "regular weekend day",
-            marks=_skip_below_threshold,
         ),
         _make_param_test_set_business_day(
             HOLIDAY_REGULAR_DT,

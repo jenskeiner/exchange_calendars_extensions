@@ -22,15 +22,14 @@ from .changes import (
     NonBusinessDaySpec,
     consolidate,
 )
+from .datetime import (
+    DateLike,
+    DateLikeInput,
+)
 from .holiday_calendar import (
     ExchangeCalendarExtensions,
     ExtendedExchangeCalendar,
     extend_class,
-)
-
-from .datetime import (
-    DateLike,
-    DateLikeInput,
 )
 from .util import copy_changeset
 
