@@ -4,7 +4,7 @@ from datetime import timedelta, tzinfo
 import pandas as pd
 from exchange_calendars.pandas_extensions.holiday import Holiday
 
-from exchange_calendars_extensions.core.offset import (
+from .offset import (
     LastDayOfMonthOffsetClasses,
     ThirdDayOfWeekInMonthOffsetClasses,
 )

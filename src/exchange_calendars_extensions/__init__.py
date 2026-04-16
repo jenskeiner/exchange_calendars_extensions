@@ -10,7 +10,7 @@ from exchange_calendars import (
 from pydantic import BaseModel, Field, validate_call
 from typing_extensions import ParamSpec
 
-from exchange_calendars_extensions.core.changes import (
+from .changes import (
     CLEAR,
     BusinessDaySpec,
     ChangeSet,
@@ -22,7 +22,7 @@ from exchange_calendars_extensions.core.changes import (
     NonBusinessDaySpec,
     consolidate,
 )
-from exchange_calendars_extensions.core.holiday_calendar import (
+from .holiday_calendar import (
     ExchangeCalendarExtensions,
     ExtendedExchangeCalendar,
     extend_class,

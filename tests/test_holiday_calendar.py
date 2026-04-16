@@ -14,7 +14,7 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from pandas.api.types import pandas_dtype
 
 import tests.util
-from exchange_calendars_extensions.core.holiday_calendar import (
+from exchange_calendars_extensions.holiday_calendar import (
     AdjustedHolidayCalendar,
     RollFn,
     filter_by_range,
@@ -30,7 +30,7 @@ from exchange_calendars_extensions.core.holiday_calendar import (
     merge_calendars,
     roll_one_day_same_month,
 )
-from exchange_calendars_extensions.core.util import Weekmask, WeekmaskPeriod
+from exchange_calendars_extensions.util import Weekmask, WeekmaskPeriod
 from tests.util import date2args, roll_backward, roll_forward
 
 HOLIDAY = "Holiday"
@@ -1149,7 +1149,7 @@ class TestAdjustedHolidayCalendarWithRangeBoundary:
         # so it gets adjusted to the 30th. When querying for dates with end=pd.Timestamp("2026-01-30"), the 30th should
         # be included.
 
-        from exchange_calendars_extensions.core.holiday_calendar import (
+        from exchange_calendars_extensions.holiday_calendar import (
             AdjustedHolidayCalendar,
             get_last_day_of_month_rules,
         )

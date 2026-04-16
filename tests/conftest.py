@@ -7,7 +7,7 @@ from collections.abc import Generator
 import exchange_calendars as ec
 import pytest
 
-from exchange_calendars_extensions.core import ExtendedExchangeCalendar
+from exchange_calendars_extensions import ExtendedExchangeCalendar
 from tests.synthetic_calendar import add_test_calendar
 
 

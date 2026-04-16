@@ -67,7 +67,7 @@ sources = ["src"]
 only-include = ["src/exchange_calendars_extensions"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=src/exchange_calendars_extensions --cov-report=term-missing"
+addopts = "--cov=exchange_calendars_extensions --cov-report=term-missing"
 testpaths = ["tests"]
 
 [tool.uv]

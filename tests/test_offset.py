@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from exchange_calendars_extensions.core.offset import (
+from exchange_calendars_extensions.offset import (
     get_last_day_of_month_offset_class,
     get_third_day_of_week_in_month_offset_class,
 )

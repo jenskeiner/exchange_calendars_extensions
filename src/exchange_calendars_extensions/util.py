@@ -10,7 +10,7 @@ from exchange_calendars import ExchangeCalendar
 from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints
 from pydantic_core import core_schema
 
-from exchange_calendars_extensions.core import ChangeSet, DayChange
+from .changes import ChangeSet, DayChange
 
 T = TypeVar("T")
 

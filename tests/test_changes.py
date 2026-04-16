@@ -6,14 +6,14 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 from pydantic.experimental.missing_sentinel import MISSING
 
-from exchange_calendars_extensions.core.changes import (
+from exchange_calendars_extensions.changes import (
     BusinessDaySpec,
     ChangeSet,
     DayChange,
     DaySpec,
     NonBusinessDaySpec,
 )
-from exchange_calendars_extensions.core.datetime import DateLike
+from exchange_calendars_extensions.datetime import DateLike
 
 
 @pytest.fixture()

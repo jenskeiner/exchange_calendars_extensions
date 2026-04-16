@@ -5,7 +5,7 @@ import pandas as pd
 from pandas._libs.tslibs import localize_pydatetime
 from pandas._libs.tslibs.offsets import Easter, apply_wraps
 
-from exchange_calendars_extensions.core.util import (
+from .util import (
     get_day_of_week_name,
     get_month_name,
     last_day_in_month,
