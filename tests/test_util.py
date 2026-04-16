@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from exchange_calendars import get_calendar
 
-from exchange_calendars_extensions.core.util import (
+from exchange_calendars_extensions.util import (
     Weekmask,
     WeekmaskPeriod,
     find_interval,

@@ -9,8 +9,8 @@ from exchange_calendars.exchange_calendar import HolidayCalendar
 from exchange_calendars.pandas_extensions.holiday import Holiday
 from pandas.tseries.holiday import next_monday
 
-from exchange_calendars_extensions import core as ecx
-from exchange_calendars_extensions.core import DateLike
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions import DateLike
 
 REGULAR_DAY_DT = DateLike("2023-07-03")
 WEEKEND_DAY_DT = DateLike("2023-07-02")

@@ -30,18 +30,18 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pydantic import ConfigDict, Field, TypeAdapter, validate_call
 from pydantic.experimental.missing_sentinel import MISSING
 
-from exchange_calendars_extensions.core.changes import (
+from .changes import (
     BusinessDaySpec,
     ChangeSet,
     DayChange,
     NonBusinessDaySpec,
 )
-from exchange_calendars_extensions.core.holiday import (
+from .holiday import (
     DayOfWeekPeriodicHoliday,
     get_last_day_of_month_holiday,
     get_monthly_expiry_holiday,
 )
-from exchange_calendars_extensions.core.util import (
+from .util import (
     WeekmaskPeriod,
     find_interval,
     get_weekmask_periods,

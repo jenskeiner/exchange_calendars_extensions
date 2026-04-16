@@ -2,7 +2,7 @@ import pandas as pd
 from exchange_calendars.pandas_extensions.holiday import Holiday
 from pandas import DatetimeIndex, Series
 
-from exchange_calendars_extensions.core.holiday import (
+from exchange_calendars_extensions.holiday import (
     DayOfWeekPeriodicHoliday,
     get_monthly_expiry_holiday,
 )

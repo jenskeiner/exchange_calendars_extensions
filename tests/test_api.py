@@ -8,14 +8,14 @@ import pytest
 from exchange_calendars.exchange_calendar import HolidayCalendar
 from pydantic.experimental.missing_sentinel import MISSING
 
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core import ExtendedExchangeCalendar
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions import ExtendedExchangeCalendar
+from exchange_calendars_extensions.changes import (
     BusinessDaySpec,
     DayChange,
     NonBusinessDaySpec,
 )
-from exchange_calendars_extensions.core.datetime import DateLike
+from exchange_calendars_extensions.datetime import DateLike
 from tests.synthetic_calendar import (
     CLOSE_REGULAR,
     CLOSE_SPECIAL_AD_HOC,

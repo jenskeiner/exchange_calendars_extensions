@@ -70,11 +70,11 @@ pip install exchange-calendars-extensions
 *Note: In general, any code snippet in this documentation is self-contained and should execute successfully in a fresh
 Python interpreter instance*
 
-Import `exchange_calendars_extensions.core` and register extended exchange calendar classes with the
+Import `exchange_calendars_extensions` and register extended exchange calendar classes with the
 `exchange_calendars` module.
 
 ```python
-import exchange_calendars_extensions.core as ecx
+import exchange_calendars_extensions as ecx
 
 ecx.apply_extensions()
 ```
@@ -87,7 +87,7 @@ class `ecx.ExtendedExchangeCalendar`. This class inherits both from `ec.Exchange
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
+import exchange_calendars_extensions as ecx
 
 ecx.apply_extensions()
 
@@ -106,7 +106,7 @@ The original classes can be re-instated by calling `ecx.remove_extensions()`.
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
+import exchange_calendars_extensions as ecx
 
 ecx.apply_extensions()
 
@@ -146,7 +146,7 @@ For example,
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
+import exchange_calendars_extensions as ecx
 
 ecx.apply_extensions()
 
@@ -181,7 +181,7 @@ Quarterly and monthly expiry days:
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
+import exchange_calendars_extensions as ecx
 
 ecx.apply_extensions()
 
@@ -208,7 +208,7 @@ Similar to the expiry day calendars, the last (regular) trading day of a month c
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
+import exchange_calendars_extensions as ecx
 
 ecx.apply_extensions()
 
@@ -257,7 +257,7 @@ It is described by the `DayChange` [Pydantic](https://github.com/pydantic/pydant
 ```python
 from pydantic import BaseModel
 from pydantic.experimental.missing_sentinel import MISSING
-from exchange_calendars_extensions.core import DaySpec
+from exchange_calendars_extensions import DaySpec
 
 
 class DayChange(BaseModel):
@@ -294,7 +294,7 @@ non-business day. The corresponding `DaySpec` type is a discriminated union of `
 ```python
 from typing import Annotated
 from pydantic import Field
-from exchange_calendars_extensions.core import NonBusinessDaySpec, BusinessDaySpec
+from exchange_calendars_extensions import NonBusinessDaySpec, BusinessDaySpec
 
 DaySpec = Annotated[
     NonBusinessDaySpec | BusinessDaySpec, Field(discriminator="business_day")
@@ -324,7 +324,7 @@ A business day is described by `BusinessDaySpec`.
 from typing import Literal
 from pydantic import BaseModel
 from pydantic.experimental.missing_sentinel import MISSING
-from exchange_calendars_extensions.core.datetime import TimeLike
+from exchange_calendars_extensions.datetime import TimeLike
 
 
 class BusinessDaySpec(BaseModel):
@@ -350,7 +350,7 @@ The `DayChange` model can express a wide range of complete or partial changes to
 change only sets the name of a day, but leaves everything else unchanged
 
 ```python
-from exchange_calendars_extensions.core import DayChange
+from exchange_calendars_extensions import DayChange
 
 DayChange(name="Holiday")
 ```
@@ -362,7 +362,7 @@ days support names on days.
 The following change describes a special open day:
 
 ```python
-from exchange_calendars_extensions.core import DayChange, BusinessDaySpec
+from exchange_calendars_extensions import DayChange, BusinessDaySpec
 import datetime as dt
 
 DayChange(
@@ -376,7 +376,7 @@ left undefined here to retain the existing name (or `None`) of the day.
 Likewise, the following change describes a weekend day that is also a holiday, and assigns some tags as well
 
 ```python
-from exchange_calendars_extensions.core import DayChange, NonBusinessDaySpec
+from exchange_calendars_extensions import DayChange, NonBusinessDaySpec
 
 DayChange(
     spec=NonBusinessDaySpec(weekend_day=True, holiday=True),
@@ -393,8 +393,8 @@ For example, to add a new holiday:
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import DayChange, NonBusinessDaySpec
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import DayChange, NonBusinessDaySpec
 import pandas as pd
 
 ecx.apply_extensions()
@@ -434,8 +434,8 @@ properties again. By default, the second change will be applied on top of the fi
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import DayChange, NonBusinessDaySpec
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import DayChange, NonBusinessDaySpec
 import pandas as pd
 
 ecx.apply_extensions()
@@ -494,8 +494,8 @@ See the following example:
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     DayChange,
     BusinessDaySpec,
     NonBusinessDaySpec,
@@ -549,8 +549,8 @@ To remove any changes to a day and recover the original state, use `change_day(.
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     DayChange,
     NonBusinessDaySpec,
     CLEAR,
@@ -613,8 +613,8 @@ Whenever a calendar is modified, the changes are only reflected after obtaining 
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     DayChange,
     NonBusinessDaySpec,
     BusinessDaySpec,
@@ -671,8 +671,8 @@ To make working with multiple changes easier, it is possible to create and apply
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     DayChange,
     BusinessDaySpec,
     NonBusinessDaySpec,
@@ -711,8 +711,8 @@ The `change_calendar` function can also be used to clear all changes to a calend
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     DayChange,
     BusinessDaySpec,
     NonBusinessDaySpec,
@@ -747,8 +747,8 @@ An incoming changeset may contain `CLEAR` entries to remove changes for specific
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     DayChange,
     BusinessDaySpec,
     NonBusinessDaySpec,
@@ -788,8 +788,8 @@ You can inspect the current state of a calendar directly to verify what changes 
 ```python
 from pprint import pprint
 from pydantic import TypeAdapter
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     ChangeSet,
     DayChange,
     BusinessDaySpec,
@@ -842,8 +842,8 @@ Serializing to JSON makes changes easy to store and pass around.
 
 ```python
 from pydantic import TypeAdapter
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     ChangeSet,
     DayChange,
     BusinessDaySpec,
@@ -876,8 +876,8 @@ Set `exchange` to `None` to retrieve a dictionary of all changesets for all exch
 
 ```python
 from pydantic import TypeAdapter
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     ChangeSet,
     DayChange,
     BusinessDaySpec,
@@ -939,8 +939,8 @@ Custom tags can be added through calendar changes as well.
 
 ```python
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     DayChange,
 )
 
@@ -974,8 +974,8 @@ Likewise, dates can be filtered via `start` and `end` arguments, as well as a se
 ```python
 import pandas as pd
 import exchange_calendars as ec
-import exchange_calendars_extensions.core as ecx
-from exchange_calendars_extensions.core.changes import (
+import exchange_calendars_extensions as ecx
+from exchange_calendars_extensions.changes import (
     DayChange,
 )
 
@@ -1054,7 +1054,7 @@ submodule `exchange_calendars_extensions.holiday_calendar`.
 
 ```python
 from exchange_calendars.exchange_calendar_xlon import XLONExchangeCalendar
-from exchange_calendars_extensions.core import extend_class
+from exchange_calendars_extensions import extend_class
 
 xlon_extended_cls = extend_class(XLONExchangeCalendar, day_of_week_expiry=4)
 ```
@@ -1074,7 +1074,7 @@ To register a new extended class for an exchange, use the `register_extension()`
 `apply_extensions()`.
 
 ```python
-from exchange_calendars_extensions.core import register_extension, apply_extensions
+from exchange_calendars_extensions import register_extension, apply_extensions
 
 register_extension("XLON", day_of_week_expiry=4)
 apply_extensions()
