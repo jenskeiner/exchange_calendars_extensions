@@ -21,9 +21,6 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars.pandas_extensions.holiday import (
     Holiday as ExchangeCalendarsHoliday,
 )
-from exchange_calendars.pandas_extensions.offsets import (
-    MultipleWeekmaskCustomBusinessDay,
-)
 from pandas import Timestamp
 from pandas.tseries.holiday import Holiday as PandasHoliday
 from pandas.tseries.offsets import CustomBusinessDay
@@ -36,21 +33,23 @@ from .changes import (
     DayChange,
     NonBusinessDaySpec,
 )
+from .datetime import (
+    DateLike,
+    DateLikeInput,
+)
 from .holiday import (
     DayOfWeekPeriodicHoliday,
     get_last_day_of_month_holiday,
     get_monthly_expiry_holiday,
+)
+from .patch import (
+    MultipleWeekmaskCustomBusinessDay,
 )
 from .util import (
     WeekmaskPeriod,
     find_interval,
     get_weekmask_periods,
     set_weekday,
-)
-
-from .datetime import (
-    DateLike,
-    DateLikeInput,
 )
 
 # Timdelta that represents a day minus the smallest increment of time.
