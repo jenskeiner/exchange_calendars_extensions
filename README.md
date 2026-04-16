@@ -58,8 +58,7 @@ days, e.g. to group days into custom categories.
 ## Installation
 
 The package is available on [PyPI](https://pypi.org/project/exchange-calendars-extensions/) and can be installed via
-[pip](https://pip.pypa.io/en/stable/) or any other suitable package/dependency management tool, e.g.
-[Poetry](https://python-poetry.org/).
+[pip](https://pip.pypa.io/en/stable/), [Poetry](https://python-poetry.org/) or any other dependency management tool.
 
 ```bash
 pip install exchange-calendars-extensions
@@ -68,7 +67,7 @@ pip install exchange-calendars-extensions
 ## General usage
 
 *Note: In general, any code snippet in this documentation is self-contained and should execute successfully in a fresh
-Python interpreter instance*
+Python interpreter instance.*
 
 Import `exchange_calendars_extensions` and register extended exchange calendar classes with the
 `exchange_calendars` module.
@@ -177,7 +176,7 @@ Note: NumPy's `NaN` indicates holidays without a specific name in
 [exchange-calendars](https://pypi.org/project/exchange-calendars/)'s model, e.g. ad-hoc holidays such as 2020-05-08
 (May Day bank holiday was moved in honor of the 75th VE Day anniversary).
 
-Quarterly and monthly expiry days:
+### Quarterly and monthly expiry days
 
 ```python
 import exchange_calendars as ec
@@ -202,7 +201,7 @@ DatetimeIndex(['2023-01-20', '2023-02-17', '2023-04-21', '2023-05-19',
 Note: Expiry day calendars do not provide names so using `return_name=True` only makes sens if you definitely need a
 Pandas `Series` and not a `DatetimeIndex`.
 
-Last trading days of months:
+### Last trading days of months
 
 Similar to the expiry day calendars, the last (regular) trading day of a month calendars do not provide names.
 
@@ -239,13 +238,13 @@ DatetimeIndex(['2023-01-31', '2023-02-28', '2023-03-31', '2023-04-28',
 Notice the difference in December where 2023-12-29 is a special close day, so 2023-12-28 is the last regular trading day
 in that month for XLON.
 
-## Calendar Changes
+## Calendar changes
 
 Extended exchange calendars not only provide additional properties, they can also be adjusted at runtime. This allows
 you, for example, to convert a regular business day into a special open/close day or a holiday, or to convert a weekend
 day into a regular trading day.
 
-### The Model
+### The model
 
 Before looking at how changes are effected, it is important to consider the model used to represent changes. To that
 end, let's consider a single day `d` in an exchange calendar. Of course, `d` has certain properties in the yet unchanged
@@ -422,7 +421,7 @@ assert d not in calendar.adhoc_holidays
 assert d in calendar.holidays_all.holidays()
 assert d not in calendar.weekend_days.holidays()  # It's not a weekend day.
 assert (
-    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
+        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 ```
@@ -455,7 +454,7 @@ assert d not in calendar.adhoc_holidays
 assert d in calendar.holidays_all.holidays()
 assert d not in calendar.weekend_days.holidays()
 assert (
-    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
+        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 
@@ -472,8 +471,8 @@ assert d not in calendar.adhoc_holidays
 assert d in calendar.holidays_all.holidays()
 assert d in calendar.weekend_days.holidays()  # It's now a weekend day, too.
 assert (
-    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d]
-    == "Changed again"
+        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d]
+        == "Changed again"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 ```
@@ -526,8 +525,8 @@ assert d in calendar.holidays_all.holidays()
 assert d in calendar.weekend_days.holidays()  # It's now a weekend day, too.
 assert d not in calendar.week_days.holidays()
 assert (
-    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d]
-    == "Changed again"
+        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d]
+        == "Changed again"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 
@@ -577,7 +576,7 @@ assert d in calendar.holidays_all.holidays()
 assert d in calendar.weekend_days.holidays()
 assert d not in calendar.week_days.holidays()
 assert (
-    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
+        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 
