@@ -9,6 +9,12 @@ from pydantic_core import core_schema
 class TimestampLike(pd.Timestamp):
     """A pd.Timestamp subtype with Pydantic support."""
 
+    def __new__(cls, *args, **kwargs):
+        instance = super().__new__(cls, *args, **kwargs)
+        if pd.isna(instance):
+            raise ValueError(f"Cannot create {cls.__name__} from NaT or invalid value")
+        return instance
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type, handler):
         return core_schema.no_info_plain_validator_function(
@@ -20,13 +26,11 @@ class TimestampLike(pd.Timestamp):
     def _validate(cls, v):
         if isinstance(v, cls):
             return v
-        if isinstance(v, pd.Timestamp):
-            return cls(v)
         try:
-            r = cls(v)
+            r = pd.Timestamp(v)
             if pd.isna(r):
                 raise ValueError()
-            return r
+            return cls(r)
         except (ValueError, TypeError) as e:
             raise ValueError(f"Cannot convert {v!r} to valid timestamp") from e
 
@@ -57,6 +61,12 @@ class DateLike(TimestampLike):
             serialization=core_schema.to_string_ser_schema(),
         )
 
+    def __new__(cls, *args, **kwargs):
+        ts = TimestampLike(*args, **kwargs)
+        stripped = ts.tz_convert(None) if ts.tz is not None else ts
+        normalized = stripped.normalize()
+        return super().__new__(cls, normalized)
+
     @classmethod
     def _validate(cls, v):
         """Validate and convert to a normalized Date."""
@@ -64,7 +74,9 @@ class DateLike(TimestampLike):
             return v
         # Reuse Timestamp validation then normalize
         ts = TimestampLike._validate(v)
-        return cls(ts.tz_localize(None).normalize())
+        stripped = ts.tz_convert(None) if ts.tz is not None else ts
+        normalized = stripped.normalize()
+        return cls(normalized)
 
 
 # A type alias for dt.time that allows initialization from suitably formatted string values.
@@ -82,6 +94,27 @@ class TimeLike(dt.time):
         t.minute  # 30
     """
 
+    def __new__(cls, *args, **kwargs):
+        if len(args) == 1 and not kwargs:
+            v = args[0]
+            if isinstance(v, dt.time):
+                return super().__new__(
+                    cls, v.hour, v.minute, v.second, v.microsecond, v.tzinfo
+                )
+            if isinstance(v, str):
+                for fmt in ("%H:%M", "%H:%M:%S"):
+                    try:
+                        parsed = dt.datetime.strptime(v, fmt)
+                        return super().__new__(
+                            cls, parsed.hour, parsed.minute, parsed.second
+                        )
+                    except ValueError:
+                        pass
+                raise ValueError(
+                    f"Cannot convert {v!r} to Time. Expected format 'HH:MM' or 'HH:MM:SS'."
+                )
+        return super().__new__(cls, *args, **kwargs)
+
     @classmethod
     def __get_pydantic_core_schema__(cls, _source_type, _handler):
         return core_schema.no_info_plain_validator_function(
@@ -94,17 +127,8 @@ class TimeLike(dt.time):
         """Validate and convert to a Time."""
         if isinstance(v, cls):
             return v
-        if isinstance(v, dt.time):
-            return cls(v.hour, v.minute, v.second, v.microsecond, v.tzinfo)
-
-        # Try to parse from string
-        if isinstance(v, str):
-            for fmt in ("%H:%M", "%H:%M:%S"):
-                try:
-                    parsed = dt.datetime.strptime(v, fmt)
-                    return cls(parsed.hour, parsed.minute, parsed.second)
-                except ValueError:
-                    pass
+        if isinstance(v, dt.time) or isinstance(v, str):
+            return cls(v)
 
         raise ValueError(
             f"Cannot convert {v!r} to Time. Expected format 'HH:MM' or 'HH:MM:SS'."
