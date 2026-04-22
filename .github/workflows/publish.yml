@@ -28,7 +28,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install uv
-        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: false  # No cache when building RCs or releases.
       - name: Set up Python
@@ -40,13 +40,13 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
-          export PACKAGE_VERSION=${{ github.ref_name }}
+          export PACKAGE_VERSION=${REF_NAME}
           echo "Version is $PACKAGE_VERSION."
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
       - name: Build package
         run: uv build
       - name: Publish package to Test PyPI.
-        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
           skip-existing: true
@@ -97,7 +97,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install uv
-        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: false  # No cache when building RCs or releases.
       - name: Set up Python
@@ -109,13 +109,13 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
-          export PACKAGE_VERSION=${{ github.ref_name }}
+          export PACKAGE_VERSION=${REF_NAME}
           echo "Version is $PACKAGE_VERSION."
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
       - name: Build package
         run: uv build
       - name: Publish package to PyPI.
-        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
       - name: Test that the package can be installed and imported (PyPI).
         shell: bash
         run: |
@@ -151,3 +151,33 @@ jobs:
               echo "The package was not found in the package index. Test installation and import failed."
               exit 1
           fi
+  publish-docs:
+    name: foo
+    needs: build-and-publish-pypi
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          enable-cache: false
+      - name: Set up Python
+        shell: bash
+        run: uv python install ${PYTHON_VERSION}
+      - run: uv sync --locked --only-group doc
+      - run: uv run --no-sync zensical build --clean
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: site
+      - uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
+        id: deployment
