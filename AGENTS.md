@@ -2,6 +2,7 @@
 
 A library based on [exchange_calendars](https://github.com/gerrymanoim/exchange_calendars) that adds additional
 features to the calendars:
+
 - Combined calendars for regular and ad-hoc holidays/special open days/special close days.
 - Calendars for the last trading session of each month, and the last *regular* trading session of each month.
 - Calendars with weekend days.
@@ -15,6 +16,19 @@ uv build
 ```
 
 To use the library, it needs to be imported from Python code; see [README.md](./README.md) for examples.
+
+## Documentation
+
+Documentation is kept in README.md for GitHub and in several Markdown files in docs/ from where
+[Zensical](https://zensical.org/) generates a static documentation site.
+
+When you have finished a task, always ensure that the user facing documentation is updated and in line with the public
+API.
+
+### Zensical
+
+The main entry point in docs/ is `index.md`, further sections and subsections are in separate files and subdirectories.
+A quick reference how Zensical supports Markdown is in [markdown.md](./support/markdown.md).
 
 ## Conventions
 

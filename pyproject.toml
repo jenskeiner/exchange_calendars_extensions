@@ -38,7 +38,7 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/jenskeiner/exchange_calendars_extensions/"
 repository = "https://github.com/jenskeiner/exchange_calendars_extensions/"
-documentation = "https://github.com/jenskeiner/exchange_calendars_extensions/tree/main/docs/"
+documentation = "https://jenskeiner.github.io/exchange_calendars_extensions/"
 issues = "https://github.com/jenskeiner/exchange_calendars_extensions/issues"
 
 [dependency-groups]
@@ -46,6 +46,11 @@ dev = [
     "pytest>=9,<10",
     "pytest-mock>=3,<4",
     "pytest-cov>=7,<8",
+    "zensical>=0.0.32,<1",
+]
+
+doc = [
+    "zensical>=0.0.32,<1",
 ]
 
 [tool.hatch.version]
