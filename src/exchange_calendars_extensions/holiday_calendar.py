@@ -28,9 +28,9 @@ from pydantic import ConfigDict, Field, TypeAdapter, validate_call
 from pydantic.experimental.missing_sentinel import MISSING
 
 from .changes import (
-    CLEAR,
     BusinessDaySpec,
     ChangeSet,
+    Clear,
     DayChange,
     NonBusinessDaySpec,
 )
@@ -801,13 +801,13 @@ class ExtendedExchangeCalendar(ExchangeCalendarExtensions, ExchangeCalendar, ABC
     Abstract base class for exchange calendars with extended functionality.
     """
 
-    _changeset_provider: Callable[[Any], ChangeSet | CLEAR | None] | None = None
+    _changeset_provider: Callable[[Any], ChangeSet | Clear | None] | None = None
 
 
 def extend_class(
     cls: type[ExchangeCalendar],
     day_of_week_expiry: int | None = None,
-    changeset_provider: Callable[[Any], ChangeSet | CLEAR | None] | None = None,
+    changeset_provider: Callable[[Any], ChangeSet | Clear | None] | None = None,
 ) -> type[ExtendedExchangeCalendar]:
     """
     Extend the given ExchangeCalendar class with additional properties.
