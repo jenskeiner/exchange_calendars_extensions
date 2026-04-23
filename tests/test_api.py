@@ -4,11 +4,12 @@ from typing import Any, Literal, cast
 import exchange_calendars as ec
 import pandas as pd
 import pytest
+from exchange_calendars.errors import CalendarNameCollision
 from exchange_calendars.exchange_calendar import HolidayCalendar
 from pydantic.experimental.missing_sentinel import MISSING
 
 import exchange_calendars_extensions as ecx
-from exchange_calendars_extensions import ExtendedExchangeCalendar
+from exchange_calendars_extensions import ExtendedExchangeCalendar, extend_class
 from exchange_calendars_extensions.changes import (
     BusinessDaySpec,
     DayChange,
@@ -34,6 +35,7 @@ from tests.synthetic_calendar import (
     SPECIAL_OPEN_ADHOC_DT,
     SPECIAL_OPEN_REGULAR_DT,
     SPECIAL_OPEN_REGULAR_NAME,
+    TEST_CALENDAR_CLASS_DEFAULT,
     WEEKEND_DAY_DT,
     add_extended_calendar_class,
     create_test_calendar_class,
@@ -1428,3 +1430,148 @@ class TestTags:
         assert len(result) == expected_len
         for date, expected_tags in expected_tag_values.items():
             assert result[date] == expected_tags
+
+
+class TestRegisterCalendarType:
+    @pytest.mark.isolated
+    def test_register_plain_calendar_instance(self):
+        ecx.apply_extensions()
+
+        # Register plain calendar class.
+        ec.register_calendar("TEST", TEST_CALENDAR_CLASS_DEFAULT())
+
+        c = ec.get_calendar("TEST")
+
+        # Should be an instance of the plain class.
+        assert isinstance(c, TEST_CALENDAR_CLASS_DEFAULT)
+
+        # Should be an extended calendar.
+        assert not isinstance(c, ExtendedExchangeCalendar)
+
+        ecx.remove_extensions()
+
+        c = ec.get_calendar("TEST")
+
+        # Should be an instance of the plain class.
+        assert isinstance(c, TEST_CALENDAR_CLASS_DEFAULT)
+
+        # Should still not be an extended calendar.
+        assert not isinstance(c, ExtendedExchangeCalendar)
+
+    @pytest.mark.isolated
+    def test_register_plain_calendar_type(self):
+        ecx.apply_extensions()
+
+        # Register plain calendar class.
+        ec.register_calendar_type("TEST", TEST_CALENDAR_CLASS_DEFAULT)
+
+        c = ec.get_calendar("TEST")
+
+        # Should be an instance of the plain class.
+        assert isinstance(c, TEST_CALENDAR_CLASS_DEFAULT)
+
+        # Should be an extended calendar.
+        assert isinstance(c, ExtendedExchangeCalendar)
+
+        # Should have (empty) expiry day calendars.
+        assert c.quarterly_expiries is not None
+        assert c.monthly_expiries is not None
+
+        ecx.remove_extensions()
+
+        c = ec.get_calendar("TEST")
+
+        # Should be an instance of the plain class.
+        assert isinstance(c, TEST_CALENDAR_CLASS_DEFAULT)
+
+        # Should no longer be an extended calendar.
+        assert not isinstance(c, ExtendedExchangeCalendar)
+
+    @pytest.mark.isolated
+    def test_register_plain_calendar_type_with_extension(self):
+        ecx.register_extension("TEST", day_of_week_expiry=4)
+
+        ecx.apply_extensions()
+
+        # Register plain calendar class.
+        ec.register_calendar_type("TEST", TEST_CALENDAR_CLASS_DEFAULT)
+
+        c = ec.get_calendar("TEST")
+
+        # Should be an instance of the plain class.
+        assert isinstance(c, TEST_CALENDAR_CLASS_DEFAULT)
+
+        # Should be an extended calendar.
+        assert isinstance(c, ExtendedExchangeCalendar)
+
+        # Should have expiry day calendars.
+        assert c.quarterly_expiries is not None
+        assert c.monthly_expiries is not None
+
+        ecx.remove_extensions()
+
+        c = ec.get_calendar("TEST")
+
+        # Should be an instance of the plain class.
+        assert isinstance(c, TEST_CALENDAR_CLASS_DEFAULT)
+
+        # Should no longer be an extended calendar.
+        assert not isinstance(c, ExtendedExchangeCalendar)
+
+    @pytest.mark.isolated
+    def test_register_extended_calendar_type(self):
+        ecx.apply_extensions()
+
+        # Register extended calendar class.
+        ec.register_calendar_type(
+            "TEST", extend_class(TEST_CALENDAR_CLASS_DEFAULT, day_of_week_expiry=4)
+        )
+
+        c = ec.get_calendar("TEST")
+
+        # Should be an instance of the plain class.
+        assert isinstance(c, TEST_CALENDAR_CLASS_DEFAULT)
+
+        # Should be an extended calendar.
+        assert isinstance(c, ExtendedExchangeCalendar)
+
+        # Should have expiry day calendars.
+        assert c.quarterly_expiries is not None
+        assert c.monthly_expiries is not None
+
+        ecx.remove_extensions()
+
+        c = ec.get_calendar("TEST")
+
+        # Should be an instance of the plain class.
+        assert isinstance(c, TEST_CALENDAR_CLASS_DEFAULT)
+
+        # Should still be an extended calendar.
+        assert isinstance(c, ExtendedExchangeCalendar)
+
+        # Should still have expiry day calendars.
+        assert c.quarterly_expiries is not None
+        assert c.monthly_expiries is not None
+
+    @pytest.mark.isolated
+    def test_register_calendar_type_name_collision(self):
+        # Register plain calendar class.
+        ec.register_calendar_type("TEST", TEST_CALENDAR_CLASS_DEFAULT)
+
+        ecx.apply_extensions()
+
+        with pytest.raises(CalendarNameCollision):
+            # Register plain calendar class.
+            ec.register_calendar_type("TEST", TEST_CALENDAR_CLASS_DEFAULT)
+
+    @pytest.mark.isolated
+    def test_register_calendar_type_alias_collision(self):
+        # Register plain calendar class.
+        ec.register_calendar_type("TEST", TEST_CALENDAR_CLASS_DEFAULT)
+        ec.register_calendar_alias("foobar", "TEST")
+
+        ecx.apply_extensions()
+
+        with pytest.raises(CalendarNameCollision):
+            # Register plain calendar class.
+            ec.register_calendar_type("foobar", TEST_CALENDAR_CLASS_DEFAULT)

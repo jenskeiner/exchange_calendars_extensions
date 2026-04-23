@@ -30,6 +30,7 @@ from pydantic.experimental.missing_sentinel import MISSING
 from .changes import (
     BusinessDaySpec,
     ChangeSet,
+    Clear,
     DayChange,
     NonBusinessDaySpec,
 )
@@ -800,14 +801,14 @@ class ExtendedExchangeCalendar(ExchangeCalendarExtensions, ExchangeCalendar, ABC
     Abstract base class for exchange calendars with extended functionality.
     """
 
-    ...
+    _changeset_provider: Callable[[Any], ChangeSet | Clear | None] | None = None
 
 
 def extend_class(
     cls: type[ExchangeCalendar],
     day_of_week_expiry: int | None = None,
-    changeset_provider: Callable[[], ChangeSet | None] | None = None,
-) -> type:
+    changeset_provider: Callable[[Any], ChangeSet | Clear | None] | None = None,
+) -> type[ExtendedExchangeCalendar]:
     """
     Extend the given ExchangeCalendar class with additional properties.
 
@@ -817,7 +818,7 @@ def extend_class(
         The input class to extend.
     day_of_week_expiry : Union[int, None]
         The day of the week when expiry days are observed, where 0 is Monday and 6 is Sunday. Defaults to 4 (Friday).
-    changeset_provider : Union[Callable[[], ChangeSet], None]
+    changeset_provider : Union[Callable[[Any], ChangeSet], None]
         The optional function that returns a changeset to apply to the calendar.
 
     Returns
@@ -1299,7 +1300,7 @@ def extend_class(
         )
 
         changeset: ChangeSet | None = (
-            changeset_provider() if changeset_provider is not None else None
+            self._changeset_provider() if self._changeset_provider is not None else None
         )
 
         self._adjusted_properties = a
@@ -1721,6 +1722,7 @@ def extend_class(
             "last_regular_trading_days_of_months": last_regular_trading_days_of_months,
             "day": day,
             "tags": tags,
+            "_changeset_provider": changeset_provider,
         },
     )
 
