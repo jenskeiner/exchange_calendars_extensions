@@ -1,14 +1,14 @@
 # conftest.py
 import multiprocessing
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from typing import cast
-from collections.abc import Generator
 
 import exchange_calendars as ec
 import pytest
+from exchange_calendars import ExchangeCalendar
 
 from exchange_calendars_extensions import ExtendedExchangeCalendar
-from tests.synthetic_calendar import add_test_calendar
+from tests.synthetic_calendar import TEST_CALENDAR_CLASS_DEFAULT, add_test_calendar
 
 
 def run_test_in_separate_process(test_function: Callable) -> Callable:
@@ -57,3 +57,8 @@ def pytest_pyfunc_call(pyfuncitem):
 def test_calendar() -> Generator[ExtendedExchangeCalendar]:
     add_test_calendar()
     yield cast(ExtendedExchangeCalendar, ec.get_calendar("TEST"))
+
+
+@pytest.fixture
+def plain_test_calendar_class() -> Generator[type[ExchangeCalendar]]:
+    yield TEST_CALENDAR_CLASS_DEFAULT

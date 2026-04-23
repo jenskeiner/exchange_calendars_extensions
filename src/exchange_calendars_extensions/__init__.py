@@ -1,13 +1,14 @@
 import functools
 from collections.abc import Callable
-from typing import Annotated, Concatenate, Literal
+from typing import Concatenate, Literal
 
 from exchange_calendars import (
+    ExchangeCalendar,
     calendar_utils,
     get_calendar_names,
     register_calendar_type,
 )
-from pydantic import BaseModel, Field, validate_call
+from pydantic import validate_call
 from typing_extensions import ParamSpec
 
 from .changes import (
@@ -26,60 +27,11 @@ from .datetime import (
     DateLike,
     DateLikeInput,
 )
-from .holiday_calendar import (
-    ExchangeCalendarExtensions,
-    ExtendedExchangeCalendar,
-    extend_class,
-)
+from .extension import ExtensionSpec
+from .holiday_calendar import ExchangeCalendarExtensions, ExtendedExchangeCalendar
+from .holiday_calendar import extend_class as extend_class_internal
+from .state import get_state
 from .util import copy_changeset
-
-# Dictionary that maps from exchange key to ConsolidatedChangeSet. Contains all changesets to apply when creating a new
-# calendar instance. This dictionary should only ever contain non-empty changesets. If a changeset becomes empty, the
-# corresponding entry should just be removed.
-_changesets: dict[str, ConsolidatedChangeSet] = {}
-
-
-WeekDayInt = Annotated[int, Field(ge=0, le=6)]
-
-
-class ExtensionSpec(BaseModel, arbitrary_types_allowed=True):
-    """Specifies how to derive an extended calendar class from a vanilla calendar class."""
-
-    # The day of the week on which options expire. If None, expiry days are not supported.
-    day_of_week_expiry: WeekDayInt | None = None
-
-
-# Internal dictionary that specifies how to derive extended calendars for specific exchanges.
-_extensions: dict[str, ExtensionSpec] = {
-    "ASEX": ExtensionSpec(day_of_week_expiry=4),
-    "XAMS": ExtensionSpec(day_of_week_expiry=4),
-    "XBRU": ExtensionSpec(day_of_week_expiry=4),
-    "XBUD": ExtensionSpec(day_of_week_expiry=4),
-    "XCSE": ExtensionSpec(day_of_week_expiry=4),
-    "XDUB": ExtensionSpec(day_of_week_expiry=4),
-    "XETR": ExtensionSpec(day_of_week_expiry=4),
-    "XHEL": ExtensionSpec(day_of_week_expiry=4),
-    "XIST": ExtensionSpec(day_of_week_expiry=4),
-    "XJSE": ExtensionSpec(day_of_week_expiry=3),
-    "XLIS": ExtensionSpec(day_of_week_expiry=4),
-    "XLON": ExtensionSpec(day_of_week_expiry=4),
-    "XMAD": ExtensionSpec(day_of_week_expiry=4),
-    "XMIL": ExtensionSpec(day_of_week_expiry=4),
-    "XNYS": ExtensionSpec(day_of_week_expiry=4),
-    "XOSL": ExtensionSpec(day_of_week_expiry=4),
-    "XPAR": ExtensionSpec(day_of_week_expiry=4),
-    "XPRA": ExtensionSpec(day_of_week_expiry=4),
-    "XSTO": ExtensionSpec(day_of_week_expiry=4),
-    "XSWX": ExtensionSpec(day_of_week_expiry=4),
-    "XTAE": ExtensionSpec(day_of_week_expiry=4),
-    "XTSE": ExtensionSpec(day_of_week_expiry=4),
-    "XWAR": ExtensionSpec(day_of_week_expiry=4),
-    "XWBO": ExtensionSpec(day_of_week_expiry=4),
-}
-
-
-# Internal dictionary containing the original calendar classes.
-_original_classes = dict()
 
 
 def apply_extensions() -> None:
@@ -90,12 +42,13 @@ def apply_extensions() -> None:
 
     This function is idempotent. If extensions have already been applied, this function does nothing.
     """
-    if len(_original_classes) > 0:
+
+    if len(get_state().original_classes) > 0:
         # Extensions have already been applied.
         return
 
-    # Get all calendar names, including aliases.
-    calendar_names = set(get_calendar_names())
+    import exchange_calendars as ec
+    import exchange_calendars.calendar_utils as ecu
 
     def get_changeset_fn(name: str) -> Callable[[], ConsolidatedChangeSet | None]:
         """Returns a function that returns the changeset for the given exchange key.
@@ -112,23 +65,67 @@ def apply_extensions() -> None:
         """
 
         def fn() -> ConsolidatedChangeSet | None:
-            cs = _changesets.get(name)
+            cs = get_state().changesets.get(name)
             return cs
 
         return fn
 
+    register_calendar_type_orig = ecu.register_calendar_type
+
+    def _register_calendar_type(name, calendar_type, force=False):
+        # The extended class to actually register.
+        t: type[ExtendedExchangeCalendar] | None = None
+
+        if force or not ecu.global_calendar_dispatcher.has_calendar(name):
+            # Only set up extended class if upstream method will succeed.
+            if issubclass(calendar_type, ExtendedExchangeCalendar):
+                # Already an extended class.
+                t = calendar_type
+            else:
+                # Create extended class.
+                if name in get_state().extensions:
+                    t = extend_class_internal(
+                        calendar_type,
+                        day_of_week_expiry=get_state()
+                        .extensions[name]
+                        .day_of_week_expiry,
+                        changeset_provider=lambda self: get_state().changesets.get(
+                            name
+                        ),
+                    )
+                else:
+                    t = extend_class_internal(
+                        calendar_type,
+                        day_of_week_expiry=None,
+                        changeset_provider=lambda self: get_state().changesets.get(
+                            name
+                        ),
+                    )
+
+        register_calendar_type_orig(name, t, force)
+        get_state().original_classes[name] = calendar_type
+
+    ecu.register_calendar_type = _register_calendar_type
+    ec.register_calendar_type = _register_calendar_type
+    get_state().register_calendar_type_orig = register_calendar_type_orig
+
+    # Get all calendar names, including aliases.
+    calendar_names = set(get_calendar_names())
+
     # Create and register extended calendar classes for all calendars for which no explicit rules have been defined.
-    for k in calendar_names - set(_extensions.keys()):
+    for k in calendar_names - set(get_state().extensions.keys()):
         # Get the original class.
         cls = calendar_utils.global_calendar_dispatcher._calendar_factories.get(k)
 
         if cls is not None:
             # Store the original class for later use.
-            _original_classes[k] = cls
+            get_state().original_classes[k] = cls
 
             # Create extended class without support for expiry days.
-            cls = extend_class(
-                cls, day_of_week_expiry=None, changeset_provider=get_changeset_fn(k)
+            cls = extend_class_internal(
+                cls,
+                day_of_week_expiry=None,
+                changeset_provider=lambda self: get_state().changesets.get(k),
             )
 
             # Register extended class.
@@ -138,7 +135,7 @@ def apply_extensions() -> None:
             _remove_calendar_from_factory_cache(k)
 
     # Create and register extended calendar classes for all calendars for which explicit rules have been defined.
-    for k, v in _extensions.items():
+    for k, v in get_state().extensions.items():
         # Get the original class.
         cls = calendar_utils.global_calendar_dispatcher._calendar_factories.get(k)
 
@@ -147,13 +144,13 @@ def apply_extensions() -> None:
             day_of_week_expiry = v.day_of_week_expiry
 
             # Store the original class for later use.
-            _original_classes[k] = cls
+            get_state().original_classes[k] = cls
 
             # Create extended class with support for expiry days.
-            cls = extend_class(
+            cls = extend_class_internal(
                 cls,
                 day_of_week_expiry=day_of_week_expiry,
-                changeset_provider=get_changeset_fn(k),
+                changeset_provider=lambda self: get_state().changesets.get(k),
             )
 
             # Register extended class.
@@ -169,11 +166,11 @@ def remove_extensions() -> None:
 
     This removes all extended calendars from exchange_calendars, restoring the respective vanilla calendars.
     """
-    if len(_original_classes) == 0:
+    if len(get_state().original_classes) == 0:
         # Extensions have not been applied.
         return
 
-    for k, v in _original_classes.items():
+    for k, v in get_state().original_classes.items():
         # Register original class.
         register_calendar_type(k, v, force=True)
 
@@ -181,7 +178,15 @@ def remove_extensions() -> None:
         _remove_calendar_from_factory_cache(k)
 
     # Clear original classes.
-    _original_classes.clear()
+    get_state().original_classes.clear()
+
+    import exchange_calendars as ec
+    import exchange_calendars.calendar_utils as ecu
+
+    ecu.register_calendar_type = get_state().register_calendar_type_orig
+    ec.register_calendar_type = get_state().register_calendar_type_orig
+
+    get_state().register_calendar_type_orig = None
 
 
 def register_extension(name: str, day_of_week_expiry: int | None = None) -> None:
@@ -203,7 +208,7 @@ def register_extension(name: str, day_of_week_expiry: int | None = None) -> None
     -------
     None
     """
-    _extensions[name] = ExtensionSpec(day_of_week_expiry=day_of_week_expiry)
+    get_state().extensions[name] = ExtensionSpec(day_of_week_expiry=day_of_week_expiry)
 
 
 def _remove_calendar_from_factory_cache(name: str):
@@ -249,17 +254,17 @@ def _with_changeset(
     @functools.wraps(f)
     def wrapper(exchange: str, *args: P.args, **kwargs: P.kwargs) -> None:
         # Retrieve changeset for key, create new empty one, if required.
-        cs: ConsolidatedChangeSet = _changesets.get(exchange, {})
+        cs: ConsolidatedChangeSet = get_state().changesets.get(exchange, {})
 
         # Call wrapped function with changeset as first positional argument.
         cs = f(cs, *args, **kwargs)
 
         if cs:
             # Save changeset back to _changesets.
-            _changesets[exchange] = cs
+            get_state().changesets[exchange] = cs
         else:
             # Remove changeset from _changesets.
-            _changesets.pop(exchange, None)
+            get_state().changesets.pop(exchange, None)
 
         # Remove calendar for exchange key from factory cache.
         _remove_calendar_from_factory_cache(exchange)
@@ -393,9 +398,9 @@ def get_changes(exchange: str | None = None) -> ChangeSet | dict[str, ChangeSet]
         The changeset for the given exchange, or None, if no changes have been registered.
     """
     if exchange is None:
-        return {k: copy_changeset(v) for k, v in _changesets.items()}  # ty:ignore[invalid-argument-type]
+        return {k: copy_changeset(v) for k, v in get_state().changesets.items()}  # ty:ignore[invalid-argument-type]
     else:
-        cs: ChangeSet | None = _changesets.get(exchange, None)  # ty:ignore[invalid-assignment]
+        cs: ChangeSet | None = get_state().changesets.get(exchange, None)  # ty:ignore[invalid-assignment]
         return copy_changeset(cs) if cs else None
 
 
@@ -409,13 +414,21 @@ def remove_changes(exchange: str | None = None) -> None:
     """
     if exchange is None:
         # Clear the dict of changesets.
-        for k in _changesets.keys():
+        for k in get_state().changesets.keys():
             _remove_calendar_from_factory_cache(k)
-        _changesets.clear()
+        get_state().changesets.clear()
     else:
-        cs = _changesets.pop(exchange, None)
+        cs = get_state().changesets.pop(exchange, None)
         if cs:
             _remove_calendar_from_factory_cache(exchange)
+
+
+def extend_class(cls: type[ExchangeCalendar], day_of_week_expiry: int | None = None):
+    return extend_class_internal(
+        cls,
+        day_of_week_expiry=day_of_week_expiry,
+        changeset_provider=None,
+    )
 
 
 # Declare public names.
@@ -423,7 +436,6 @@ __all__ = [
     "apply_extensions",
     "remove_extensions",
     "register_extension",
-    "extend_class",
     "change_day",
     "change_calendar",
     "get_changes",
@@ -435,4 +447,5 @@ __all__ = [
     "DayChange",
     "BusinessDaySpec",
     "NonBusinessDaySpec",
+    "extend_class",
 ]

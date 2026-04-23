@@ -96,7 +96,7 @@ def create_test_calendar_class(
 
         @property
         def adhoc_holidays(self):
-            return adhoc_holidays if adhoc_holidays else []
+            return list(adhoc_holidays) if adhoc_holidays else []
 
         @property
         def special_closes(self):
