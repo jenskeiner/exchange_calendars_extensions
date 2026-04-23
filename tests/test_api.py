@@ -1433,10 +1433,6 @@ class TestTags:
 
 
 class TestRegisterCalendarType:
-    @pytest.fixture(autouse=True)
-    def log_exchange_names(self):
-        print([x for x in ec.get_calendar_names() if x == "TEST"])
-
     @pytest.mark.isolated
     def test_register_plain_calendar_instance(self):
         ecx.apply_extensions()

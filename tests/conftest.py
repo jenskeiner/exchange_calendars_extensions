@@ -29,7 +29,8 @@ def run_test_in_separate_process(test_function: Callable) -> Callable:
     """
 
     def wrapper(*args, **kwargs):
-        with multiprocessing.Pool(1) as pool:
+        ctx = multiprocessing.get_context("spawn")
+        with ctx.Pool(1) as pool:
             result = pool.apply(test_function, args, kwargs)
         return result
 
