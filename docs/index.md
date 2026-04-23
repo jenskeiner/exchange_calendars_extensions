@@ -22,9 +22,7 @@ Adds the following features to exchange calendars.
 
 **Select exchanges:**
 
-- Calendars for monthly and quarterly expiry days (quadruple witching).
-
-See the list of [supported exchanges](exchanges.md).
+- Calendars for monthly and quarterly expiry days (quadruple witching); see [supported exchanges](exchanges.md).
 
 ## Installation
 
