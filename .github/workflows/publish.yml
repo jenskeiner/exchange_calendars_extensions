@@ -152,7 +152,7 @@ jobs:
               exit 1
           fi
   publish-docs:
-    name: foo
+    name: Publish docs to GH Pages.
     needs: build-and-publish-pypi
     runs-on: ubuntu-latest
     environment:

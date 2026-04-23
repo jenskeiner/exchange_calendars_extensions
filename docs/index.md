@@ -142,6 +142,7 @@ assert not isinstance(calendar, ecx.ExchangeCalendarExtensions)
 
 <div class="grid cards" markdown>
 
+- :lucide-watch: **[Dates & Times](datetime.md)** — Specify dates and times conveniently.
 - :lucide-calendar-plus: **[Extended properties](properties.md)** — Aggregate calendars, expiry days, last trading
   days, and more.
 - :lucide-square-pen: **[Calendar changes](changes.md)** — Modify any day at runtime: add holidays, change open/close
