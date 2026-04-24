@@ -1,6 +1,6 @@
 import functools
 from collections.abc import Callable
-from typing import Concatenate, Literal
+from typing import Any, Concatenate, Literal
 
 from exchange_calendars import (
     ExchangeCalendar,
@@ -109,6 +109,19 @@ def apply_extensions() -> None:
     ec.register_calendar_type = _register_calendar_type
     get_state().register_calendar_type_orig = register_calendar_type_orig
 
+    def make_changeset_provider(
+        name: str,
+    ) -> Callable[[Any], ConsolidatedChangeSet | None]:
+        """Return a ``_changeset_provider`` that looks up the given calendar name.
+
+        The factory is required because the two loops below both bind a
+        free variable ``k`` in a closure. Python closures capture by
+        reference, so without this factory every provider would resolve
+        ``k`` at call time to the last value iterated by the enclosing
+        loops and fetch the wrong (or no) change-set.
+        """
+        return lambda self: get_state().changesets.get(name)
+
     # Get all calendar names, including aliases.
     calendar_names = set(get_calendar_names())
 
@@ -125,7 +138,7 @@ def apply_extensions() -> None:
             cls = extend_class_internal(
                 cls,
                 day_of_week_expiry=None,
-                changeset_provider=lambda self: get_state().changesets.get(k),
+                changeset_provider=make_changeset_provider(k),
             )
 
             # Register extended class.
@@ -150,7 +163,7 @@ def apply_extensions() -> None:
             cls = extend_class_internal(
                 cls,
                 day_of_week_expiry=day_of_week_expiry,
-                changeset_provider=lambda self: get_state().changesets.get(k),
+                changeset_provider=make_changeset_provider(k),
             )
 
             # Register extended class.

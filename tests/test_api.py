@@ -71,6 +71,51 @@ def test_apply_extensions():
 
 
 @pytest.mark.isolated
+def test_change_day_reaches_non_pre_registered_calendar():
+    """Regression: change_day() on a calendar that has not been set up via
+    register_extension() must still reach its extended calendar class.
+
+    Before the factory-based fix in apply_extensions() the
+    ``_changeset_provider`` lambda captured the for-loop variable ``k``
+    by reference. Every provider therefore resolved ``k`` at call time
+    to the last value iterated by the second loop (typically
+    ``"XWBO"``), so the change-set registered under, e.g., ``"CMES"``
+    never materialised on the CMES calendar class.
+    """
+    ecx.change_day(
+        "CMES",
+        "2025-06-19",
+        ecx.DayChange(
+            spec=NonBusinessDaySpec(holiday=True),
+            name="Juneteenth",
+        ),
+    )
+
+    ecx.apply_extensions()
+
+    c = ec.get_calendar("CMES")
+    assert isinstance(c, ecx.ExtendedExchangeCalendar)
+
+    # Provider must resolve to the CMES change-set, not the change-set
+    # for whatever key the for-loop's free variable ``k`` ended on.
+    cs = type(c)._changeset_provider(c)
+    assert cs is not None, (
+        "CMES._changeset_provider() returned None — the lambda likely "
+        "resolved the loop variable to another key"
+    )
+    assert pd.Timestamp("2025-06-19") in cs
+
+    # And the override must be materialised on the calendar itself.
+    assert pd.Timestamp("2025-06-19") not in c.sessions
+    s = c.holidays_all.holidays(
+        start=pd.Timestamp("2025-06-19"),
+        end=pd.Timestamp("2025-06-19"),
+        return_name=True,
+    )
+    assert s.tolist() == ["Juneteenth"]
+
+
+@pytest.mark.isolated
 def test_extended_calendar_xetr():
     """Test the additional properties of the extended XETR calendar."""
     ecx.apply_extensions()
