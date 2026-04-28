@@ -1,5 +1,5 @@
 ---
-icon: lucide/box
+icon: lucide/boxes
 ---
 
 # Multiple changesets
