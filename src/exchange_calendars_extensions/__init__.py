@@ -57,26 +57,6 @@ def apply_extensions() -> None:
     import exchange_calendars as ec
     import exchange_calendars.calendar_utils as ecu
 
-    def get_changeset_fn(name: str) -> Callable[[], ChangeSet | None]:
-        """Returns a function that returns the changeset for the given exchange key.
-
-        Parameters
-        ----------
-        name : str
-            The exchange key for which to return the changeset.
-
-        Returns
-        -------
-        Callable[[], CalendarChanges]
-            The function that returns the changeset and removed days.
-        """
-
-        def fn() -> ChangeSet | None:
-            cs = get_state().changesets.get(name)
-            return cs
-
-        return fn
-
     register_calendar_type_orig = ecu.register_calendar_type
 
     def _register_calendar_type(name, calendar_type, force=False):
@@ -353,36 +333,44 @@ def change_day(exchange: str, date: DateLikeInput, action: DayAction) -> None:
     _change_day(exchange, DateLike(date), action)
 
 
+def _change_calendar_update(current: ChangeSet, incoming: ChangeSetDelta) -> ChangeSet:
+    r = dict(current)
+    for k, v in incoming.items():
+        if v is CLEAR:
+            del r[k]
+        elif isinstance(v, DayChange):
+            r[k] = v
+    return r
+
+
+def _change_calendar_merge(current: ChangeSet, incoming: ChangeSetDelta) -> ChangeSet:
+    r = dict(current)
+    for k, v in incoming.items():
+        if v is CLEAR:
+            if k in r:
+                del r[k]
+        elif isinstance(v, DayChange):
+            if k not in r:
+                r[k] = v
+            else:
+                v0: DayChange = r[k]
+                r[k] = v0.merge(v)
+    return r
+
+
 @_with_changeset
 def _change_calendar(
-    changes0: ChangeSet,
-    changes: ChangeSetDelta,
+    current: ChangeSet,
+    incoming: ChangeSetDelta,
     mode: ChangeModeSingle,
 ) -> ChangeSet:
     match mode:
         case "replace":
-            return consolidate(changes)
+            return consolidate(incoming)
         case "update":
-            result = dict(changes0)
-            for k, v in changes.items():
-                if v is CLEAR:
-                    del result[k]
-                elif isinstance(v, DayChange):
-                    result[k] = v
-            return result
+            return _change_calendar_update(current, incoming)
         case "merge":
-            result = dict(changes0)
-            for k, v in changes.items():
-                if v is CLEAR:
-                    if k in result:
-                        del result[k]
-                elif isinstance(v, DayChange):
-                    if k not in result:
-                        result[k] = v
-                    else:
-                        v0: DayChange = result[k]
-                        result[k] = v0.merge(v)
-            return result
+            return _change_calendar_merge(current, incoming)
         case _:
             raise ValueError(f"Invalid mode: {mode}")
 
@@ -390,7 +378,7 @@ def _change_calendar(
 @validate_call
 def change_calendar(
     exchange: str,
-    changes: ChangeSetDelta,
+    changeset: ChangeSetDelta,
     mode: ChangeModeSingle = "merge",
 ) -> None:
     """
@@ -400,19 +388,19 @@ def change_calendar(
     ----------
     exchange : str
         The exchange key for which to apply the changes.
-    changes : ChangeSet
+    changeset : ChangeSet
         The changes to apply.
 
     Returns
     -------
     None
     """
-    _change_calendar(exchange, changes, mode)
+    _change_calendar(exchange, changeset, mode)
 
 
 @validate_call
 def change_calendars(
-    changes: ChangeSetDeltaDict,
+    changeset_dict: ChangeSetDeltaDict,
     mode: ChangeModeMulti = "merge",
 ) -> None:
     """
@@ -422,7 +410,7 @@ def change_calendars(
     ----------
     exchange : str
         The exchange key for which to apply the changes.
-    changes : ChangeSet
+    changeset_dict : ChangeSet
         The changes to apply.
 
     Returns
@@ -434,7 +422,7 @@ def change_calendars(
 
     mode0 = mode_multi_to_single(mode)
 
-    for k, v in changes.items():
+    for k, v in changeset_dict.items():
         _change_calendar(k, v, mode0)
 
 

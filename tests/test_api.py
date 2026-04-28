@@ -1634,6 +1634,7 @@ class TestChangeCalendars:
 
     @pytest.fixture(autouse=True)
     def _clean_changes(self, clean_changes):
+        # Use clean_changes fixture to clean changes before and after each test.
         pass
 
     @pytest.mark.parametrize(
@@ -1654,10 +1655,10 @@ class TestChangeCalendars:
 
         all_changes0 = ecx.get_changes()
 
-        kwargs = dict(mode=mode) if mode else dict()
+        kwargs = {"mode": mode} if mode else {}
         ecx.change_calendars({}, **kwargs)
 
-        assert ecx.get_changes() == (dict() if mode == "replace_all" else all_changes0)
+        assert ecx.get_changes() == ({} if mode == "replace_all" else all_changes0)
 
     @pytest.mark.parametrize(
         "mode",
@@ -1680,7 +1681,7 @@ class TestChangeCalendars:
             DayChange(spec=NonBusinessDaySpec(holiday=True), name="Original"),
         )
 
-        kwargs = dict(mode=mode) if mode else dict()
+        kwargs = {"mode": mode} if mode else {}
         ecx.change_calendars(
             {
                 "EX_A": {
