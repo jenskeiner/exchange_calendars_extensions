@@ -8,7 +8,7 @@ from pydantic.experimental.missing_sentinel import MISSING
 
 from exchange_calendars_extensions.changes import (
     BusinessDaySpec,
-    ChangeSet,
+    ChangeSetDelta,
     DayChange,
     DaySpec,
     NonBusinessDaySpec,
@@ -240,7 +240,7 @@ class TestDayChange:
 class TestChangeSet:
     """Tests for the ChangeSet annotated type alias."""
 
-    _ta = TypeAdapter(ChangeSet)
+    _ta = TypeAdapter(ChangeSetDelta)
 
     def test_empty_changeset(self) -> None:
         cs = self._ta.validate_python({})

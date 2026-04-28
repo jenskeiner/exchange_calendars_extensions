@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from bisect import bisect_right
 from collections.abc import Sequence
@@ -10,7 +12,13 @@ from exchange_calendars import ExchangeCalendar
 from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints
 from pydantic_core import core_schema
 
-from .changes import ChangeSet, DayChange
+from .changes import (
+    ChangeModeMulti,
+    ChangeModeSingle,
+    ChangeSet,
+    ChangeSetDelta,
+    DayChange,
+)
 
 T = TypeVar("T")
 
@@ -164,16 +172,16 @@ class Weekmask(str):
         return cls(v)
 
     @classmethod
-    def for_day(cls, day: int) -> "Weekmask":
+    def for_day(cls, day: int) -> Weekmask:
         return cls("0" * day + "1" + "0" * (7 - day))
 
     def contains(self, day: int) -> bool:
         return self[day] == "1"
 
-    def set(self, day: int, value: bool) -> "Weekmask":
+    def set(self, day: int, value: bool) -> Weekmask:
         return Weekmask(self[:day] + ("1" if value else "0") + self[day + 1 :])
 
-    def bitwise_and(self, other: "Weekmask") -> "Weekmask":
+    def bitwise_and(self, other: Weekmask) -> Weekmask:
         return Weekmask(
             "".join("1" if x == "1" and y == "1" else "0" for x, y in zip(self, other))
         )
@@ -235,8 +243,8 @@ class WeekmaskPeriod(BaseModel):
 
     @classmethod
     def sort(
-        cls, wp1: "WeekmaskPeriod", wp2: "WeekmaskPeriod"
-    ) -> tuple["WeekmaskPeriod", "WeekmaskPeriod"]:
+        cls, wp1: WeekmaskPeriod, wp2: WeekmaskPeriod
+    ) -> tuple[WeekmaskPeriod, WeekmaskPeriod]:
         return (
             (wp1, wp2)
             if wp1.length is None
@@ -244,12 +252,12 @@ class WeekmaskPeriod(BaseModel):
             else (wp2, wp1)
         )
 
-    def is_compatible_with(self, other: "WeekmaskPeriod") -> bool:
+    def is_compatible_with(self, other: WeekmaskPeriod) -> bool:
         a, b = self.sort(self, other)
         mask = b.mask()
         return a.weekmask.bitwise_and(mask) == b.weekmask.bitwise_and(mask)
 
-    def merge(self, other: "WeekmaskPeriod") -> "WeekmaskPeriod":
+    def merge(self, other: WeekmaskPeriod) -> WeekmaskPeriod:
         a, b = self.sort(self, other)
         return WeekmaskPeriod(
             weekmask=a.weekmask,
@@ -452,5 +460,13 @@ def set_weekday(
     return tuple(_optimize_periods(result))
 
 
-def copy_changeset(cs: ChangeSet):
+def copy_changeset(cs: ChangeSet) -> ChangeSet:
     return {k: DayChange.model_validate(v.model_dump()) for k, v in cs.items()}
+
+
+def consolidate(changes: ChangeSetDelta) -> ChangeSet:
+    return {k: v for k, v in changes.items() if isinstance(v, DayChange)}
+
+
+def mode_multi_to_single(mode: ChangeModeMulti) -> ChangeModeSingle:
+    return "replace" if mode == "replace_all" else mode

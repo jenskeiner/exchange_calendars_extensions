@@ -9,6 +9,7 @@ from typing import (
     Literal,
     Protocol,
     Union,
+    overload,
     runtime_checkable,
 )
 
@@ -21,16 +22,14 @@ from exchange_calendars.pandas_extensions.holiday import Holiday
 from exchange_calendars.pandas_extensions.holiday import (
     Holiday as ExchangeCalendarsHoliday,
 )
-from pandas import Timestamp
 from pandas.tseries.holiday import Holiday as PandasHoliday
 from pandas.tseries.offsets import CustomBusinessDay
-from pydantic import ConfigDict, Field, TypeAdapter, validate_call
+from pydantic import ConfigDict, TypeAdapter, validate_call
 from pydantic.experimental.missing_sentinel import MISSING
 
 from .changes import (
     BusinessDaySpec,
     ChangeSet,
-    Clear,
     DayChange,
     NonBusinessDaySpec,
 )
@@ -53,7 +52,7 @@ from .util import (
     set_weekday,
 )
 
-# Timdelta that represents a day minus the smallest increment of time.
+# Timedelta that represents a day minus the smallest increment of time.
 ONE_DAY_MINUS_EPS = pd.Timedelta(1, "D") - pd.Timedelta(1, "ns")
 
 
@@ -177,8 +176,8 @@ PreGrowFn = Callable[
 
 
 def pre_grow_end_of_month(
-    start: pd.Timestamp, end: pd.Timestamp
-) -> tuple[pd.Timestamp, pd.Timestamp]:
+    start: pd.Timestamp | None, end: pd.Timestamp | None
+) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
     """
     Returns the given date range expanded to the last day of the month of the end date.
 
@@ -268,8 +267,11 @@ class AdjustedHolidayCalendar(ExchangeCalendarsHolidayCalendar):
         self._pre_grow_fn = pre_grow_fn
 
     def holidays(self, start=None, end=None, return_name=False):
-        start = Timestamp(start) if start is not None else None
-        end = Timestamp(end) if end is not None else None
+        start = pd.Timestamp(start) if start is not None else None
+        end = pd.Timestamp(end) if end is not None else None
+
+        assert start is not pd.NaT
+        assert end is not pd.NaT
 
         return filter_by_range(
             self._holidays(*self._pre_grow_fn(start, end), return_name), start, end
@@ -725,10 +727,30 @@ class ExchangeCalendarExtensions(Protocol):
         """
         ...
 
+    @overload
     def tags(
         self,
         *,
-        tags: set[str] = Field(default_factory=frozenset),
+        tags: frozenset[str] = frozenset(),
+        start: DateLikeInput | None = None,
+        end: DateLikeInput | None = None,
+        return_tags: Literal[False] = False,
+    ) -> pd.DatetimeIndex: ...
+
+    @overload
+    def tags(
+        self,
+        *,
+        tags: frozenset[str] = frozenset(),
+        start: DateLikeInput | None = None,
+        end: DateLikeInput | None = None,
+        return_tags: Literal[True] = True,
+    ) -> pd.Series: ...
+
+    def tags(
+        self,
+        *,
+        tags: frozenset[str] = frozenset(),
         start: DateLikeInput | None = None,
         end: DateLikeInput | None = None,
         return_tags: bool = False,
@@ -801,13 +823,13 @@ class ExtendedExchangeCalendar(ExchangeCalendarExtensions, ExchangeCalendar, ABC
     Abstract base class for exchange calendars with extended functionality.
     """
 
-    _changeset_provider: Callable[[Any], ChangeSet | Clear | None] | None = None
+    _changeset_provider: Callable[[Any], ChangeSet | None] | None = None
 
 
 def extend_class(
     cls: type[ExchangeCalendar],
     day_of_week_expiry: int | None = None,
-    changeset_provider: Callable[[Any], ChangeSet | Clear | None] | None = None,
+    changeset_provider: Callable[[Any], ChangeSet | None] | None = None,
 ) -> type[ExtendedExchangeCalendar]:
     """
     Extend the given ExchangeCalendar class with additional properties.
@@ -818,7 +840,7 @@ def extend_class(
         The input class to extend.
     day_of_week_expiry : Union[int, None]
         The day of the week when expiry days are observed, where 0 is Monday and 6 is Sunday. Defaults to 4 (Friday).
-    changeset_provider : Union[Callable[[Any], ChangeSet], None]
+    changeset_provider : Union[Callable[[Any], ConsolidatedChangeSet], None]
         The optional function that returns a changeset to apply to the calendar.
 
     Returns
@@ -1168,7 +1190,7 @@ def extend_class(
     def tags(
         self,
         *,
-        tags: set[str] = Field(default_factory=frozenset),
+        tags: frozenset[str] = frozenset(),
         start: DateLikeInput | None = None,
         end: DateLikeInput | None = None,
         return_tags: bool = False,

@@ -7,7 +7,7 @@ import exchange_calendars as ec
 import pytest
 from exchange_calendars import ExchangeCalendar
 
-from exchange_calendars_extensions import ExtendedExchangeCalendar
+from exchange_calendars_extensions import ExtendedExchangeCalendar, remove_changes
 from tests.synthetic_calendar import TEST_CALENDAR_CLASS_DEFAULT, add_test_calendar
 
 
@@ -63,3 +63,10 @@ def test_calendar() -> Generator[ExtendedExchangeCalendar]:
 @pytest.fixture
 def plain_test_calendar_class() -> Generator[type[ExchangeCalendar]]:
     yield TEST_CALENDAR_CLASS_DEFAULT
+
+
+@pytest.fixture
+def clean_changes() -> Generator[None]:
+    remove_changes()
+    yield
+    remove_changes()

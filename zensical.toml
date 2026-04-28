@@ -29,6 +29,9 @@ site_author = "exchange-calendars-extensions contributors"
 # Read more: https://zensical.org/docs/setup/basics/#site_url
 #site_url = "https://www.example.com/"
 
+repo_url = "https://github.com/jenskeiner/exchange_calendars_extensions"
+repo_name = "jenskeiner/exchange_calendars_extensions"
+
 # The copyright notice appears in the page footer and can contain an HTML
 # fragment.
 #
@@ -51,6 +54,7 @@ nav = [
     { "Calendar changes" = "changes.md" },
     { "Tags" = "tags.md" },
     { "Changesets" = "changesets.md" },
+    { "Multiple changesets" = "collections.md" },
     { "Supported exchanges" = "exchanges.md" },
     { "Advanced usage" = "advanced.md" },
 ]
@@ -255,8 +259,9 @@ features = [
 # - https://zensical.org/docs/setup/logo-and-icons
 # - https://github.com/zensical/ui/tree/master/dist/.icons
 # ----------------------------------------------------------------------------
-#[project.theme.icon]
+[project.theme.icon]
 #logo = "lucide/smile"
+repo = "fontawesome/brands/github"
 
 # ----------------------------------------------------------------------------
 # In the "font" subsection you can configure the fonts used. By default, fonts

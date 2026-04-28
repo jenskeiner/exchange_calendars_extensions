@@ -38,7 +38,7 @@ assert "2022-12-27" not in calendar.holidays_all.holidays()
 assert "2022-12-28" in calendar.holidays_all.holidays()
 ```
 
-## Application modes
+## Modes
 
 `change_calendar()` accepts an optional `mode` argument that controls how the incoming changeset interacts with any
 existing changes:
@@ -56,7 +56,7 @@ existing changes:
 
 :   Replaces the entire existing changeset with the incoming one.
 
-## Clearing all changes
+## Clearing changes
 
 Pass an empty changeset with `mode="replace"` to remove every change for a calendar:
 
@@ -91,10 +91,9 @@ assert "2022-12-27" in calendar.holidays_all.holidays()
 assert "2022-12-28" not in calendar.holidays_all.holidays()
 ```
 
-For convenience, `remove_changes(exchange)` also clears all changes for a given exchange. Pass `None` to clear
-changes for every exchange at once.
+For convenience, `remove_changes(exchange)` also clears all changes for a given exchange.
 
-## Clearing individual days with CLEAR
+## Clearing individual days
 
 An incoming changeset can contain `CLEAR` entries to remove the change for specific dates while leaving other dates
 untouched:
@@ -143,7 +142,7 @@ from pprint import pprint
 from pydantic import TypeAdapter
 import exchange_calendars_extensions as ecx
 from exchange_calendars_extensions.changes import (
-    ChangeSet,
+    ChangeSetDelta,
     DayChange,
     BusinessDaySpec,
     NonBusinessDaySpec,
@@ -158,21 +157,30 @@ ecx.change_day(
     action=DayChange(spec=NonBusinessDaySpec(holiday=True), name="Holiday"),
 )
 
-changes: ChangeSet = ecx.get_changes("XLON")
+changes: ChangeSetDelta = ecx.get_changes("XLON")
 
 pprint(changes)
 
 print("\n")
 
-ta = TypeAdapter(ChangeSet)
+ta = TypeAdapter(ChangeSetDelta)
 print(ta.dump_json(changes, indent=2).decode())
 ```
 
 <div style="text-align: center;" markdown>:lucide-arrow-down:</div>
 
 ```text
-{Timestamp('2022-12-27 00:00:00'): DayChange(type='change', spec=BusinessDaySpec(business_day=True, open=<MISSING>, close=<MISSING>), name=<MISSING>, tags=<MISSING>),
- Timestamp('2022-12-28 00:00:00'): DayChange(type='change', spec=NonBusinessDaySpec(business_day=False, weekend_day=<MISSING>, holiday=True), name='Holiday', tags=<MISSING>)}
+{
+    Timestamp('2022-12-27 00:00:00'): DayChange(
+        type='change', spec=BusinessDaySpec(business_day=True, open=<MISSING>, close=<MISSING>),
+        name=<MISSING>, tags=<MISSING>),
+    Timestamp('2022-12-28 00:00:00'): DayChange(
+        type='change', spec=NonBusinessDaySpec(business_day=False, weekend_day=<MISSING>, holiday=True),
+        name='Holiday', tags=<MISSING>)
+}
+```
+
+```json
 {
   "2022-12-27 00:00:00": {
     "type": "change",
@@ -191,15 +199,28 @@ print(ta.dump_json(changes, indent=2).decode())
 }
 ```
 
-## Serialisation
+!!! note
 
-Serialising to JSON makes changesets easy to store and transfer.
+    As far as typing goes, there is a small but important distinction between a changeset as accepted by
+    `change_calendar()` and the internal changeset where changes accumulate as part of a calendar's state.
+
+    The former may also contain `CLEAR` entries to remove specific days from the internal state when applied on
+    top of it. The end result, that is, the new state, always only contains `DayChange` entries to describe
+    the actual deviations from the vanilla calendar.
+
+    Therefore, `change_calendar()` accepts `ChangeSetDelta` instances while `get_changes()` always returns
+    `ChangeSet` instances with the only difference being that the former may contain `CLEAR` entries and
+    the latter not.
+
+## Serialization & Deserialization
+
+Serializing to JSON makes changesets easy to store and transfer.
 
 ```python
 from pydantic import TypeAdapter
 import exchange_calendars_extensions as ecx
 from exchange_calendars_extensions.changes import (
-    ChangeSet,
+    ChangeSetDelta,
     DayChange,
     BusinessDaySpec,
     NonBusinessDaySpec,
@@ -214,9 +235,9 @@ ecx.change_day(
     action=DayChange(spec=NonBusinessDaySpec(holiday=True), name="Holiday"),
 )
 
-changes: ChangeSet = ecx.get_changes("XLON")
+changes: ChangeSetDelta = ecx.get_changes("XLON")
 
-ta = TypeAdapter(ChangeSet)
+ta = TypeAdapter(ChangeSetDelta)
 
 # Serialize changeset.
 serialized = ta.dump_json(changes)
@@ -231,7 +252,7 @@ print(ta.dump_json(ecx.get_changes("XETR"), indent=2).decode())
 
 <div style="text-align: center;" markdown>:lucide-arrow-down:</div>
 
-```text
+```json
 {
   "2022-12-27 00:00:00": {
     "type": "change",
@@ -246,69 +267,6 @@ print(ta.dump_json(ecx.get_changes("XETR"), indent=2).decode())
       "holiday": true
     },
     "name": "Holiday"
-  }
-}
-```
-
-## Retrieving all changesets
-
-Pass `None` (or omit the argument) to retrieve a dictionary of changesets for every exchange:
-
-```python
-from pydantic import TypeAdapter
-import exchange_calendars_extensions as ecx
-from exchange_calendars_extensions.changes import (
-    ChangeSet,
-    DayChange,
-    BusinessDaySpec,
-    NonBusinessDaySpec,
-)
-
-ecx.apply_extensions()
-
-ecx.change_day("XLON", date="2022-12-27", action=DayChange(spec=BusinessDaySpec()))
-ecx.change_day(
-    "XLON",
-    date="2022-12-28",
-    action=DayChange(spec=NonBusinessDaySpec(holiday=True), name="Holiday"),
-)
-
-ecx.change_day("XETR", date="2022-12-30", action=DayChange(spec=BusinessDaySpec()))
-
-changes: dict[str, ChangeSet] = ecx.get_changes()
-
-ta = TypeAdapter(dict[str, ChangeSet])
-
-print(ta.dump_json(changes, indent=2).decode())
-```
-
-<div style="text-align: center;" markdown>:lucide-arrow-down:</div>
-
-```text
-{
-  "XLON": {
-    "2022-12-27 00:00:00": {
-      "type": "change",
-      "spec": {
-        "business_day": true
-      }
-    },
-    "2022-12-28 00:00:00": {
-      "type": "change",
-      "spec": {
-        "business_day": false,
-        "holiday": true
-      },
-      "name": "Holiday"
-    }
-  },
-  "XETR": {
-    "2022-12-30 00:00:00": {
-      "type": "change",
-      "spec": {
-        "business_day": true
-      }
-    }
   }
 }
 ```

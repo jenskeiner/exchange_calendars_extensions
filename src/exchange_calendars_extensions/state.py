@@ -1,7 +1,7 @@
-from dataclasses import dataclass, field
 from collections.abc import Callable
+from dataclasses import dataclass, field
 
-from .changes import ConsolidatedChangeSet
+from .changes import ChangeSet
 from .extension import ExtensionSpec
 from .holiday_calendar import ExtendedExchangeCalendar
 
@@ -11,7 +11,7 @@ class _State:
     # Dictionary that maps from exchange key to ConsolidatedChangeSet. Contains all changesets to apply when creating a new
     # calendar instance. This dictionary should only ever contain non-empty changesets. If a changeset becomes empty, the
     # corresponding entry should just be removed.
-    changesets: dict[str, ConsolidatedChangeSet] = field(default_factory=dict)
+    changesets: dict[str, ChangeSet] = field(default_factory=dict)
     # Internal dictionary containing the original calendar classes.
     original_classes: dict[str, type[ExtendedExchangeCalendar]] = field(
         default_factory=dict
