@@ -191,16 +191,16 @@ def remove_extensions() -> None:
 
 def register_extension(name: str, day_of_week_expiry: int | None = None) -> None:
     """
-    Register an extended calendar class for a given exchange key and a given base class.
+    Register an exchange for extension with optional expiry day support.
 
-    This creates and then registers an extended calendar class based on the given class, with support for all
-    additional properties of ExtendedExchangeCalendar. Expiry days are on the third instance of the given day of the
-    week in each month. The extended class also supports programmatic modifications; see e.g. add_holiday().
+    When apply_extensions() is called, an extended calendar class will be created and registered
+    for the given exchange key. The extended class supports all additional properties of
+    ExtendedExchangeCalendar, including programmatic modifications via change_day() and change_calendar().
 
     Parameters
     ----------
     name : str
-        The exchange key for which to register the extended calendar class.
+        The exchange key for which to register the extension.
     day_of_week_expiry : Optional[int]
         The day of the week on which options expire. If None, expiry days are not supported.
 
@@ -277,26 +277,6 @@ def _with_changeset(
 
 @_with_changeset
 def _change_day(cs: ChangeSet, date: DateLike, action: DayAction) -> ChangeSet:
-    """
-    Add a day of a given type to the changeset for a given exchange calendar.
-
-    Parameters
-    ----------
-    cs : ConsolidatedChangeSet
-        The changeset to which to add the day.
-    day : Day
-        The day to add (BusinessDay or NonBusinessDay).
-
-    Returns
-    -------
-    ConsolidatedChangeSet
-        The changeset with the added day.
-
-    Raises
-    ------
-    ValueError
-        If the day type is not supported.
-    """
     if isinstance(action, Clear):
         _ = cs.pop(date, None)
     else:
@@ -316,19 +296,14 @@ def change_day(exchange: str, date: DateLikeInput, action: DayAction) -> None:
     ----------
     exchange : str
         The exchange key for which to add the day.
-    date : Day
-        The day to add (BusinessDay or NonBusinessDay).
+    date : DateLikeInput
+        The date to modify.
     action : DayAction
-        The change to apply to the day.
+        The change to apply to the date (BusinessDay, NonBusinessDay, or Clear).
 
     Returns
     -------
     None
-
-    Raises
-    ------
-    ValidationError
-        If strict is True and the changeset for the exchange would be inconsistent after adding the day.
     """
     _change_day(exchange, DateLike(date), action)
 
@@ -388,8 +363,11 @@ def change_calendar(
     ----------
     exchange : str
         The exchange key for which to apply the changes.
-    changeset : ChangeSet
+    changeset : ChangeSetDelta
         The changes to apply.
+    mode : ChangeModeSingle
+        The mode to use when applying changes. One of "merge", "update", or "replace".
+        Default is "merge".
 
     Returns
     -------
@@ -404,14 +382,16 @@ def change_calendars(
     mode: ChangeModeMulti = "merge",
 ) -> None:
     """
-    Apply changes to an exchange calendar.
+    Apply changes to multiple exchange calendars.
 
     Parameters
     ----------
-    exchange : str
-        The exchange key for which to apply the changes.
-    changeset_dict : ChangeSet
-        The changes to apply.
+    changeset_dict : ChangeSetDeltaDict
+        A mapping of exchange keys to their respective changes to apply.
+    mode : ChangeModeMulti
+        The mode to use when applying changes. One of "merge", "update", "replace",
+        "merge_all", "update_all", or "replace_all". Default is "merge".
+        The "_all" variants first clear all existing changes before applying.
 
     Returns
     -------
@@ -442,17 +422,19 @@ def get_changes(
     exchange: str | None = None,
 ) -> dict[str, ChangeSet] | ChangeSet | None:
     """
-    Get the changes for an exchange calendar.
+    Get the changes for exchange calendars.
 
     Parameters
     ----------
-    exchange : str
-        The exchange key for which to get the changes.
+    exchange : str, optional
+        The exchange key for which to get the changes. If None, returns all changes.
 
     Returns
     -------
-    ChangeSet | None
-        The changeset for the given exchange, or None, if no changes have been registered.
+    dict[str, ChangeSet] or ChangeSet or None
+        If exchange is None, returns a dict mapping exchange keys to their changesets.
+        If exchange is specified, returns the changeset for that exchange, or None if
+        no changes have been registered.
     """
     if exchange is None:
         return {k: copy_changeset(v) for k, v in get_state().changesets.items()}
@@ -463,7 +445,13 @@ def get_changes(
 
 def remove_changes(exchange: str | None = None) -> None:
     """
-    Reset all exchange calendars to their original states.
+    Remove changes from exchange calendars, resetting them to their original states.
+
+    Parameters
+    ----------
+    exchange : str, optional
+        The exchange key for which to remove changes. If None, removes all changes
+        for all exchanges.
 
     Returns
     -------
@@ -481,6 +469,24 @@ def remove_changes(exchange: str | None = None) -> None:
 
 
 def extend_class(cls: type[ExchangeCalendar], day_of_week_expiry: int | None = None):
+    """
+    Extend an ExchangeCalendar class with additional features.
+
+    Creates an extended calendar class based on the given class, with support for
+    additional properties of ExtendedExchangeCalendar.
+
+    Parameters
+    ----------
+    cls : type[ExchangeCalendar]
+        The base calendar class to extend.
+    day_of_week_expiry : int, optional
+        The day of the week on which options expire. If None, expiry days are not supported.
+
+    Returns
+    -------
+    type[ExtendedExchangeCalendar]
+        The extended calendar class.
+    """
     return extend_class_internal(
         cls,
         day_of_week_expiry=day_of_week_expiry,
