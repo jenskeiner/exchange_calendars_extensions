@@ -1,6 +1,6 @@
 import functools
 from collections.abc import Callable
-from typing import Any, Concatenate, Literal
+from typing import Any, Concatenate, overload
 
 from exchange_calendars import (
     ExchangeCalendar,
@@ -11,21 +11,28 @@ from exchange_calendars import (
 from pydantic import validate_call
 from typing_extensions import ParamSpec
 
+from exchange_calendars_extensions.util import consolidate, mode_multi_to_single
+
 from .changes import (
     CLEAR,
     BusinessDaySpec,
+    ChangeModeMulti,
+    ChangeModeSingle,
     ChangeSet,
+    ChangeSetDelta,
+    ChangeSetDeltaDict,
+    ChangeSetDict,
     Clear,
-    ConsolidatedChangeSet,
     DayAction,
     DayChange,
     DaySpec,
     NonBusinessDaySpec,
-    consolidate,
 )
 from .datetime import (
     DateLike,
     DateLikeInput,
+    TimeLike,
+    TimestampLike,
 )
 from .extension import ExtensionSpec
 from .holiday_calendar import ExchangeCalendarExtensions, ExtendedExchangeCalendar
@@ -50,7 +57,7 @@ def apply_extensions() -> None:
     import exchange_calendars as ec
     import exchange_calendars.calendar_utils as ecu
 
-    def get_changeset_fn(name: str) -> Callable[[], ConsolidatedChangeSet | None]:
+    def get_changeset_fn(name: str) -> Callable[[], ChangeSet | None]:
         """Returns a function that returns the changeset for the given exchange key.
 
         Parameters
@@ -64,7 +71,7 @@ def apply_extensions() -> None:
             The function that returns the changeset and removed days.
         """
 
-        def fn() -> ConsolidatedChangeSet | None:
+        def fn() -> ChangeSet | None:
             cs = get_state().changesets.get(name)
             return cs
 
@@ -105,13 +112,13 @@ def apply_extensions() -> None:
         register_calendar_type_orig(name, t, force)
         get_state().original_classes[name] = calendar_type
 
-    ecu.register_calendar_type = _register_calendar_type
-    ec.register_calendar_type = _register_calendar_type
+    ecu.register_calendar_type = _register_calendar_type  # ty:ignore[invalid-assignment]
+    ec.register_calendar_type = _register_calendar_type  # ty:ignore[invalid-assignment]
     get_state().register_calendar_type_orig = register_calendar_type_orig
 
     def make_changeset_provider(
         name: str,
-    ) -> Callable[[Any], ConsolidatedChangeSet | None]:
+    ) -> Callable[[Any], ChangeSet | None]:
         """Return a ``_changeset_provider`` that looks up the given calendar name.
 
         The factory is required because the two loops below both bind a
@@ -196,8 +203,8 @@ def remove_extensions() -> None:
     import exchange_calendars as ec
     import exchange_calendars.calendar_utils as ecu
 
-    ecu.register_calendar_type = get_state().register_calendar_type_orig
-    ec.register_calendar_type = get_state().register_calendar_type_orig
+    ecu.register_calendar_type = get_state().register_calendar_type_orig  # ty:ignore[invalid-assignment]
+    ec.register_calendar_type = get_state().register_calendar_type_orig  # ty:ignore[invalid-assignment]
 
     get_state().register_calendar_type_orig = None
 
@@ -238,7 +245,7 @@ P = ParamSpec("P")
 
 
 def _with_changeset(
-    f: Callable[Concatenate[ConsolidatedChangeSet, P], ConsolidatedChangeSet],
+    f: Callable[Concatenate[ChangeSet, P], ChangeSet],
 ) -> Callable[Concatenate[str, P], None]:
     """
     An annotation that obtains the changeset from _changesets that corresponds to the exchange key passed as the first
@@ -267,7 +274,7 @@ def _with_changeset(
     @functools.wraps(f)
     def wrapper(exchange: str, *args: P.args, **kwargs: P.kwargs) -> None:
         # Retrieve changeset for key, create new empty one, if required.
-        cs: ConsolidatedChangeSet = get_state().changesets.get(exchange, {})
+        cs: ChangeSet = get_state().changesets.get(exchange, {})
 
         # Call wrapped function with changeset as first positional argument.
         cs = f(cs, *args, **kwargs)
@@ -289,9 +296,7 @@ def _with_changeset(
 
 
 @_with_changeset
-def _change_day(
-    cs: ConsolidatedChangeSet, date: DateLike, action: DayAction
-) -> ConsolidatedChangeSet:
+def _change_day(cs: ChangeSet, date: DateLike, action: DayAction) -> ChangeSet:
     """
     Add a day of a given type to the changeset for a given exchange calendar.
 
@@ -345,39 +350,48 @@ def change_day(exchange: str, date: DateLikeInput, action: DayAction) -> None:
     ValidationError
         If strict is True and the changeset for the exchange would be inconsistent after adding the day.
     """
-    _change_day(exchange, date, action)
+    _change_day(exchange, DateLike(date), action)
 
 
 @_with_changeset
 def _change_calendar(
-    changes0: ConsolidatedChangeSet,
-    changes: ChangeSet,
-    mode: Literal["merge", "update", "replace"],
-) -> ConsolidatedChangeSet:
+    changes0: ChangeSet,
+    changes: ChangeSetDelta,
+    mode: ChangeModeSingle,
+) -> ChangeSet:
     match mode:
         case "replace":
             return consolidate(changes)
         case "update":
             result = dict(changes0)
             for k, v in changes.items():
-                result[k] = v
-            return consolidate(result)
+                if v is CLEAR:
+                    del result[k]
+                elif isinstance(v, DayChange):
+                    result[k] = v
+            return result
         case "merge":
             result = dict(changes0)
             for k, v in changes.items():
-                if k not in result:
-                    result[k] = v
-                else:
-                    v0: DayChange = result[k]
-                    result[k] = v0.merge(v) if isinstance(v, DayChange) else CLEAR
-            return consolidate(result)
+                if v is CLEAR:
+                    if k in result:
+                        del result[k]
+                elif isinstance(v, DayChange):
+                    if k not in result:
+                        result[k] = v
+                    else:
+                        v0: DayChange = result[k]
+                        result[k] = v0.merge(v)
+            return result
+        case _:
+            raise ValueError(f"Invalid mode: {mode}")
 
 
 @validate_call
 def change_calendar(
     exchange: str,
-    changes: ChangeSet,
-    mode: Literal["merge", "update", "replace"] = "merge",
+    changes: ChangeSetDelta,
+    mode: ChangeModeSingle = "merge",
 ) -> None:
     """
     Apply changes to an exchange calendar.
@@ -396,7 +410,49 @@ def change_calendar(
     _change_calendar(exchange, changes, mode)
 
 
-def get_changes(exchange: str | None = None) -> ChangeSet | dict[str, ChangeSet] | None:
+@validate_call
+def change_calendars(
+    changes: ChangeSetDeltaDict,
+    mode: ChangeModeMulti = "merge",
+) -> None:
+    """
+    Apply changes to an exchange calendar.
+
+    Parameters
+    ----------
+    exchange : str
+        The exchange key for which to apply the changes.
+    changes : ChangeSet
+        The changes to apply.
+
+    Returns
+    -------
+    None
+    """
+    if mode == "replace_all":
+        remove_changes()
+
+    mode0 = mode_multi_to_single(mode)
+
+    for k, v in changes.items():
+        _change_calendar(k, v, mode0)
+
+
+@overload
+def get_changes(
+    exchange: None = None,
+) -> dict[str, ChangeSet]: ...
+
+
+@overload
+def get_changes(
+    exchange: str,
+) -> ChangeSet | None: ...
+
+
+def get_changes(
+    exchange: str | None = None,
+) -> dict[str, ChangeSet] | ChangeSet | None:
     """
     Get the changes for an exchange calendar.
 
@@ -411,9 +467,9 @@ def get_changes(exchange: str | None = None) -> ChangeSet | dict[str, ChangeSet]
         The changeset for the given exchange, or None, if no changes have been registered.
     """
     if exchange is None:
-        return {k: copy_changeset(v) for k, v in get_state().changesets.items()}  # ty:ignore[invalid-argument-type]
+        return {k: copy_changeset(v) for k, v in get_state().changesets.items()}
     else:
-        cs: ChangeSet | None = get_state().changesets.get(exchange, None)  # ty:ignore[invalid-assignment]
+        cs: ChangeSet | None = get_state().changesets.get(exchange, None)
         return copy_changeset(cs) if cs else None
 
 
@@ -451,14 +507,23 @@ __all__ = [
     "register_extension",
     "change_day",
     "change_calendar",
+    "change_calendars",
     "get_changes",
     "ExtendedExchangeCalendar",
     "ExchangeCalendarExtensions",
+    "ChangeSetDelta",
     "ChangeSet",
+    "ChangeSetDeltaDict",
+    "ChangeSetDict",
     "DaySpec",
     "CLEAR",
     "DayChange",
     "BusinessDaySpec",
     "NonBusinessDaySpec",
     "extend_class",
+    "ChangeModeSingle",
+    "ChangeModeMulti",
+    "TimestampLike",
+    "DateLike",
+    "TimeLike",
 ]

@@ -93,12 +93,16 @@ def _canonicalize(value: dict[DateLike, DayChange]) -> dict[DateLike, DayChange]
     return OrderedDict(sorted(value.items(), key=lambda t: t[0]))
 
 
-ChangeSet = Annotated[dict[DateLike, DayChange | Clear], AfterValidator(_canonicalize)]
-
-ConsolidatedChangeSet = Annotated[
-    dict[DateLike, DayChange], AfterValidator(_canonicalize)
+ChangeSetDelta = Annotated[
+    dict[DateLike, DayChange | Clear], AfterValidator(_canonicalize)
 ]
 
+ChangeSetDeltaDict = dict[str, ChangeSetDelta]
 
-def consolidate(changes: ChangeSet) -> ConsolidatedChangeSet:
-    return {k: v for k, v in changes.items() if isinstance(v, DayChange)}
+ChangeSet = Annotated[dict[DateLike, DayChange], AfterValidator(_canonicalize)]
+
+ChangeSetDict = dict[str, ChangeSet]
+
+ChangeModeSingle = Literal["merge", "update", "replace"]
+
+ChangeModeMulti = Literal["merge", "update", "replace", "replace_all"]

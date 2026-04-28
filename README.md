@@ -421,7 +421,7 @@ assert d not in calendar.adhoc_holidays
 assert d in calendar.holidays_all.holidays()
 assert d not in calendar.weekend_days.holidays()  # It's not a weekend day.
 assert (
-        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
+    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 ```
@@ -454,7 +454,7 @@ assert d not in calendar.adhoc_holidays
 assert d in calendar.holidays_all.holidays()
 assert d not in calendar.weekend_days.holidays()
 assert (
-        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
+    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 
@@ -471,8 +471,8 @@ assert d not in calendar.adhoc_holidays
 assert d in calendar.holidays_all.holidays()
 assert d in calendar.weekend_days.holidays()  # It's now a weekend day, too.
 assert (
-        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d]
-        == "Changed again"
+    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d]
+    == "Changed again"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 ```
@@ -525,8 +525,8 @@ assert d in calendar.holidays_all.holidays()
 assert d in calendar.weekend_days.holidays()  # It's now a weekend day, too.
 assert d not in calendar.week_days.holidays()
 assert (
-        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d]
-        == "Changed again"
+    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d]
+    == "Changed again"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 
@@ -576,7 +576,7 @@ assert d in calendar.holidays_all.holidays()
 assert d in calendar.weekend_days.holidays()
 assert d not in calendar.week_days.holidays()
 assert (
-        calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
+    calendar.regular_holidays.holidays(start=d, end=d, return_name=True)[d] == "Holiday"
 )
 assert calendar.day.rollforward(d) == pd.Timestamp("2022-12-29")
 
@@ -789,7 +789,7 @@ from pprint import pprint
 from pydantic import TypeAdapter
 import exchange_calendars_extensions as ecx
 from exchange_calendars_extensions.changes import (
-    ChangeSet,
+    ChangeSetDelta,
     DayChange,
     BusinessDaySpec,
     NonBusinessDaySpec,
@@ -804,13 +804,13 @@ ecx.change_day(
     action=DayChange(spec=NonBusinessDaySpec(holiday=True), name="Holiday"),
 )
 
-changes: ChangeSet = ecx.get_changes("XLON")
+changes: ChangeSetDelta = ecx.get_changes("XLON")
 
 pprint(changes)
 
 print("\n")
 
-ta = TypeAdapter(ChangeSet)
+ta = TypeAdapter(ChangeSetDelta)
 print(ta.dump_json(changes, indent=2).decode())
 ```
 
@@ -843,7 +843,7 @@ Serializing to JSON makes changes easy to store and pass around.
 from pydantic import TypeAdapter
 import exchange_calendars_extensions as ecx
 from exchange_calendars_extensions.changes import (
-    ChangeSet,
+    ChangeSetDelta,
     DayChange,
     BusinessDaySpec,
     NonBusinessDaySpec,
@@ -858,9 +858,9 @@ ecx.change_day(
     action=DayChange(spec=NonBusinessDaySpec(holiday=True), name="Holiday"),
 )
 
-changes: ChangeSet = ecx.get_changes("XLON")
+changes: ChangeSetDelta = ecx.get_changes("XLON")
 
-ta = TypeAdapter(ChangeSet)
+ta = TypeAdapter(ChangeSetDelta)
 
 serialized = ta.dump_json(changes)
 
@@ -877,7 +877,7 @@ Set `exchange` to `None` to retrieve a dictionary of all changesets for all exch
 from pydantic import TypeAdapter
 import exchange_calendars_extensions as ecx
 from exchange_calendars_extensions.changes import (
-    ChangeSet,
+    ChangeSetDelta,
     DayChange,
     BusinessDaySpec,
     NonBusinessDaySpec,
@@ -894,9 +894,9 @@ ecx.change_day(
 
 ecx.change_day("XETR", date="2022-12-30", action=DayChange(spec=BusinessDaySpec()))
 
-changes: dict[str, ChangeSet] = ecx.get_changes()
+changes: dict[str, ChangeSetDelta] = ecx.get_changes()
 
-ta = TypeAdapter(dict[str, ChangeSet])
+ta = TypeAdapter(dict[str, ChangeSetDelta])
 
 print(ta.dump_json(changes, indent=2).decode())
 ```

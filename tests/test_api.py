@@ -9,13 +9,15 @@ from exchange_calendars.exchange_calendar import HolidayCalendar
 from pydantic.experimental.missing_sentinel import MISSING
 
 import exchange_calendars_extensions as ecx
-from exchange_calendars_extensions import ExtendedExchangeCalendar, extend_class
-from exchange_calendars_extensions.changes import (
+from exchange_calendars_extensions import (
     BusinessDaySpec,
+    ChangeModeMulti,
+    DateLike,
     DayChange,
+    ExtendedExchangeCalendar,
     NonBusinessDaySpec,
+    extend_class,
 )
-from exchange_calendars_extensions.datetime import DateLike
 from tests.synthetic_calendar import (
     CLOSE_REGULAR,
     CLOSE_SPECIAL_AD_HOC,
@@ -1425,7 +1427,7 @@ class TestTags:
     def test_tags(
         self,
         tagged_calendar: ExtendedExchangeCalendar,
-        tags: set,
+        tags: frozenset,
         start: pd.Timestamp | None,
         end: pd.Timestamp | None,
         expected_len: int,
@@ -1462,7 +1464,7 @@ class TestTags:
     def test_tags_return_tags(
         self,
         tagged_calendar: ExtendedExchangeCalendar,
-        tags: set,
+        tags: frozenset,
         start: pd.Timestamp | None,
         end: pd.Timestamp | None,
         expected_len: int,
@@ -1620,3 +1622,178 @@ class TestRegisterCalendarType:
         with pytest.raises(CalendarNameCollision):
             # Register plain calendar class.
             ec.register_calendar_type("foobar", TEST_CALENDAR_CLASS_DEFAULT)
+
+
+class TestChangeCalendars:
+    """Tests for ``ecx.change_calendars()``."""
+
+    DAY_A = DateLike("2024-01-15")
+    DAY_B = DateLike("2024-02-20")
+    DAY_C = DateLike("2024-03-25")
+    DAY_D = DateLike("2024-04-30")
+
+    @pytest.fixture(autouse=True)
+    def _clean_changes(self, clean_changes):
+        pass
+
+    @pytest.mark.parametrize(
+        "mode",
+        ["merge", "update", "replace", "replace_all", None],
+    )
+    def test_empty_dict(self, mode: ChangeModeMulti | None):
+        ecx.change_day(
+            "EX_A",
+            self.DAY_A,
+            DayChange(spec=NonBusinessDaySpec(holiday=True), name="Holiday A"),
+        )
+        ecx.change_day(
+            "EX_B",
+            self.DAY_B,
+            DayChange(spec=NonBusinessDaySpec(holiday=True), name="Holiday B"),
+        )
+
+        all_changes0 = ecx.get_changes()
+
+        kwargs = dict(mode=mode) if mode else dict()
+        ecx.change_calendars({}, **kwargs)
+
+        assert ecx.get_changes() == (dict() if mode == "replace_all" else all_changes0)
+
+    @pytest.mark.parametrize(
+        "mode",
+        ["merge", "update", "replace", "replace_all", None],
+    )
+    def test_single_calendar(self, mode: ChangeModeMulti | None):
+        ecx.change_day(
+            "EX_A",
+            self.DAY_A,
+            DayChange(spec=NonBusinessDaySpec(holiday=True), name="Original"),
+        )
+        ecx.change_day(
+            "EX_A",
+            self.DAY_B,
+            DayChange(spec=NonBusinessDaySpec(holiday=True), name="Original"),
+        )
+        ecx.change_day(
+            "EX_A",
+            self.DAY_C,
+            DayChange(spec=NonBusinessDaySpec(holiday=True), name="Original"),
+        )
+
+        kwargs = dict(mode=mode) if mode else dict()
+        ecx.change_calendars(
+            {
+                "EX_A": {
+                    self.DAY_B: DayChange(name="New B"),
+                    self.DAY_C: ecx.CLEAR,
+                    self.DAY_D: DayChange(spec=BusinessDaySpec(), name="New D"),
+                },
+            },
+            **kwargs,
+        )
+
+        match mode:
+            case None:
+                assert ecx.get_changes() == {
+                    "EX_A": {
+                        self.DAY_A: DayChange(
+                            spec=NonBusinessDaySpec(holiday=True), name="Original"
+                        ),
+                        self.DAY_B: DayChange(
+                            spec=NonBusinessDaySpec(holiday=True), name="New B"
+                        ),
+                        self.DAY_D: DayChange(spec=BusinessDaySpec(), name="New D"),
+                    },
+                }
+            case "merge":
+                assert ecx.get_changes() == {
+                    "EX_A": {
+                        self.DAY_A: DayChange(
+                            spec=NonBusinessDaySpec(holiday=True), name="Original"
+                        ),
+                        self.DAY_B: DayChange(
+                            spec=NonBusinessDaySpec(holiday=True), name="New B"
+                        ),
+                        self.DAY_D: DayChange(spec=BusinessDaySpec(), name="New D"),
+                    },
+                }
+            case "update":
+                assert ecx.get_changes() == {
+                    "EX_A": {
+                        self.DAY_A: DayChange(
+                            spec=NonBusinessDaySpec(holiday=True), name="Original"
+                        ),
+                        self.DAY_B: DayChange(name="New B"),
+                        self.DAY_D: DayChange(spec=BusinessDaySpec(), name="New D"),
+                    },
+                }
+            case "replace":
+                assert ecx.get_changes() == {
+                    "EX_A": {
+                        self.DAY_B: DayChange(name="New B"),
+                        self.DAY_D: DayChange(spec=BusinessDaySpec(), name="New D"),
+                    },
+                }
+            case "replace_all":
+                assert ecx.get_changes() == {
+                    "EX_A": {
+                        self.DAY_B: DayChange(name="New B"),
+                        self.DAY_D: DayChange(spec=BusinessDaySpec(), name="New D"),
+                    },
+                }
+
+    def test_multiple_calendars(self):
+        ecx.change_day(
+            "EX_A",
+            self.DAY_A,
+            DayChange(spec=NonBusinessDaySpec(holiday=True), name="Existing A"),
+        )
+        ecx.change_day(
+            "EX_B",
+            self.DAY_B,
+            DayChange(spec=NonBusinessDaySpec(holiday=True), name="Existing B"),
+        )
+
+        ecx.change_calendars(
+            {
+                "EX_A": {
+                    self.DAY_C: DayChange(
+                        spec=NonBusinessDaySpec(holiday=True), name="New A/C"
+                    )
+                },
+                "EX_B": {
+                    self.DAY_C: DayChange(
+                        spec=NonBusinessDaySpec(holiday=True), name="New B/C"
+                    )
+                },
+                "EX_C": {
+                    self.DAY_A: DayChange(
+                        spec=NonBusinessDaySpec(holiday=True), name="New C/A"
+                    )
+                },
+            },
+        )
+
+        assert ecx.get_changes() == {
+            "EX_A": {
+                self.DAY_A: DayChange(
+                    spec=NonBusinessDaySpec(holiday=True), name="Existing A"
+                ),
+                self.DAY_C: DayChange(
+                    spec=NonBusinessDaySpec(holiday=True), name="New A/C"
+                ),
+            },
+            "EX_B": {
+                self.DAY_B: DayChange(
+                    spec=NonBusinessDaySpec(holiday=True), name="Existing B"
+                ),
+                self.DAY_C: DayChange(
+                    spec=NonBusinessDaySpec(holiday=True), name="New B/C"
+                ),
+            },
+            "EX_C": {
+                self.DAY_A: DayChange(
+                    spec=NonBusinessDaySpec(holiday=True), name="New C/A"
+                ),
+            },
+        }
