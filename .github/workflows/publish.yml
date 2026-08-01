@@ -46,7 +46,7 @@ jobs:
       - name: Build package
         run: uv build
       - name: Publish package to Test PyPI.
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
           skip-existing: true
@@ -115,7 +115,7 @@ jobs:
       - name: Build package
         run: uv build
       - name: Publish package to PyPI.
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # release/v1
       - name: Test that the package can be installed and imported (PyPI).
         shell: bash
         run: |
